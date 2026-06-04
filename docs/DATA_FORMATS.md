@@ -30,18 +30,16 @@
 - map 的 `tile_id`(byte÷4)直接索引(地形/載具/NPC/怪物皆在此區)。
 - **對齊驗證**:tile 27 在 0x7C42 為乾淨置中人形;0x7C40 會水平 wrap(分裂左右)、0x7C43 人形底部有 bleed。env `U2_TILE_BASE` 可覆寫。
   - 註:ModdingWiki 標的 0x7C43(31811)實測左移 4px;正確 base 為 **0x7C42**。
-- CGA 調色盤三組(對應 Alderson Win port):`original` 黑/青/洋紅/白、`red` 黑/綠/紅/白、`blue` 黑/綠/藍/白。
+- **DOS 參考校正**:以實際 map render([`screenshots/terrain_in_context.png`](screenshots/terrain_in_context.png))對照 The Codex of Ultima Wisdom DOS 截圖(U2pc2)── **magenta 森林 dither、青色樹叢、白色城堡、人形 sprite、CGA palette 皆吻合**;非孤立 strip 驗證。
+- CGA 調色盤三組(對應 Alderson Win port):`original` 黑/青/洋紅/白(= DOS CGA 預設,最貼參考圖)、`blue` 黑/綠/藍/白(≈ EGA 風)、`red` 黑/綠/紅/白。
+- 對照圖:[`screenshots/tileset_terrain_decoded.png`](screenshots/tileset_terrain_decoded.png)(id 0–31,DOS original CGA palette)。
 
-## font/招牌字 tile 格式 ⚠️(id 32–63,已查清結構,不整合)
-- **獨立 bit-packed proportional 子區塊**(~0x847C 起),**不在** terrain 的 16×16/64-grid 上,**不可**用 `0x7C42 + id*64` 當固定 tile 解(會把字母切爛)。
-- 證據(自相關 + 整列白分隔線 + 視覺標尺):
-  - 自相關基頻 = **132 byte = 2 glyph**(60/72 byte 交替,非 64);
-  - 「整列白分隔線」(4×0xFF)同時出現於 **mod-4=0 與 mod-4=2** 兩相位 → 字母列**非 byte 對齊**;
-  - 連續流(以分隔線換欄)可見**完整 A–Z**,但無固定 16×16 tile 邊界。
-  - 對照圖:[`screenshots/font_decoded.png`](screenshots/font_decoded.png)(連續 bitmap,字母完整)。
-- **決策**:不做像素級英文字型 tile 抽取(屬 bit-level 解包,ROI 低)。中文化時招牌文字走**訊息系統 + SDL_ttf 翻譯**(見 `translations/`),英文字型 tile 非必要。
-- 工具行為:`tools/extract_tiles.py` / `render_map.py` 對 **id ≥ 32 渲中性 placeholder**(不產生錯位 garbage)。
-- 對照圖:terrain [`screenshots/tileset_terrain_decoded.png`](screenshots/tileset_terrain_decoded.png)(id 0–31,16×16 已驗證) vs font [`screenshots/font_decoded.png`](screenshots/font_decoded.png)(連續 bitmap)。**EA 版權,輸出不散布。**
+## font/招牌字 ⚠️(id 32+,**raw/未對齊** — 非必要,招牌走翻譯)
+- DOS 招牌(如 `TRANSPORT` / `ZONE` / `TORTURE` / `IOLO`)實際為**黑底白字、橫排於矩形牌匾的 16×16 地圖 tile 字型**(每字母一格);bottom UI(`CMD:` / `H.P.` / `GOLD`)為**另一套小字型**,兩者分開。
+- **現況(誠實標示)**:EXE 內此字型為**變動-stride 儲存**(非 terrain 的 64-byte grid;自相關基頻 132B=2glyph、60/72 交替、分隔線跨 mod-4 雙相位),遊戲以**查表 blit** 渲染。**本專案尚未解出 per-glyph 邊界**;`screenshots/font_raw_stream.png` 僅為 raw byte stream dump(**未對齊 glyph**),不是已解碼字型。
+- **決策**:不投入 bit-level 字型解包 —— 中文化時招牌文字走**訊息系統 + SDL_ttf 翻譯**(見 `translations/`),英文字型 tile 非必要產出。
+- 工具行為:`tools/extract_tiles.py` / `render_map.py` 對 **id ≥ 32 渲中性 placeholder**(維持正確 16×16 視覺尺寸,不產生錯位 garbage)。
+- **EA 版權,輸出不散布。**
 
 ## tlkxNN — 對話 ✅(中文化主目標)
 - **編碼:high-bit-set ASCII**(每 byte `OR 0x80`),清掉 bit7 還原;`\x00` 分段,`\r`(0x0d)換行。
