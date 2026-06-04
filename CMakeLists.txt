@@ -22,6 +22,13 @@ set(U2_CORE
 add_executable(u2_poc src/poc_main.c ${U2_CORE})
 add_executable(u2_demo src/demo_main.c ${U2_CORE})
 
+# data 層測試 (免 SDL)
+add_executable(u2_test
+    tests/test_data.c
+    src/u2_map.c src/u2_mon.c src/u2_play.c src/u2_talk.c src/u2_strings.c)
+target_include_directories(u2_test PRIVATE src)
+target_compile_options(u2_test PRIVATE -Wall -Wextra)
+
 foreach(tgt u2_poc u2_demo)
     target_include_directories(${tgt} PRIVATE
         ${SDL2_INCLUDE_DIRS} ${SDL2TTF_INCLUDE_DIRS} ${SDL2IMG_INCLUDE_DIRS})
