@@ -18,7 +18,7 @@
 
 版面對齊真實 Ultima II(參考 [ultima2.voyd.net](https://ultima2.voyd.net/) / [Codex](https://wiki.ultimacodex.com/wiki/Ultima_II:_The_Revenge_of_the_Enchantress)):**上方地圖 viewport + 底部左訊息列、右狀態欄**。地圖用從 `ultimaii.exe` 抽出的真實 CGA tile(綠樹森林 / 藍色結構 / 白色 NPC),並疊上 `monxNN` 實體層(空城→活城)。底部中文:訊息列(`指令:`、弄臣/占星師對話)+ 狀態(生命/食物/經驗/黃金),CJK 內部 3× 原生繪製。
 
-> tile 格式破解詳見 [DATA_FORMATS.md](DATA_FORMATS.md#tile-美術格式-已破解task-5)(CGA 2bpp @0x7C43);實體層格式見 [monxNN](DATA_FORMATS.md#monxnn--sector-實體-npc怪物-已破解本機交叉驗證)。
+> tile 格式詳見 [DATA_FORMATS.md](DATA_FORMATS.md#terrainsprite-tile-格式-已破解並驗證task-5)(terrain id 0–31,CGA 2bpp @0x7C42);實體層見 [monxNN](DATA_FORMATS.md#monxnn--sector-實體-npc怪物-已破解本機交叉驗證)。
 
 ## 架構(deep modules / 垂直層)
 

@@ -13,7 +13,7 @@ FONT=/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc
 MAP_ABS="$(readlink -f "$MAP")"; DATA="$(dirname "$MAP_ABS")"; NAME="$(basename "$MAP_ABS")"
 EXE="$DATA/ultimaii.exe"
 mkdir -p build
-python3 tools/extract_tiles.py "$EXE" build/tileset.png "$PAL"
+/usr/bin/python3 tools/extract_tiles.py "$EXE" build/tileset.png "$PAL"
 docker build -q -t "$IMG" docker/ >/dev/null
 docker run --rm -v "$PWD":/work -v "$DATA":/data:ro "$IMG" bash -c "
     set -e

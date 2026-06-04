@@ -13,7 +13,7 @@
 | `monsters` | 2176 B | 1 | 怪物屬性表 📖 | 怪物名(待查) |
 | `player` | 384 B | 1 | 角色/隊伍存檔 📖 | 否 |
 | `picXXX` | 16384 B | 6 | 320×200 interlaced CGA 圖 📖 | 標題字可能在圖內 |
-| `ultimaii.exe` | 37344 B | 1 | DOS 16-bit 原版 | tile 圖 @offset 0x7C43 |
+| `ultimaii.exe` | 37344 B | 1 | DOS 16-bit 原版 | terrain tile 圖 @base 0x7C42 |
 
 > Win 移植版額外 `MAPG*/MONG*/TLKG*` = Mike Marcelais 補的 planet 地圖(`G` suffix);DOS 原版用 `x` suffix。
 
@@ -22,17 +22,21 @@
 - **tile id = byte 值 ÷ 4**(存檔時 ×4)。例:`0x10`(16)→ tile 4(山)。tile id 範圍 0–63。
 - 命名尾碼:**0=行星總圖,1/2/3=城鎮,4/5=地牢**。
 - ⚠️ 地圖**不存**「哪個 NPC/招牌在哪」;遊戲執行時**動態改寫 map 檔**存 NPC/怪物即時位置(= readme 說「進城就存檔」的原因)。
-- tile 圖塊嵌在 `ultimaii.exe`(DOS **@offset 0x7C43 = 31811**);Win 版用自家 tileset + `Font.txt`。
+- tile 圖塊嵌在 `ultimaii.exe`(terrain @base **0x7C42**);Win 版用自家 tileset + `Font.txt`。
 
-## tile 美術格式 ✅(已破解,task #5)
-- 位置:`ultimaii.exe` **@0x7C42**,**64 個 tile**,每 tile **16×16**。
-  - ⚠️ 校正:ModdingWiki 標 31811(0x7C43),實測 sprite 會**水平左移 4px**(人形底部出現 bleed);正確 base 為 **0x7C42**(對照 ultima2.voyd.net reference 圖,字母/人形置中、無 bleed)。可用 env `U2_TILE_BASE` 覆寫。
-  - 仍待釐清:字母區(tile ~33+,招牌用)在 0x7C42 仍有不一致,font 子區塊對齊另案處理。
-- 編碼:**CGA Linear 2bpp** —— 4 px/byte,bit7-6=最左像素、bit5-4 次之…bit1-0=最右。**64 byte/tile**。
-- map 的 `tile_id`(byte÷4)直接索引此表 0..63。
-- 配置:tile ~0–31 為地形/物件(0=洋紅海洋、青色森林、城堡、人形 NPC…),**~32+ 為字符集**(A–Z 等,地圖招牌文字用)。
+## terrain/sprite tile 格式 ✅(已破解並驗證,task #5)
+- 位置:`ultimaii.exe` **@base 0x7C42**,id **0–31**,每 tile **16×16**,stride 64。
+- 編碼:**CGA Linear 2bpp** —— 4 px/byte,bit7-6=最左像素…bit1-0=最右。**64 byte/tile**。
+- map 的 `tile_id`(byte÷4)直接索引(地形/載具/NPC/怪物皆在此區)。
+- **對齊驗證**:tile 27 在 0x7C42 為乾淨置中人形;0x7C40 會水平 wrap(分裂左右)、0x7C43 人形底部有 bleed。env `U2_TILE_BASE` 可覆寫。
+  - 註:ModdingWiki 標的 0x7C43(31811)實測左移 4px;正確 base 為 **0x7C42**。
 - CGA 調色盤三組(對應 Alderson Win port):`original` 黑/青/洋紅/白、`red` 黑/綠/紅/白、`blue` 黑/綠/藍/白。
-- 抽取工具:`tools/extract_tiles.py`(輸出 1024×16 tileset strip PNG,**EA 版權不散布**)。
+
+## font/招牌字 tile 格式 ⚠️(id 32–63,已查清結構,不整合)
+- **獨立 bit-packed proportional 子區塊**(~0x8440 起),**不在** terrain 的 16×16/64-grid 上。
+- 證據:font 區「整列白分隔線」(4×0xFF)間距呈 **60/72 byte 交替**(非 64),且分隔線同時出現於 **mod-4=0 與 mod-4=2** 兩相位 → 字母列非 byte 對齊 = 比例/位元打包字型。連續流可見乾淨 A–Z,但無固定 tile 邊界。
+- **決策**:不做像素級英文字型 tile 抽取(ROI 低)。`extract_tiles.py` 將 id ≥ 32 渲為中性 placeholder。中文化時招牌文字走**訊息系統 + SDL_ttf 翻譯**(見 `translations/`),英文字型 tile 非必要。
+- 抽取工具:`tools/extract_tiles.py`(terrain strip,id 0–31 真圖、32–63 placeholder;**EA 版權不散布**)。
 
 ## tlkxNN — 對話 ✅(中文化主目標)
 - **編碼:high-bit-set ASCII**(每 byte `OR 0x80`),清掉 bit7 還原;`\x00` 分段,`\r`(0x0d)換行。

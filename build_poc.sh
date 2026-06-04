@@ -20,7 +20,7 @@ mkdir -p build
 
 # 1) host 端抽真 tile (需 PIL) → build/tileset.png
 if [[ -f "$EXE" ]]; then
-    python3 tools/extract_tiles.py "$EXE" build/tileset.png "$PAL"
+    /usr/bin/python3 tools/extract_tiles.py "$EXE" build/tileset.png "$PAL"
     TILES=/work/build/tileset.png
 else
     echo "找不到 ultimaii.exe ($EXE),改用色塊 fallback"
