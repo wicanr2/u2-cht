@@ -51,3 +51,20 @@ void u2_render_viewport(SDL_Surface *surf, const U2Map *m, SDL_Surface *tiles,
         }
     }
 }
+
+void u2_render_entities(SDL_Surface *surf, const U2Mon *mon, SDL_Surface *tiles,
+                        int cam_x, int cam_y, int cols, int rows,
+                        int tile_px, int ox, int oy)
+{
+    for (int i = 0; i < mon->count; i++) {
+        const U2Entity *e = &mon->ent[i];
+        int tx = e->x - cam_x, ty = e->y - cam_y;
+        if (tx < 0 || tx >= cols || ty < 0 || ty >= rows)
+            continue; /* 不在 viewport */
+        int dx = ox + tx * tile_px, dy = oy + ty * tile_px;
+        if (tiles)
+            u2_tileset_blit(surf, tiles, e->tile, dx, dy, tile_px);
+        else
+            fill_rect(surf, dx, dy, tile_px, tile_px, 255, 60, 60);
+    }
+}

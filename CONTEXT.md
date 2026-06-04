@@ -26,6 +26,31 @@
 - **exe 字串表** — Alderson exe 內嵌 UI 字串(`translations/exe_translatable_strings.tsv`,vaddr 索引)。
 - **對話表** — tlkx 解碼對話(`translations/talk_dialogue.tsv`,(檔名,index) 索引)。
 
+## 專有名詞譯名(對齊 u6-cht / u3-cht 系列一致性)
+> 來源:Ultima Codex wiki + u6-cht 既定譯名。翻譯 `translations/*.tsv` 時以此為準。
+
+| 原文 | 譯名 | 備註 |
+|---|---|---|
+| Minax | **米娜克斯** | 本作反派女巫(the Enchantress);沿用 u6 |
+| Mondain | **蒙丹** | U1 反派,米娜克斯之師/愛人;沿用 u6 |
+| Lord British | **不列顛王** | 收金幣治療玩家的 NPC;沿用 u6 |
+| The Stranger | **異鄉人** | 玩家角色 |
+| Sosaria | **索薩里亞** | U1 世界 |
+| Shadowguard | **影域堡** | 米娜克斯的城堡(傳說時代) |
+| Time of Legends | **傳說時代** | 米娜克斯城堡所在紀元 |
+| Aftermath | **浩劫餘生** | 2111 核戰後的地球 |
+| Quicksword Enilno | **迅捷之劍 Enilno** | 唯一能殺米娜克斯的武器(Enilno=online 反拼,保留) |
+| Force Field Ring | **力場之戒** | 玩家防具 |
+| Tri-lithium | **三鋰** | 地牢/塔中的關鍵資源 |
+| Time Door | **時光之門** | 時空旅行傳送門 |
+| H.P. / Food / Exp. / Gold | **生命 / 食物 / 經驗 / 黃金** | 狀態欄(對齊真 U2 版面) |
+
+## UI 版面(對齊真實 U2,參考 ultima2.voyd.net / Codex)
+- **viewport**:畫面上方地圖區(真 tile + monxNN 實體層)。
+- **訊息列**:底部左側,指令回饋 + NPC 對話(`CMD:` → `指令:`)。
+- **狀態欄**:底部右側,生命/食物/經驗/黃金。
+- **調色盤**:Original(青樹/洋紅海)、Red(綠樹/紅磚)、Blue(綠樹/藍海);PoC 預設 **blue**(綠樹較順眼)。
+
 ## Flagged ambiguities(待釐清)
 - `monsters` / `monxNN` / `player` 檔的欄位結構尚未本機驗證(目前 📖 文件推測)。
 - CJK glyph 預設大小(16 vs 24)待 PoC 後定;ADR 0001 暫推薦 24(內部 3×)。

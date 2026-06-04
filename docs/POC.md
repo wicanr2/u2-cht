@@ -16,19 +16,20 @@
 
 ![PoC](screenshots/poc_map_cjk.png)
 
-左側為 `mapx21`(城鎮)中段 viewport,使用**從 `ultimaii.exe` 抽出的真實 CGA tile**(青色森林、洋紅護城河、中央人形 NPC、底部招牌字母 tile),證明 tile÷4 解析 + CGA 解碼正確。右側為三來源中文文字(標題 / exe 內嵌 UI / tlkx 對話 / 結局),CJK 在內部 3× 解析度原生繪製、銳利。
+版面對齊真實 Ultima II(參考 [ultima2.voyd.net](https://ultima2.voyd.net/) / [Codex](https://wiki.ultimacodex.com/wiki/Ultima_II:_The_Revenge_of_the_Enchantress)):**上方地圖 viewport + 底部左訊息列、右狀態欄**。地圖用從 `ultimaii.exe` 抽出的真實 CGA tile(綠樹森林 / 藍色結構 / 白色 NPC),並疊上 `monxNN` 實體層(空城→活城)。底部中文:訊息列(`指令:`、弄臣/占星師對話)+ 狀態(生命/食物/經驗/黃金),CJK 內部 3× 原生繪製。
 
-> tile 美術破解詳見 [DATA_FORMATS.md](DATA_FORMATS.md#tile-美術格式-已破解task-5):CGA Linear 2bpp @0x7C43,64 tile。
+> tile 格式破解詳見 [DATA_FORMATS.md](DATA_FORMATS.md#tile-美術格式-已破解task-5)(CGA 2bpp @0x7C43);實體層格式見 [monxNN](DATA_FORMATS.md#monxnn--sector-實體-npc怪物-已破解本機交叉驗證)。
 
 ## 架構(deep modules / 垂直層)
 
 ```
 src/
-  u2_map.{h,c}      # data 層:mapxNN 解析,隱藏 ×4 quirk,介面只有 load / tile
+  u2_map.{h,c}      # data 層:mapxNN 解析,隱藏 ×4 quirk
+  u2_mon.{h,c}      # data 層:monxNN 實體層 (NPC/怪物,32 格陣列)
   u2_tileset.{h,c}  # render 層:真實 CGA tile (從 ultimaii.exe 抽出) blit
-  u2_render.{h,c}   # render 層:viewport 繪製 (真 tile,色塊 fallback)
+  u2_render.{h,c}   # render 層:viewport + 實體疊繪 (真 tile,色塊 fallback)
   u2_text.{h,c}     # text 層:SDL2_ttf UTF-8 繪字 (ADR 0001 文字層原生繪製)
-  poc_main.c        # 接線:load → render → draw CJK → 存 PNG
+  poc_main.c        # 接線:仿 U2 版面 (地圖上 + 訊息列/狀態欄下)
 ```
 
 ## 建置 / 重現

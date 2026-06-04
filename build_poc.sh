@@ -13,7 +13,9 @@ IMG=u2cht-build
 FONT=/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc
 
 MAP_ABS="$(readlink -f "$MAP")"
-EXE="$(dirname "$MAP_ABS")/ultimaii.exe"
+DATA_DIR="$(dirname "$MAP_ABS")"
+MAP_NAME="$(basename "$MAP_ABS")"
+EXE="$DATA_DIR/ultimaii.exe"
 mkdir -p build
 
 # 1) host 端抽真 tile (需 PIL) → build/tileset.png
@@ -27,13 +29,14 @@ fi
 
 # 2) Docker build + 跑
 docker build -q -t "$IMG" docker/ >/dev/null
+# 掛整個資料目錄 (唯讀) → mon/tlk 同目錄檔可一併讀到
 docker run --rm \
     -v "$PWD":/work \
-    -v "$MAP_ABS":/data/map:ro \
+    -v "$DATA_DIR":/data:ro \
     "$IMG" bash -c "
         set -e
         cmake -S /work -B /work/build -DCMAKE_BUILD_TYPE=Release >/dev/null
         cmake --build /work/build -j >/dev/null
-        /work/build/u2_poc /data/map $FONT /work/$OUT $TILES
+        /work/build/u2_poc /data/$MAP_NAME $FONT /work/$OUT $TILES
     "
 echo "→ $OUT"

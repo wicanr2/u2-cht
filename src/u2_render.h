@@ -8,6 +8,7 @@
 
 #include <SDL.h>
 #include "u2_map.h"
+#include "u2_mon.h"
 
 /* 取得 tile_id 的 placeholder RGB 色 (無 tileset 時 fallback)。 */
 void u2_tile_color(unsigned char tile_id, Uint8 *r, Uint8 *g, Uint8 *b);
@@ -20,6 +21,11 @@ void u2_tile_color(unsigned char tile_id, Uint8 *r, Uint8 *g, Uint8 *b);
  *   ox/oy      :畫到 surf 的左上角像素位移
  */
 void u2_render_viewport(SDL_Surface *surf, const U2Map *m, SDL_Surface *tiles,
+                        int cam_x, int cam_y, int cols, int rows,
+                        int tile_px, int ox, int oy);
+
+/* 在地形之上疊繪 monxNN 實體 (落在 viewport 內者)。tiles 為真 tileset。 */
+void u2_render_entities(SDL_Surface *surf, const U2Mon *mon, SDL_Surface *tiles,
                         int cam_x, int cam_y, int cols, int rows,
                         int tile_px, int ox, int oy);
 

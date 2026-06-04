@@ -46,8 +46,23 @@
 - 320×200 interlaced CGA(`picdng`地牢 / `picdra`龍 / `picmin`Minax / `picout`戶外 / `picspa`太空 / `pictwn`城鎮)。
 - 重寫時轉 PNG 載入(SDL_image),非文字。
 
-## monsters / monxNN / player 📖(待本機驗證)
-- `monsters`(2176 B):怪物屬性表;`monxNN`(384 B):sector 怪物配置。
+## monxNN — sector 實體 (NPC/怪物) ✅(已破解,本機交叉驗證)
+- 384 byte = **32 格平行陣列**,每實體一個 slot index i (0..31):
+
+  | 欄位 | offset | 內容 |
+  |---|---|---|
+  | X | `0x00 + i` | x 座標 (0..63) |
+  | Y | `0x20 + i` | y 座標 (0..65) |
+  | status | `0x40 + i` | 狀態/旗標 (固定物=`0xff`,活動實體=其他) |
+  | tile | `0x60 + i` | **tile_id × 4**(同地圖編碼);`0`=空 slot |
+  | flag | `0x80 + i` | 次要旗標 (多為 `0x08`);`0x100` 處固定 `0x1a` 標頭 |
+
+- **驗證**:monx21 中 tile=24 的 8 個實體,其 (X,Y) 與 mapx21 地圖上 8 個 id-24 格**完全吻合** → 格式確認。
+- 用途:地圖 (mapxNN) 只有地形/建築/招牌;**實體層 (NPC/怪物) 由 monxNN 疊上** → 空城變活城。
+- 引擎:`u2_mon.{h,c}` 解析;`render` 先畫地形 tile,再疊 monxNN 實體 tile。
+
+## monsters / player 📖(待本機驗證)
+- `monsters`(2176 B):怪物屬性表(全域,oracle 以 `s_Monsters` 載入)。
 - `player`(384 B):角色屬性/隊伍/存檔。重寫存檔相容性需逐欄位比對(對照 oracle `FUN_004060a0` 狀態列讀取邏輯)。
 
 ## 中文化文字來源總結(兩處)
