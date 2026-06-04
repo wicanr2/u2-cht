@@ -14,6 +14,8 @@ set(U2_CORE
     src/u2_mon.c
     src/u2_play.c
     src/u2_render.c
+    src/u2_strings.c
+    src/u2_talk.c
     src/u2_tileset.c
     src/u2_text.c)
 

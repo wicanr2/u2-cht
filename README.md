@@ -143,6 +143,7 @@ python3 tools/decode_talk.py path/to/ultima2/ > translations/talk_dialogue.tsv
 - [ ] CJK 文字層升級(複用 u6-cht 點陣字 pipeline)
 - [x] **翻譯 UI 字串(369/369)+ NPC 對話(78/108)** ✅
 - [x] **隊伍移動(置中/鏡頭跟隨/海洋碰撞,headless 驗證)** ✅([docs/MOVEMENT.md](docs/MOVEMENT.md))
+- [x] **端到端在地化(引擎讀原始 tlkx → 翻譯覆蓋層 → CJK)** ✅
 - [ ] 互動視窗(SDL 開窗 + 鍵盤)、player 存檔解析、載具/地牢/戰鬥
 - [ ] 行為對照 oracle(亂數/機率/戰鬥公式)
 - [ ] 截圖 vs Alderson exe(Wine)pass/fail loop

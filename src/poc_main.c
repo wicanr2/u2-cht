@@ -12,6 +12,8 @@
 #include "u2_map.h"
 #include "u2_mon.h"
 #include "u2_render.h"
+#include "u2_strings.h"
+#include "u2_talk.h"
 #include "u2_tileset.h"
 #include "u2_text.h"
 
@@ -33,13 +35,14 @@ static void clamp(int *v, int lo, int hi)
 int main(int argc, char **argv)
 {
     if (argc < 4) {
-        fprintf(stderr, "用法: %s <mapxNN> <font.ttf> <out.png> [tileset.png]\n", argv[0]);
+        fprintf(stderr, "用法: %s <mapxNN> <font.ttf> <out.png> [tileset.png] [talk_dialogue.tsv]\n", argv[0]);
         return 2;
     }
     const char *map_path = argv[1];
     const char *font_path = argv[2];
     const char *out_path = argv[3];
     const char *tiles_path = (argc > 4) ? argv[4] : NULL;
+    const char *tsv_path = (argc > 5) ? argv[5] : NULL;
 
     if (SDL_Init(0) != 0 || IMG_Init(IMG_INIT_PNG) == 0) {
         fprintf(stderr, "SDL init: %s\n", SDL_GetError());
@@ -60,6 +63,16 @@ int main(int argc, char **argv)
     char *mp = strstr(bn, "map");
     if (mp) memcpy(mp, "mon", 3);
     U2Mon mon = u2_mon_load(mon_path);
+
+    /* 端到端在地化:載入原始對話 (tlkxNN) + 翻譯覆蓋層 */
+    char tlk_path[512];
+    snprintf(tlk_path, sizeof tlk_path, "%s", map_path);
+    char *tb = strrchr(tlk_path, '/');
+    tb = tb ? tb + 1 : tlk_path;
+    char *tp = strstr(tb, "map");
+    if (tp) memcpy(tp, "tlk", 3);
+    U2Talk talk = u2_talk_load(tlk_path);
+    U2Strings tr = tsv_path ? u2_strings_load(tsv_path, 2, 3) : (U2Strings){0};
 
     SDL_Surface *canvas = SDL_CreateRGBSurfaceWithFormat(
         0, CANVAS_W, CANVAS_H, 32, SDL_PIXELFORMAT_RGBA32);
@@ -98,18 +111,29 @@ int main(int argc, char **argv)
     /* 底部文字區起點 */
     int bottom_y = MAP_OY + VIEW_ROWS * TILE_PX + 10;
 
-    /* 左:指令/訊息列 (真實 U2 訊息中譯;對話來自 tlkx) */
-    static const char *log_lines[] = {
-        "指令:交易──北",
-        "弄臣唱道:哈 哈 哈!",
-        "占星師宣稱:有一顆行星叫 X!",
-        "指令:",
-    };
-    int ly = bottom_y;
-    for (int i = 0; i < 4; i++) {
-        u2_text_draw(canvas, &body, log_lines[i], MAP_OX, ly, 200, 220, 200);
+    /* 左:訊息列 — 端到端在地化展示。
+       讀原始 tlkxNN 對話 → 翻譯覆蓋層查譯文 (查無 fallback 原文) → 繪 CJK。 */
+    u2_text_draw(canvas, &body, "── NPC 對話 (tlkx → 翻譯覆蓋層) ──",
+                 MAP_OX, bottom_y, 150, 175, 205);
+    int ly = bottom_y + 30;
+    int shown = 0;
+    for (int i = 0; i < talk.count && shown < 3; i++) {
+        const char *zh = u2_strings_lookup(&tr, talk.line[i]);
+        const char *disp = zh ? zh : talk.line[i]; /* fallback 原文 */
+        char one[256];
+        size_t k = 0;
+        for (const char *p = disp; *p && k < sizeof one - 1; p++)
+            one[k++] = (*p == '\r') ? ' ' : *p; /* \r→空白,單行顯示 */
+        one[k] = 0;
+        int translated = (zh != NULL);
+        u2_text_draw(canvas, &body, one, MAP_OX, ly,
+                     translated ? 210 : 170, translated ? 225 : 170,
+                     translated ? 205 : 120);
         ly += 30;
+        shown++;
     }
+    if (shown == 0)
+        u2_text_draw(canvas, &body, "(此地圖無對話資料)", MAP_OX, ly, 150, 150, 150);
 
     /* 右:狀態欄 (對齊 U2 的 H.P./FOOD/EXP/GOLD) */
     static const char *stat_lines[] = {
