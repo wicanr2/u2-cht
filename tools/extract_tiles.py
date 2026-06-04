@@ -18,10 +18,12 @@ CGA 調色盤 (對應 Alderson Win port 三組):
 
 注意:tile 美術屬 Origin/EA 版權,輸出 PNG **不散布**;請自備合法 Ultima II。
 """
+import os
 import sys
 from PIL import Image
 
-TILE_BASE = 0x7C43
+# tile 資料在 ultimaii.exe 的起始 offset。可用環境變數 U2_TILE_BASE 覆寫測試。
+TILE_BASE = int(os.environ.get("U2_TILE_BASE", "0x7C42"), 0)
 N_TILES = 64
 
 PALETTES = {

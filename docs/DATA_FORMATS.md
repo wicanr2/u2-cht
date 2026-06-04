@@ -25,7 +25,9 @@
 - tile 圖塊嵌在 `ultimaii.exe`(DOS **@offset 0x7C43 = 31811**);Win 版用自家 tileset + `Font.txt`。
 
 ## tile 美術格式 ✅(已破解,task #5)
-- 位置:`ultimaii.exe` **@0x7C43**,**64 個 tile**,每 tile **16×16**。
+- 位置:`ultimaii.exe` **@0x7C42**,**64 個 tile**,每 tile **16×16**。
+  - ⚠️ 校正:ModdingWiki 標 31811(0x7C43),實測 sprite 會**水平左移 4px**(人形底部出現 bleed);正確 base 為 **0x7C42**(對照 ultima2.voyd.net reference 圖,字母/人形置中、無 bleed)。可用 env `U2_TILE_BASE` 覆寫。
+  - 仍待釐清:字母區(tile ~33+,招牌用)在 0x7C42 仍有不一致,font 子區塊對齊另案處理。
 - 編碼:**CGA Linear 2bpp** —— 4 px/byte,bit7-6=最左像素、bit5-4 次之…bit1-0=最右。**64 byte/tile**。
 - map 的 `tile_id`(byte÷4)直接索引此表 0..63。
 - 配置:tile ~0–31 為地形/物件(0=洋紅海洋、青色森林、城堡、人形 NPC…),**~32+ 為字符集**(A–Z 等,地圖招牌文字用)。

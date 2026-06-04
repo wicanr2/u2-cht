@@ -17,7 +17,7 @@ PALETTES = {
 
 
 def decode_tile(exe, idx, pal):
-    off = 0x7C43 + idx * 64
+    off = 0x7C42 + idx * 64
     im = Image.new("RGB", (16, 16))
     for y in range(16):
         for xb in range(4):
