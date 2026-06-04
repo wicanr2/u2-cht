@@ -32,7 +32,8 @@
 | 抽可中文化字串 | ✅ | exe 392 條 + 對話 108 行 |
 | 資料格式盤點 | ✅ | [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md) |
 | 渲染解析度決策 | ✅ | [`docs/adr/0001-rendering-resolution-cjk.md`](docs/adr/0001-rendering-resolution-cjk.md) |
-| SDL2 引擎重寫 | ⏳ | `src/`(規劃中) |
+| 垂直切片 PoC | ✅ | [`docs/POC.md`](docs/POC.md)(地圖 + 中文一次到位) |
+| SDL2 引擎重寫 | ⏳ | `src/`(PoC 骨架已就緒,feature 模組規劃中) |
 
 ---
 
@@ -134,9 +135,10 @@ python3 tools/decode_talk.py path/to/ultima2/ > translations/talk_dialogue.tsv
 
 - [x] 逆向取得 + 格式文件化(Phase A–E)
 - [x] 渲染/CJK 解析度決策(ADR 0001)
+- [x] **垂直切片 PoC — 三假設一次驗證**([docs/POC.md](docs/POC.md))✅
 - [ ] SDL2 引擎骨架(deep modules:world / town / dungeon / space / combat / party / text)
-- [ ] tile 解析 + 地圖繪製 PoC
-- [ ] CJK 文字層(複用 u6-cht 字型 pipeline)
+- [ ] 真實 tile 美術抽取(CGA 解碼,取代 placeholder 色塊)
+- [ ] CJK 文字層升級(複用 u6-cht 點陣字 pipeline)
 - [ ] 翻譯 392 條 UI + 108 行對話
 - [ ] 行為對照 oracle(亂數/機率/戰鬥公式)
 - [ ] 截圖 vs Alderson exe(Wine)pass/fail loop
