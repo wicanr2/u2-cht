@@ -32,8 +32,8 @@
 - **EGATILES** = 65 tile × 128 byte = 16×16 **EGA 4bpp**(8 byte/row,每 byte 2 nibble,高 nibble=左 px;nibble = 標準 EGA 16 色 index)。`EGATHEME.*/EGACOLOR`(32B)為 theme 變體 palette。
 - map 的 `tile_id`(byte÷4)直接索引此 tileset(0–64);實測 mapx20(地球)渲染出正確的藍色波浪海、綠樹叢、灰白山([`screenshots/terrain_in_context.png`](screenshots/terrain_in_context.png))。
 - **逐 id 名稱(經 U2 Upgrade sheet 視覺確認)**:0 water · 1 water2 · 2 grass · 3 forest · 4 mountain · 5 town · 6 castle · 7 tower · 8 keep · 9 dungeon · 10 sign · 11 shore · 12 lizardman · 13 ghost · 14 devil · 15 balron · 16 person · **17 horse** · **18 ship** · 19 aircar · 20 rocket · 21 serpent-sign · **22 sword** · 23 barrier · 24–27 person/fighter · **28 wall** · 30 white · **32–57 = A–Z**(招牌字,乾淨 16×16 tile!)· 60–63 monster · 64 orb。
-- 工具:[`tools/decode_u2upgrade_tiles.py`](../tools/decode_u2upgrade_tiles.py)(解 CGA/EGA→sheet)、[`tools/render_map.py`](../tools/render_map.py) `--tileset <EGATILES>`。對照圖 [`screenshots/tileset_terrain_decoded.png`](screenshots/tileset_terrain_decoded.png)(EGATILES,65 tile,正確 id 名)。
-- **U2 Upgrade art 版權屬 mcmagi/EA,不散布 raw;screenshot 僅文件用途。**
+- 工具:[`tools/decode_u2upgrade_tiles.py`](../tools/decode_u2upgrade_tiles.py)(玩家自備 EGATILES/CGATILES 後本機生成 65-tile sheet)、[`tools/render_map.py`](../tools/render_map.py) `--tileset <EGATILES>`。
+- **保守授權**:U2 Upgrade art 版權屬 mcmagi/EA → **repo 不提交完整 tileset sheet**;ground truth 以上方**文字 id 表**為準,視覺僅保留 map-context 截圖 [`screenshots/terrain_in_context.png`](screenshots/terrain_in_context.png)(少量 tile 在地圖脈絡中,文件用途)。完整 sheet 請玩家自備 tileset 後用上述工具本機生成。
 
 ## ~~ultimaii.exe @0x7C42 embedded tiles~~(PoC,**非主要 ground truth**)
 - 早期 PoC 從 `ultimaii.exe @0x7C42` 抽 16×16 2bpp tile,作為「能用真資料渲染」的概念驗證。
