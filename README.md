@@ -77,12 +77,12 @@ Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄)──┐
 
 ## 中文化文字兩來源
 
-| 來源 | 數量 | 編碼 | 翻譯表 |
+| 來源 | 數量 | 已譯 | 翻譯表 |
 |---|---|---|---|
-| Alderson exe 內嵌 UI 字串 | 392 條 | cp1252,vaddr 索引 | [`translations/exe_translatable_strings.tsv`](translations/exe_translatable_strings.tsv) |
-| DOS `tlkx` NPC 對話 | 108 行 | high-bit ASCII | [`translations/talk_dialogue.tsv`](translations/talk_dialogue.tsv) |
+| Alderson exe 內嵌 UI 字串 | 392 條(可譯 369) | **369/369** ✅ | [`translations/exe_translatable_strings.tsv`](translations/exe_translatable_strings.tsv) |
+| DOS `tlkx` NPC 對話 | 108 行 | **78/108**(餘為 buffer 殘片) | [`translations/talk_dialogue.tsv`](translations/talk_dialogue.tsv) |
 
-兩表皆含 `zh_hant` 空欄待填。原則:**不寫回原始檔**,以外部 UTF-8 覆蓋層載入時覆蓋。
+`zh_hant` 欄已填繁中(依 [CONTEXT.md](CONTEXT.md) 專名詞表)。原則:**不寫回原始檔**,以外部 UTF-8 覆蓋層載入時覆蓋。譯文由 [`tools/apply_translations.py`](tools/apply_translations.py) / [`tools/apply_dialogue.py`](tools/apply_dialogue.py) 套用。
 
 ---
 
@@ -140,7 +140,7 @@ python3 tools/decode_talk.py path/to/ultima2/ > translations/talk_dialogue.tsv
 - [ ] SDL2 引擎骨架(deep modules:world / town / dungeon / space / combat / party / text)
 - [ ] NPC/怪物動態層解析(疊在地形上)
 - [ ] CJK 文字層升級(複用 u6-cht 點陣字 pipeline)
-- [ ] 翻譯 392 條 UI + 108 行對話
+- [x] **翻譯 UI 字串(369/369)+ NPC 對話(78/108)** ✅
 - [ ] 行為對照 oracle(亂數/機率/戰鬥公式)
 - [ ] 截圖 vs Alderson exe(Wine)pass/fail loop
 
