@@ -13,6 +13,7 @@ add_executable(u2_poc
     src/poc_main.c
     src/u2_map.c
     src/u2_render.c
+    src/u2_tileset.c
     src/u2_text.c)
 
 target_include_directories(u2_poc PRIVATE

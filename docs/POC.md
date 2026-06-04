@@ -16,16 +16,19 @@
 
 ![PoC](screenshots/poc_map_cjk.png)
 
-左側為 `mapx21`(城鎮)中段 viewport — 中央庭院建築、護城河(藍)、草地(綠)結構清晰可辨,證明 tile÷4 解析正確。右側為三來源中文文字(標題 / exe 內嵌 UI / tlkx 對話 / 結局),CJK 在內部 3× 解析度原生繪製、銳利。
+左側為 `mapx21`(城鎮)中段 viewport,使用**從 `ultimaii.exe` 抽出的真實 CGA tile**(青色森林、洋紅護城河、中央人形 NPC、底部招牌字母 tile),證明 tile÷4 解析 + CGA 解碼正確。右側為三來源中文文字(標題 / exe 內嵌 UI / tlkx 對話 / 結局),CJK 在內部 3× 解析度原生繪製、銳利。
+
+> tile 美術破解詳見 [DATA_FORMATS.md](DATA_FORMATS.md#tile-美術格式-已破解task-5):CGA Linear 2bpp @0x7C43,64 tile。
 
 ## 架構(deep modules / 垂直層)
 
 ```
 src/
-  u2_map.{h,c}     # data 層:mapxNN 解析,隱藏 ×4 quirk,介面只有 load / tile
-  u2_render.{h,c}  # render 層:tile id→色塊 (placeholder) + viewport 繪製
-  u2_text.{h,c}    # text 層:SDL2_ttf UTF-8 繪字 (ADR 0001 文字層原生繪製)
-  poc_main.c       # 接線:load → render → draw CJK → 存 PNG
+  u2_map.{h,c}      # data 層:mapxNN 解析,隱藏 ×4 quirk,介面只有 load / tile
+  u2_tileset.{h,c}  # render 層:真實 CGA tile (從 ultimaii.exe 抽出) blit
+  u2_render.{h,c}   # render 層:viewport 繪製 (真 tile,色塊 fallback)
+  u2_text.{h,c}     # text 層:SDL2_ttf UTF-8 繪字 (ADR 0001 文字層原生繪製)
+  poc_main.c        # 接線:load → render → draw CJK → 存 PNG
 ```
 
 ## 建置 / 重現
@@ -39,7 +42,8 @@ headless 離屏渲染存 PNG,不需顯示器。
 
 ## 已知簡化(後續任務)
 
-- **tile 美術為 placeholder 色塊** → task #5 抽真實 U2 tile(CGA 解碼)。
+- ~~tile 美術為 placeholder 色塊~~ ✅ **已完成**:真實 CGA tile 抽取(task #5,`tools/extract_tiles.py`)。
 - **CJK 用 SDL2_ttf** → production 可換 u6-cht 點陣字 atlas(BDF→自家格式)。
 - **viewport 靜態置中** → 引擎階段接上隊伍移動 / 鏡頭跟隨。
 - **換行未 CJK-aware** → 引擎階段補全形 2 倍寬換行(對照 oracle `RewrapString`)。
+- **NPC/怪物動態位置** → map 檔執行時改寫的層尚未解析(疊在地形 tile 上)。

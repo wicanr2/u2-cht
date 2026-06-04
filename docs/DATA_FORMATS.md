@@ -22,7 +22,15 @@
 - **tile id = byte 值 ÷ 4**(存檔時 ×4)。例:`0x10`(16)→ tile 4(山)。tile id 範圍 0–63。
 - 命名尾碼:**0=行星總圖,1/2/3=城鎮,4/5=地牢**。
 - ⚠️ 地圖**不存**「哪個 NPC/招牌在哪」;遊戲執行時**動態改寫 map 檔**存 NPC/怪物即時位置(= readme 說「進城就存檔」的原因)。
-- tile 圖塊嵌在 `ultimaii.exe`(DOS @offset 31811);Win 版用自家 tileset + `Font.txt`。
+- tile 圖塊嵌在 `ultimaii.exe`(DOS **@offset 0x7C43 = 31811**);Win 版用自家 tileset + `Font.txt`。
+
+## tile 美術格式 ✅(已破解,task #5)
+- 位置:`ultimaii.exe` **@0x7C43**,**64 個 tile**,每 tile **16×16**。
+- 編碼:**CGA Linear 2bpp** —— 4 px/byte,bit7-6=最左像素、bit5-4 次之…bit1-0=最右。**64 byte/tile**。
+- map 的 `tile_id`(byte÷4)直接索引此表 0..63。
+- 配置:tile ~0–31 為地形/物件(0=洋紅海洋、青色森林、城堡、人形 NPC…),**~32+ 為字符集**(A–Z 等,地圖招牌文字用)。
+- CGA 調色盤三組(對應 Alderson Win port):`original` 黑/青/洋紅/白、`red` 黑/綠/紅/白、`blue` 黑/綠/藍/白。
+- 抽取工具:`tools/extract_tiles.py`(輸出 1024×16 tileset strip PNG,**EA 版權不散布**)。
 
 ## tlkxNN — 對話 ✅(中文化主目標)
 - **編碼:high-bit-set ASCII**(每 byte `OR 0x80`),清掉 bit7 還原;`\x00` 分段,`\r`(0x0d)換行。

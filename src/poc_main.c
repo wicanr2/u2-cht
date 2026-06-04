@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include "u2_map.h"
 #include "u2_render.h"
+#include "u2_tileset.h"
 #include "u2_text.h"
 
 #define CANVAS_W 960
@@ -39,12 +40,13 @@ static const char *panel_lines[] = {
 int main(int argc, char **argv)
 {
     if (argc < 4) {
-        fprintf(stderr, "用法: %s <mapxNN> <font.ttf> <out.png>\n", argv[0]);
+        fprintf(stderr, "用法: %s <mapxNN> <font.ttf> <out.png> [tileset.png]\n", argv[0]);
         return 2;
     }
     const char *map_path = argv[1];
     const char *font_path = argv[2];
     const char *out_path = argv[3];
+    const char *tiles_path = (argc > 4) ? argv[4] : NULL;
 
     if (SDL_Init(0) != 0) {
         fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
@@ -79,11 +81,12 @@ int main(int argc, char **argv)
     u2_text_draw(canvas, &title, "Ultima II 繁中 PoC — 地圖 + 中文一次到位",
                  12, 14, 240, 220, 120);
 
-    /* (1) 繪圖換得掉:把地圖中段 viewport 畫到左側 */
+    /* (1) 繪圖換得掉:把地圖中段 viewport 畫到左側 (真 tileset 或色塊 fallback) */
+    SDL_Surface *tiles = tiles_path ? u2_tileset_load(tiles_path) : NULL;
     int cam_x = (U2_MAP_W - VIEW_COLS) / 2;
     int cam_y = (U2_MAP_H - VIEW_ROWS) / 2;
     int map_ox = 12, map_oy = 60;
-    u2_render_viewport(canvas, &map, cam_x, cam_y,
+    u2_render_viewport(canvas, &map, tiles, cam_x, cam_y,
                        VIEW_COLS, VIEW_ROWS, TILE_PX, map_ox, map_oy);
 
     /* map 來源標註 (證明讀的是真實檔) */

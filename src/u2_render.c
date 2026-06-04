@@ -1,4 +1,5 @@
 #include "u2_render.h"
+#include "u2_tileset.h"
 
 /* PoC placeholder 調色盤:低 id 給接近原版的地形色,其餘程序化分散色,
  * 目的是讓地圖「結構」可見以驗證資料讀取正確,非最終美術。
@@ -32,22 +33,21 @@ static void fill_rect(SDL_Surface *s, int x, int y, int w, int h,
     SDL_FillRect(s, &rc, SDL_MapRGB(s->format, r, g, b));
 }
 
-void u2_render_viewport(SDL_Surface *surf, const U2Map *m,
+void u2_render_viewport(SDL_Surface *surf, const U2Map *m, SDL_Surface *tiles,
                         int cam_x, int cam_y, int cols, int rows,
                         int tile_px, int ox, int oy)
 {
     for (int ty = 0; ty < rows; ty++) {
         for (int tx = 0; tx < cols; tx++) {
             unsigned char id = u2_map_tile(m, cam_x + tx, cam_y + ty);
-            Uint8 r, g, b;
-            u2_tile_color(id, &r, &g, &b);
-            fill_rect(surf, ox + tx * tile_px, oy + ty * tile_px,
-                      tile_px, tile_px, r, g, b);
-            /* 細格線,讓 tile 邊界可見 (PoC 視覺輔助) */
-            fill_rect(surf, ox + tx * tile_px, oy + ty * tile_px,
-                      tile_px, 1, 0, 0, 0);
-            fill_rect(surf, ox + tx * tile_px, oy + ty * tile_px,
-                      1, tile_px, 0, 0, 0);
+            int dx = ox + tx * tile_px, dy = oy + ty * tile_px;
+            if (tiles) {
+                u2_tileset_blit(surf, tiles, id, dx, dy, tile_px);
+            } else {
+                Uint8 r, g, b;
+                u2_tile_color(id, &r, &g, &b);
+                fill_rect(surf, dx, dy, tile_px, tile_px, r, g, b);
+            }
         }
     }
 }

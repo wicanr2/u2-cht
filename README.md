@@ -136,8 +136,9 @@ python3 tools/decode_talk.py path/to/ultima2/ > translations/talk_dialogue.tsv
 - [x] 逆向取得 + 格式文件化(Phase A–E)
 - [x] 渲染/CJK 解析度決策(ADR 0001)
 - [x] **垂直切片 PoC — 三假設一次驗證**([docs/POC.md](docs/POC.md))✅
+- [x] **真實 tile 美術抽取(CGA Linear 2bpp @0x7C43)**✅
 - [ ] SDL2 引擎骨架(deep modules:world / town / dungeon / space / combat / party / text)
-- [ ] 真實 tile 美術抽取(CGA 解碼,取代 placeholder 色塊)
+- [ ] NPC/怪物動態層解析(疊在地形上)
 - [ ] CJK 文字層升級(複用 u6-cht 點陣字 pipeline)
 - [ ] 翻譯 392 條 UI + 108 行對話
 - [ ] 行為對照 oracle(亂數/機率/戰鬥公式)
