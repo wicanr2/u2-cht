@@ -24,15 +24,15 @@
 - ⚠️ 地圖**不存**「哪個 NPC/招牌在哪」;遊戲執行時**動態改寫 map 檔**存 NPC/怪物即時位置(= readme 說「進城就存檔」的原因)。
 - tile 圖塊嵌在 `ultimaii.exe`(terrain @base **0x7C42**);Win 版用自家 tileset + `Font.txt`。
 
-## terrain/sprite tile 格式 ✅(已破解並驗證,task #5)
-- 位置:`ultimaii.exe` **@base 0x7C42**,id **0–31**,每 tile **16×16**,stride 64。
-- 編碼:**CGA Linear 2bpp** —— 4 px/byte,bit7-6=最左像素…bit1-0=最右。**64 byte/tile**。
+## terrain/sprite tile 格式 ✅(幾何已破解,id 0–31)
+- 位置:`ultimaii.exe` **@base 0x7C42**,id **0–31**,每 tile **16×16**,**CGA Linear 2bpp**(4 px/byte,bit7-6=最左…bit1-0=最右),64 byte/tile,stride 64。
 - map 的 `tile_id`(byte÷4)直接索引(地形/載具/NPC/怪物皆在此區)。
-- **對齊驗證**:tile 27 在 0x7C42 為乾淨置中人形;0x7C40 會水平 wrap(分裂左右)、0x7C43 人形底部有 bleed。env `U2_TILE_BASE` 可覆寫。
-  - 註:ModdingWiki 標的 0x7C43(31811)實測左移 4px;正確 base 為 **0x7C42**。
-- **DOS 參考校正**:以實際 map render([`screenshots/terrain_in_context.png`](screenshots/terrain_in_context.png))對照 The Codex of Ultima Wisdom DOS 截圖(U2pc2)── **magenta 森林 dither、青色樹叢、白色城堡、人形 sprite、CGA palette 皆吻合**;非孤立 strip 驗證。
-- CGA 調色盤三組(對應 Alderson Win port):`original` 黑/青/洋紅/白(= DOS CGA 預設,最貼參考圖)、`blue` 黑/綠/藍/白(≈ EGA 風)、`red` 黑/綠/紅/白。
-- 對照圖:[`screenshots/tileset_terrain_decoded.png`](screenshots/tileset_terrain_decoded.png)(id 0–31,DOS original CGA palette)。
+- **幾何/對位驗證**:tile 27 在 0x7C42 為乾淨置中人形;0x7C40 會水平 wrap(分裂左右)、0x7C43 人形底部有 bleed。env `U2_TILE_BASE` 可覆寫。ModdingWiki 標的 0x7C43(31811)實測左移 4px → 正確 base **0x7C42**。
+- **palette(誠實標示)**:byte 值僅是 2-bit color **index**(0/1/2/3),實際顏色由 palette 決定 —— **本專案非「像素級重現某 DOS 模式」,而是選一組可讀的 U2 視覺**:
+  - 預設 **`blue`** = 黑 / 綠樹 / 深藍水 / 灰白(取樣自 Alderson Win port 綠樹參考畫面之色調;主圖用此)。
+  - `red`(綠樹/紅水)、`original`(青/洋紅,DOS CGA)為 **alternate**,較刺眼,僅附錄/比較([`screenshots/palette_compare.png`](screenshots/palette_compare.png)),**非**「正確完成圖」。
+  - ⚠️ tile↔terrain-type 對照(哪個 id 是 water/forest/mtn)目前為**推測標註**,尚未對逐 tile 與 DOS 畫面做完整 ground-truth 比對。
+- 對照圖:[`screenshots/terrain_in_context.png`](screenshots/terrain_in_context.png)(實際 map render,預設 palette)、[`screenshots/tileset_terrain_decoded.png`](screenshots/tileset_terrain_decoded.png)(id 0–31 grid)。
 
 ## font/招牌字 ⚠️(id 32+,**raw/未對齊** — 非必要,招牌走翻譯)
 - DOS 招牌(如 `TRANSPORT` / `ZONE` / `TORTURE` / `IOLO`)實際為**黑底白字、橫排於矩形牌匾的 16×16 地圖 tile 字型**(每字母一格);bottom UI(`CMD:` / `H.P.` / `GOLD`)為**另一套小字型**,兩者分開。

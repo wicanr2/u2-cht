@@ -6,15 +6,13 @@
     (4 px/byte,bit7-6=最左像素…bit1-0=最右),64 bytes/tile,stride 64。
     map 的 tile_id (byte÷4) 直接索引。地形/載具/NPC/怪物皆在此區,**已驗證對齊**
     (tile 27 在 0x7C42 為乾淨置中人形;0x7C40/0x7C43 會 wrap/bleed)。
-  - **font/招牌字 (id 32–63)**:**獨立 bit-packed proportional 子區塊** (~0x8440 起),
-    分隔線間距 60/72 交替、跨 mod-4 雙相位 → **不在 terrain 的 16×16/64-grid 上**,
-    無法當固定 tile 抽取。本工具將 id ≥ 32 渲為中性 placeholder。
-    中文化時招牌文字走訊息系統 + SDL_ttf 翻譯,故英文字型 tile 非必要。
+  - **font/招牌字 (id 32+)**:變動-stride 字型子區塊,**未解 glyph 邊界**(raw),
+    本工具將 id ≥ 32 渲中性 placeholder。招牌文字走訊息系統 + SDL_ttf 翻譯。
 
-CGA 調色盤 (對應 Alderson Win port 三組):
-  original = 黑/青/洋紅/白 (原版,magenta ocean)
-  red      = 黑/綠/紅/白
-  blue     = 黑/綠/藍/白
+調色盤 (palette,預設 blue):
+  blue     = 黑/綠樹/深藍水/灰白 (= 預設,取樣自 Alderson Win port 綠樹參考畫面,可讀)
+  red      = 黑/綠樹/紅水/灰白
+  original = 黑/青/洋紅/白 (alternate:DOS CGA,較刺眼,非主圖)
 
 用法:
   python3 extract_tiles.py <ultimaii.exe> <out.png> [original|red|blue]
@@ -31,11 +29,16 @@ TILE_BASE = int(os.environ.get("U2_TILE_BASE", "0x7C42"), 0)
 N_TILES = 64
 N_TERRAIN = 32          # id 0–31 為有效 terrain/sprite;32+ 為 font 子區塊
 
+# palette[color_index] → RGB。color 1=植被、2=水、3=地形/建物/sprite。
+# 預設 "blue":取樣自 Alderson Win port 綠樹/藍水參考畫面 (可讀的 U2 視覺)。
+# "original" CGA 青/洋紅為 alternate(較刺眼,僅附錄/比較用,非主圖)。
 PALETTES = {
-    "original": [(0, 0, 0), (85, 255, 255), (255, 85, 255), (255, 255, 255)],
-    "red":      [(0, 0, 0), (85, 255, 85), (255, 85, 85), (255, 255, 255)],
-    "blue":     [(0, 0, 0), (85, 255, 85), (85, 85, 255), (255, 255, 255)],
+    "blue":     [(0, 0, 0), (0, 170, 0), (40, 60, 180), (205, 205, 205)],  # 預設:綠樹/深藍水/灰白
+    "ega":      [(0, 0, 0), (0, 170, 0), (40, 60, 180), (205, 205, 205)],  # 同 blue 別名
+    "red":      [(0, 0, 0), (0, 170, 0), (190, 40, 40), (205, 205, 205)],  # 綠樹/紅水
+    "original": [(0, 0, 0), (85, 255, 255), (255, 85, 255), (255, 255, 255)],  # alternate: DOS CGA
 }
+DEFAULT_PAL = "blue"
 
 
 def decode_tile(exe, off):
@@ -53,7 +56,8 @@ def main():
         sys.exit(__doc__)
     exe = open(sys.argv[1], "rb").read()
     out = sys.argv[2]
-    pal = PALETTES[sys.argv[3] if len(sys.argv) > 3 else "original"]
+    pal_name = sys.argv[3] if len(sys.argv) > 3 else DEFAULT_PAL
+    pal = PALETTES[pal_name]
 
     img = Image.new("RGB", (N_TILES * 16, 16), (0, 0, 0))
     for t in range(N_TERRAIN):          # 只抽有效 terrain/sprite tile
@@ -64,14 +68,14 @@ def main():
         for y in range(16):
             for x in range(16):
                 img.putpixel((t * 16 + x, y), pal[px[y][x]])
-    # id 32–63:font bit-packed 子區塊,渲中性 placeholder (避免 garbage;招牌走翻譯)
+    # id 32–63:font 變動-stride 子區塊 (未解 glyph),渲中性 placeholder (招牌走翻譯)
     for t in range(N_TERRAIN, N_TILES):
         for y in range(16):
             for x in range(16):
                 edge = x in (0, 15) or y in (0, 15)
                 img.putpixel((t * 16 + x, y), (40, 40, 48) if edge else (12, 12, 16))
     img.save(out)
-    print(f"寫出 tileset → {out} ({N_TILES} tiles, palette={sys.argv[3] if len(sys.argv)>3 else 'original'})")
+    print(f"寫出 tileset → {out} ({N_TILES} tiles, palette={pal_name})")
 
 
 if __name__ == "__main__":

@@ -136,7 +136,7 @@ python3 tools/decode_talk.py path/to/ultima2/ > translations/talk_dialogue.tsv
 - [x] 逆向取得 + 格式文件化(Phase A–E)
 - [x] 渲染/CJK 解析度決策(ADR 0001)
 - [x] **垂直切片 PoC — 三假設一次驗證**([docs/POC.md](docs/POC.md))✅
-- [x] **真實 tile 美術抽取(terrain id 0–31,CGA 2bpp @0x7C42,已對照 DOS 參考校正)**✅
+- [x] **真實 tile 美術抽取(terrain id 0–31,CGA 2bpp @0x7C42 幾何已對位)**;palette 用可讀 blue 預設(綠樹/深藍水/灰白);逐 tile↔terrain-type ground-truth 比對待補
 - [ ] **font/招牌字(id 32+)— 部分/raw**:變動-stride 字型,glyph 邊界**尚未對齊解出**(僅 raw stream);招牌走翻譯故非必要 — 見 [DATA_FORMATS](docs/DATA_FORMATS.md)
 - [ ] SDL2 引擎骨架(deep modules:world / town / dungeon / space / combat / party / text)
 - [ ] NPC/怪物動態層解析(疊在地形上)

@@ -21,7 +21,7 @@
 **底部訊息列為端到端在地化展示**:引擎讀**原始 `tlkx21`**(high-bit ASCII 解碼)→ 經**翻譯覆蓋層** `talk_dialogue.tsv`(以原文為 key)查譯文 → 繪 CJK。畫面中「流浪漢格倫德說:精通謎題者方為真正的高手!」「安迪.格林堡抱怨:什麼?沒有軟體?!?」「羅伯.伍德海大喊:防拷!防拷!」皆為**真實 tlkx21 NPC 對話的中譯**(非硬編);查無譯文則 fallback 原文(暗色)。
 
 > 完整在地化管線:**原始資料 → 覆蓋層 → CJK**,模組 `u2_talk`(解碼)+ `u2_strings`(覆蓋層)。
-> tile 格式詳見 [DATA_FORMATS.md](DATA_FORMATS.md#terrainsprite-tile-格式-已破解並驗證task-5)(terrain id 0–31,CGA 2bpp @0x7C42);實體層見 [monxNN](DATA_FORMATS.md#monxnn--sector-實體-npc怪物-已破解本機交叉驗證)。
+> tile 格式詳見 [DATA_FORMATS.md](DATA_FORMATS.md)(terrain id 0–31,CGA 2bpp @0x7C42 幾何已對位;palette 用可讀 blue 預設,font 招牌字仍 raw);實體層見 monxNN 段。
 
 ## 架構(deep modules / 垂直層)
 
