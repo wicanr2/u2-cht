@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""從 DOS ultimaii.exe 抽取 64 個 tile 美術,輸出 tileset PNG。
+"""[PoC/fallback] 從 DOS ultimaii.exe @0x7C42 抽 tile,輸出 tileset PNG。
+
+⚠️ 注意:此 EXE-embedded tile 與遊戲實際 tileset(U2 Upgrade CGATILES/EGATILES)
+**只有 id 0 相同**,id 1+ 皆不同 → **非正確 ground truth**。正確 tileset 請用
+`decode_u2upgrade_tiles.py` + `render_map.py --tileset`。本檔僅保留 PoC 用途。
 
 格式 (docs/DATA_FORMATS.md):
   - **terrain/sprite tile (id 0–31)**:@ base **0x7C42**,16×16,**CGA Linear 2bpp**

@@ -22,29 +22,24 @@
 - **tile id = byte 值 ÷ 4**(存檔時 ×4)。例:`0x10`(16)→ tile 4(山)。tile id 範圍 0–63。
 - 命名尾碼:**0=行星總圖,1/2/3=城鎮,4/5=地牢**。
 - ⚠️ 地圖**不存**「哪個 NPC/招牌在哪」;遊戲執行時**動態改寫 map 檔**存 NPC/怪物即時位置(= readme 說「進城就存檔」的原因)。
-- tile 圖塊嵌在 `ultimaii.exe`(terrain @base **0x7C42**);Win 版用自家 tileset + `Font.txt`。
+- tile 圖:**主要 ground truth = U2 Upgrade 獨立 tileset**(見下);`ultimaii.exe @0x7C42` 僅 PoC。
 
-## terrain/sprite tile 格式 ✅(幾何已破解,id 0–31)
-- 位置:`ultimaii.exe` **@base 0x7C42**,id **0–31**,每 tile **16×16**,**CGA Linear 2bpp**(4 px/byte,bit7-6=最左…bit1-0=最右),64 byte/tile,stride 64。
-- map 的 `tile_id`(byte÷4)直接索引(地形/載具/NPC/怪物皆在此區)。
-- **幾何/對位驗證**:tile 27 在 0x7C42 為乾淨置中人形;0x7C40 會水平 wrap(分裂左右)、0x7C43 人形底部有 bleed。env `U2_TILE_BASE` 可覆寫。ModdingWiki 標的 0x7C43(31811)實測左移 4px → 正確 base **0x7C42**。
-- **palette(誠實標示)**:byte 值僅是 2-bit color **index**(0/1/2/3),實際顏色由 palette 決定 —— **本專案非「像素級重現某 DOS 模式」,而是選一組可讀的 U2 視覺**:
-  - 預設 **`blue`** = 黑 / 綠樹 / 深藍水 / 灰白(取樣自 Alderson Win port 綠樹參考畫面之色調;主圖用此)。
-  - `red`(綠樹/紅水)、`original`(青/洋紅,DOS CGA)為 **alternate**,較刺眼,僅附錄/比較([`screenshots/palette_compare.png`](screenshots/palette_compare.png)),**非**「正確完成圖」。
-- **tile↔terrain-type(最小 ground-truth,保守)**:僅標高信心者,其餘標 `unknown`(不臆測):
-  - `id 0 = water`(overworld mapx20 佔 2897/4224 = 海洋主體 + 不可通行 + 藍色 index);
-  - `id 3 = forest`(密集植被-index dither = 參考圖綠樹叢);
-  - `id 4 = mountain`(白色對角格紋,對應 DOS 山脈圖樣);
-  - `id 1,2 = grass`(稀疏植被-index);`id 25/27/28 = person`(人形);`id 31 = fill`(純白)。
-  - 其餘 id(含疑似 ship/sword 等)**未確認 → `unknown`**;完整逐 tile 比對待後續。
-- 對照圖(caption 全 ASCII,無 CJK 方塊):[`screenshots/terrain_in_context.png`](screenshots/terrain_in_context.png)(實際 map render)、[`screenshots/tileset_terrain_decoded.png`](screenshots/tileset_terrain_decoded.png)(id 0–31 + 保守標籤)、[`screenshots/palette_compare.png`](screenshots/palette_compare.png)(blue vs CGA)。
+## tileset — 主要 ground truth:U2 Upgrade CGATILES / EGATILES ✅
+> 來源(玩家自備,**本 repo 不散布 raw art**):
+> https://github.com/mcmagi/ultima-exodus/releases → `u2upgrade-2.1.zip`(取 `CGATILES`/`EGATILES`)。
 
-## font/招牌字 ⚠️(id 32+,**raw/未對齊** — 非必要,招牌走翻譯)
-- DOS 招牌(如 `TRANSPORT` / `ZONE` / `TORTURE` / `IOLO`)實際為**黑底白字、橫排於矩形牌匾的 16×16 地圖 tile 字型**(每字母一格);bottom UI(`CMD:` / `H.P.` / `GOLD`)為**另一套小字型**,兩者分開。
-- **現況(誠實標示)**:EXE 內此字型為**變動-stride 儲存**(非 terrain 的 64-byte grid;自相關基頻 132B=2glyph、60/72 交替、分隔線跨 mod-4 雙相位),遊戲以**查表 blit** 渲染。**本專案尚未解出 per-glyph 邊界**;`screenshots/font_raw_stream.png` 僅為 raw byte stream dump(**未對齊 glyph**),不是已解碼字型。
-- **決策**:不投入 bit-level 字型解包 —— 中文化時招牌文字走**訊息系統 + SDL_ttf 翻譯**(見 `translations/`),英文字型 tile 非必要產出。
-- 工具行為:`tools/extract_tiles.py` / `render_map.py` 對 **id ≥ 32 渲中性 placeholder**(維持正確 16×16 視覺尺寸,不產生錯位 garbage)。
-- **EA 版權,輸出不散布。**
+- **CGATILES** = 65 tile × 64 byte = 16×16 **CGA 2bpp**(4 px/byte)。
+- **EGATILES** = 65 tile × 128 byte = 16×16 **EGA 4bpp**(8 byte/row,每 byte 2 nibble,高 nibble=左 px;nibble = 標準 EGA 16 色 index)。`EGATHEME.*/EGACOLOR`(32B)為 theme 變體 palette。
+- map 的 `tile_id`(byte÷4)直接索引此 tileset(0–64);實測 mapx20(地球)渲染出正確的藍色波浪海、綠樹叢、灰白山([`screenshots/terrain_in_context.png`](screenshots/terrain_in_context.png))。
+- **逐 id 名稱(經 U2 Upgrade sheet 視覺確認)**:0 water · 1 water2 · 2 grass · 3 forest · 4 mountain · 5 town · 6 castle · 7 tower · 8 keep · 9 dungeon · 10 sign · 11 shore · 12 lizardman · 13 ghost · 14 devil · 15 balron · 16 person · **17 horse** · **18 ship** · 19 aircar · 20 rocket · 21 serpent-sign · **22 sword** · 23 barrier · 24–27 person/fighter · **28 wall** · 30 white · **32–57 = A–Z**(招牌字,乾淨 16×16 tile!)· 60–63 monster · 64 orb。
+- 工具:[`tools/decode_u2upgrade_tiles.py`](../tools/decode_u2upgrade_tiles.py)(解 CGA/EGA→sheet)、[`tools/render_map.py`](../tools/render_map.py) `--tileset <EGATILES>`。對照圖 [`screenshots/tileset_terrain_decoded.png`](screenshots/tileset_terrain_decoded.png)(EGATILES,65 tile,正確 id 名)。
+- **U2 Upgrade art 版權屬 mcmagi/EA,不散布 raw;screenshot 僅文件用途。**
+
+## ~~ultimaii.exe @0x7C42 embedded tiles~~(PoC,**非主要 ground truth**)
+- 早期 PoC 從 `ultimaii.exe @0x7C42` 抽 16×16 2bpp tile,作為「能用真資料渲染」的概念驗證。
+- ⚠️ **誠實更正**:逐 byte 比對發現此 EXE tile set 與 U2 Upgrade CGATILES **只有 id 0 相同**,id 1–31 皆不同 —— 故 **EXE @0x7C42 不是正確 tileset**,先前用它推測 ship/horse/castle 會錯。已改以 U2 Upgrade 為主。
+- EXE 抽取流程保留於 `tools/extract_tiles.py`(標為 PoC/fallback);幾何(16×16/2bpp/stride 64)成立,但**內容非遊戲實際 tileset**。
+- font/招牌字(EXE id 32+)為變動-stride、未解 glyph(`screenshots/font_raw_stream.png` 僅 raw dump)—— 在 U2 Upgrade 中招牌字就是乾淨的 32–57 A–Z tile;中文化時招牌走訊息系統 + SDL_ttf 翻譯,故無論如何非必要。
 
 ## tlkxNN — 對話 ✅(中文化主目標)
 - **編碼:high-bit-set ASCII**(每 byte `OR 0x80`),清掉 bit7 還原;`\x00` 分段,`\r`(0x0d)換行。
