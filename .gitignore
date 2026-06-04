@@ -1,0 +1,58 @@
+# === 原版遊戲檔（請玩家自備 legit copy，不散布）===
+# DOS 原版資料 / 執行檔
+dos-original/
+ultima2/
+*.exe
+ultimaii.pif
+mapx*
+monx*
+tlkx*
+mapg*
+mong*
+tlkg*
+MAPG*
+MONG*
+TLKG*
+monsters
+player
+pic*
+Font.txt
+run.bat
+
+# === Alderson Win 移植版 binary（版權物，不散布）===
+Ultima2.exe
+WinUltima2.zip
+*Readme.txt
+
+# === Ghidra 反編 oracle C（Alderson binary 衍生物，不公開）===
+# 註:我們「乾淨重寫」的 src/ 可公開;反編 oracle 本身不公開
+decompile/
+*_decompiled.c
+ultima2_decompiled.c
+
+# === 原始壓縮檔 ===
+*.zip
+
+# === 建置產物 ===
+build/
+dist/
+*.o
+*.out
+*_out.png
+compile_commands.json
+
+# === Python ===
+__pycache__/
+*.pyc
+
+# === 存檔 / 使用者設定（執行期產生）===
+*.sav
+u2save.dat
+u2prefs.txt
+
+# === IDE / OS / agent session ===
+.claude/
+.vscode/
+.idea/
+*.swp
+.DS_Store

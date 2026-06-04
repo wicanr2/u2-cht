@@ -1,0 +1,55 @@
+Ultima II 繁體中文化專案 — Licensing
+=====================================
+
+本 repo 採「引擎與資料分離」原則。各類資產授權分述如下:
+
+---
+
+## 1. 本專案原創程式碼、工具、文件
+
+包含 `src/`(乾淨重寫引擎,未來)、`tools/`(抽取/反編 script)、
+`docs/`、`translations/` 之**譯文**、`README.md` 等本專案原創內容。
+
+授權:**MIT License** — Copyright (c) 2026 wicanr2 (L.CY)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## 2. 原版 Ultima II 遊戲資料與美術
+
+`mapx*` / `tlkx*` / `monx*` / `pic*` / `player` / 原版 tile 與字型等。
+
+著作權屬 **Origin Systems / Electronic Arts**。**本 repo 不包含、不散布**這些檔案
+(見 `.gitignore`)。玩家須**自備合法 Ultima II 副本**(如 Ultima Collection)。
+
+`translations/*.tsv` 內為對照用途節錄之原文片段 + 我方譯文;原文著作權仍屬 EA。
+
+---
+
+## 3. Alderson Windows 移植版 binary
+
+`Ultima2.exe`(© 2000 John Alderson)為第三方版權物。**本 repo 不包含、不散布**;
+其 Ghidra 反編產物(`*_decompiled.c`)為衍生物,僅作本機行為對照,**亦不公開**。
+
+---
+
+## 免責
+
+本專案為非商業之保存與在地化研究。如著作權人有異議,請聯繫以移除相關內容。
