@@ -31,8 +31,13 @@
 - **palette(誠實標示)**:byte 值僅是 2-bit color **index**(0/1/2/3),實際顏色由 palette 決定 —— **本專案非「像素級重現某 DOS 模式」,而是選一組可讀的 U2 視覺**:
   - 預設 **`blue`** = 黑 / 綠樹 / 深藍水 / 灰白(取樣自 Alderson Win port 綠樹參考畫面之色調;主圖用此)。
   - `red`(綠樹/紅水)、`original`(青/洋紅,DOS CGA)為 **alternate**,較刺眼,僅附錄/比較([`screenshots/palette_compare.png`](screenshots/palette_compare.png)),**非**「正確完成圖」。
-  - ⚠️ tile↔terrain-type 對照(哪個 id 是 water/forest/mtn)目前為**推測標註**,尚未對逐 tile 與 DOS 畫面做完整 ground-truth 比對。
-- 對照圖:[`screenshots/terrain_in_context.png`](screenshots/terrain_in_context.png)(實際 map render,預設 palette)、[`screenshots/tileset_terrain_decoded.png`](screenshots/tileset_terrain_decoded.png)(id 0–31 grid)。
+- **tile↔terrain-type(最小 ground-truth,保守)**:僅標高信心者,其餘標 `unknown`(不臆測):
+  - `id 0 = water`(overworld mapx20 佔 2897/4224 = 海洋主體 + 不可通行 + 藍色 index);
+  - `id 3 = forest`(密集植被-index dither = 參考圖綠樹叢);
+  - `id 4 = mountain`(白色對角格紋,對應 DOS 山脈圖樣);
+  - `id 1,2 = grass`(稀疏植被-index);`id 25/27/28 = person`(人形);`id 31 = fill`(純白)。
+  - 其餘 id(含疑似 ship/sword 等)**未確認 → `unknown`**;完整逐 tile 比對待後續。
+- 對照圖(caption 全 ASCII,無 CJK 方塊):[`screenshots/terrain_in_context.png`](screenshots/terrain_in_context.png)(實際 map render)、[`screenshots/tileset_terrain_decoded.png`](screenshots/tileset_terrain_decoded.png)(id 0–31 + 保守標籤)、[`screenshots/palette_compare.png`](screenshots/palette_compare.png)(blue vs CGA)。
 
 ## font/招牌字 ⚠️(id 32+,**raw/未對齊** — 非必要,招牌走翻譯)
 - DOS 招牌(如 `TRANSPORT` / `ZONE` / `TORTURE` / `IOLO`)實際為**黑底白字、橫排於矩形牌匾的 16×16 地圖 tile 字型**(每字母一格);bottom UI(`CMD:` / `H.P.` / `GOLD`)為**另一套小字型**,兩者分開。
