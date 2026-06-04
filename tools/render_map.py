@@ -17,8 +17,16 @@ PALETTES = {
 
 
 def decode_tile(exe, idx, pal):
-    off = 0x7C42 + idx * 64
     im = Image.new("RGB", (16, 16))
+    if idx >= 32:
+        # font/招牌字為獨立 bit-packed proportional 子區塊,非 16x16 grid (見 DATA_FORMATS)。
+        # 不當固定 tile 解 → 渲中性 placeholder,避免錯位 garbage。
+        for y in range(16):
+            for x in range(16):
+                edge = x in (0, 15) or y in (0, 15)
+                im.putpixel((x, y), (40, 40, 48) if edge else (12, 12, 16))
+        return im
+    off = 0x7C42 + idx * 64        # terrain/sprite id 0-31,已驗證對齊
     for y in range(16):
         for xb in range(4):
             b = exe[off + y * 4 + xb]

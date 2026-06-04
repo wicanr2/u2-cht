@@ -33,10 +33,15 @@
 - CGA 調色盤三組(對應 Alderson Win port):`original` 黑/青/洋紅/白、`red` 黑/綠/紅/白、`blue` 黑/綠/藍/白。
 
 ## font/招牌字 tile 格式 ⚠️(id 32–63,已查清結構,不整合)
-- **獨立 bit-packed proportional 子區塊**(~0x8440 起),**不在** terrain 的 16×16/64-grid 上。
-- 證據:font 區「整列白分隔線」(4×0xFF)間距呈 **60/72 byte 交替**(非 64),且分隔線同時出現於 **mod-4=0 與 mod-4=2** 兩相位 → 字母列非 byte 對齊 = 比例/位元打包字型。連續流可見乾淨 A–Z,但無固定 tile 邊界。
-- **決策**:不做像素級英文字型 tile 抽取(ROI 低)。`extract_tiles.py` 將 id ≥ 32 渲為中性 placeholder。中文化時招牌文字走**訊息系統 + SDL_ttf 翻譯**(見 `translations/`),英文字型 tile 非必要。
-- 抽取工具:`tools/extract_tiles.py`(terrain strip,id 0–31 真圖、32–63 placeholder;**EA 版權不散布**)。
+- **獨立 bit-packed proportional 子區塊**(~0x847C 起),**不在** terrain 的 16×16/64-grid 上,**不可**用 `0x7C42 + id*64` 當固定 tile 解(會把字母切爛)。
+- 證據(自相關 + 整列白分隔線 + 視覺標尺):
+  - 自相關基頻 = **132 byte = 2 glyph**(60/72 byte 交替,非 64);
+  - 「整列白分隔線」(4×0xFF)同時出現於 **mod-4=0 與 mod-4=2** 兩相位 → 字母列**非 byte 對齊**;
+  - 連續流(以分隔線換欄)可見**完整 A–Z**,但無固定 16×16 tile 邊界。
+  - 對照圖:[`screenshots/font_decoded.png`](screenshots/font_decoded.png)(連續 bitmap,字母完整)。
+- **決策**:不做像素級英文字型 tile 抽取(屬 bit-level 解包,ROI 低)。中文化時招牌文字走**訊息系統 + SDL_ttf 翻譯**(見 `translations/`),英文字型 tile 非必要。
+- 工具行為:`tools/extract_tiles.py` / `render_map.py` 對 **id ≥ 32 渲中性 placeholder**(不產生錯位 garbage)。
+- 對照圖:terrain [`screenshots/tileset_terrain_decoded.png`](screenshots/tileset_terrain_decoded.png)(id 0–31,16×16 已驗證) vs font [`screenshots/font_decoded.png`](screenshots/font_decoded.png)(連續 bitmap)。**EA 版權,輸出不散布。**
 
 ## tlkxNN — 對話 ✅(中文化主目標)
 - **編碼:high-bit-set ASCII**(每 byte `OR 0x80`),清掉 bit7 還原;`\x00` 分段,`\r`(0x0d)換行。
