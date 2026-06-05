@@ -18,12 +18,14 @@ set(U2_CORE
     src/u2_strings.c
     src/u2_talk.c
     src/u2_tileset.c
+    src/u2_dungeon.c
     src/u2_text.c)
 
 add_executable(u2_poc src/poc_main.c ${U2_CORE})
 add_executable(u2_demo src/demo_main.c ${U2_CORE})
 add_executable(u2_game src/game_main.c ${U2_CORE})
 add_executable(u2_sheet src/sheet_main.c ${U2_CORE})
+add_executable(u2_dungeon_demo src/dungeon_main.c ${U2_CORE})
 
 # data 層測試 (免 SDL)
 add_executable(u2_test
@@ -32,10 +34,10 @@ add_executable(u2_test
 target_include_directories(u2_test PRIVATE src)
 target_compile_options(u2_test PRIVATE -Wall -Wextra)
 
-foreach(tgt u2_poc u2_demo u2_game u2_sheet)
+foreach(tgt u2_poc u2_demo u2_game u2_sheet u2_dungeon_demo)
     target_include_directories(${tgt} PRIVATE
         ${SDL2_INCLUDE_DIRS} ${SDL2TTF_INCLUDE_DIRS} ${SDL2IMG_INCLUDE_DIRS})
     target_link_libraries(${tgt} PRIVATE
-        ${SDL2_LIBRARIES} ${SDL2TTF_LIBRARIES} ${SDL2IMG_LIBRARIES})
+        ${SDL2_LIBRARIES} ${SDL2TTF_LIBRARIES} ${SDL2IMG_LIBRARIES} m)
     target_compile_options(${tgt} PRIVATE -Wall -Wextra)
 endforeach()
