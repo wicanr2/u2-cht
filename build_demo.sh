@@ -15,6 +15,7 @@ EXE="$DATA/ultimaii.exe"
 mkdir -p build
 # 優先 U2 Upgrade EGATILES (正確);找不到 fallback EXE @0x7C42 (PoC)
 EGATILES="${U2UP_TILES:-}"
+[[ -z "$EGATILES" && -f tileset/EGATILES ]] && EGATILES="tileset/EGATILES"
 [[ -z "$EGATILES" && -f "$DATA/EGATILES" ]] && EGATILES="$DATA/EGATILES"
 [[ -z "$EGATILES" && -f build/u2up/EGATILES ]] && EGATILES="build/u2up/EGATILES"
 if [[ -n "$EGATILES" && -f "$EGATILES" ]]; then

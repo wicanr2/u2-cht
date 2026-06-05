@@ -24,16 +24,16 @@ Ultima2.exe
 WinUltima2.zip
 *Readme.txt
 
-# === U2 Upgrade (mcmagi) tileset/art（外部資產,玩家自備,不散布 raw）===
-# 下載:https://github.com/mcmagi/ultima-exodus/releases  →  u2upgrade-2.1.zip
+# === U2 Upgrade (mcmagi) — 研究用途已獲授權提交 tileset/ 下的 tileset ===
+# 來源:https://github.com/mcmagi/ultima-exodus/releases  →  u2upgrade-2.1.zip
+# tileset/CGATILES, tileset/EGATILES 已提交(研究/保存用途);其餘解壓工作檔忽略:
 u2upgrade*/
-CGATILES
-EGATILES
-EGATHEME.*
-EGACOLOR
-*.EGA
-*.PAL
-*.drv
+build/u2up/
+*.zip
+# 不提交大型 .EGA 圖檔(非引擎 tileset 必需)
+PIC*.EGA
+EGATHEME.ALT/
+EGATHEME.C64/
 
 # === Ghidra 反編 oracle C（Alderson binary 衍生物，不公開）===
 # 註:我們「乾淨重寫」的 src/ 可公開;反編 oracle 本身不公開

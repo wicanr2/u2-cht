@@ -136,7 +136,7 @@ python3 tools/decode_talk.py path/to/ultima2/ > translations/talk_dialogue.tsv
 - [x] 逆向取得 + 格式文件化(Phase A–E)
 - [x] 渲染/CJK 解析度決策(ADR 0001)
 - [x] **垂直切片 PoC — 三假設一次驗證**([docs/POC.md](docs/POC.md))✅
-- [x] **tileset ground truth = U2 Upgrade CGATILES/EGATILES**(65 tile,id 名稱確認:water/forest/mountain/town/castle/horse/ship/sword/A–Z…);工具 `decode_u2upgrade_tiles.py` + `render_map.py --tileset`。raw art 不散布,玩家自備
+- [x] **tileset ground truth = U2 Upgrade CGATILES/EGATILES**(65 tile,id 名稱確認:water/forest/mountain/town/castle/horse/ship/sword/A–Z…);**已收錄於 [`tileset/`](tileset/)**(研究/保存用途),引擎 `build_poc.sh`/`build_demo.sh` 直接使用;對照 sheet 見 `docs/screenshots/tileset_egatiles.png`
 - [x] **誠實更正**:`ultimaii.exe @0x7C42` embedded tile 僅 PoC,與 U2 Upgrade **只有 id 0 相同** → 非正確 tileset(見 [DATA_FORMATS](docs/DATA_FORMATS.md));font 招牌字在 U2 Upgrade 即 32–57 A–Z tile,EXE 內為未解 raw
 - [ ] SDL2 引擎骨架(deep modules:world / town / dungeon / space / combat / party / text)
 - [ ] NPC/怪物動態層解析(疊在地形上)

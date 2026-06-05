@@ -21,6 +21,7 @@ mkdir -p build
 # 1) 產引擎 tileset → build/tileset.png
 #    優先用 U2 Upgrade EGATILES (正確 ground truth);找不到才 fallback EXE @0x7C42 (PoC,錯誤)
 EGATILES="${U2UP_TILES:-}"
+[[ -z "$EGATILES" && -f tileset/EGATILES ]] && EGATILES="tileset/EGATILES"   # repo 內建
 [[ -z "$EGATILES" && -f "$DATA_DIR/EGATILES" ]] && EGATILES="$DATA_DIR/EGATILES"
 [[ -z "$EGATILES" && -f build/u2up/EGATILES ]] && EGATILES="build/u2up/EGATILES"
 if [[ -n "$EGATILES" && -f "$EGATILES" ]]; then
