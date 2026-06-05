@@ -95,6 +95,9 @@ int main(int argc, char **argv)
     /* 螢幕值:STR35 AGI15 STA15 CHA15 WIS15 INT20 (含加成) */
     CHECK(h.stats[0] == 35 && h.stats[1] == 15 && h.stats[5] == 20,
           "HERO 屬性 BCD: STR35 AGI15 INT20");
+    /* 起始 HP/FOOD/EXP/GOLD = 0400/0400/0000/0400 (進遊戲狀態列證實) */
+    CHECK(h.hp == 400 && h.food == 400 && h.exp == 0 && h.gold == 400,
+          "HERO HP/FOOD/EXP/GOLD = 400/400/0/400 (2-byte BCD)");
 
     printf("[u2_save] 建角樣本 ABCD (elf/wizard/female, distinct)\n");
     path(p, sizeof p, fx, "player_sample_abcd");

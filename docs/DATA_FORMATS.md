@@ -93,6 +93,10 @@
   | `0x11` | 職業 class | 0-indexed:0=FIGHTER 1=CLERIC 2=WIZARD 3=THIEF |
   | `0x12` | 種族 race | 0-indexed:0=HUMAN 1=ELF 2=DWARF 3=HOBBIT |
   | `0x15..0x1A` | 六屬性 | **BCD**(0x21→21),順序 STR,AGI,STA,CHA,WIS,INT |
+  | `0x1B..0x1C` | H.P. | **2-byte BCD**(4 位,高位在前);起始 0400 |
+  | `0x1D..0x1E` | 食物 FOOD | 2-byte BCD;起始 0400 |
+  | `0x1F..0x20` | 經驗 EXP | 2-byte BCD;起始 0000 |
+  | `0x22..0x23` | 黃金 GOLD | 2-byte BCD;起始 0400(`0x21`=00 用途未定) |
   | `0x100` | 標記 | 0x1a |
 
 - **BCD + 加成關鍵證據**:ABCD 樣本輸入 STR21/AGI11/STA12/CHA13/WIS14/INT19,選 ELF/WIZARD 後建角畫面變 STR21/**AGI16**/STA12/**CHA23**/WIS14/**INT29**(race/class 加成),存檔 byte `21 16 12 23 14 29` **逐一吻合畫面顯示值** → 屬性存「套用加成後」的 BCD 值。

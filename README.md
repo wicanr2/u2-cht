@@ -203,7 +203,9 @@ NPC 對話每 byte `OR 0x80`(ModdingWiki 誤稱 encrypted,實為 high-bit);
 ### 4. 存檔 `player` — BCD 屬性(DOSBox 實機差分驗證)
 用 headless DOSBox 自動建兩隻角色、逐 byte diff,並與建角畫面交叉比對,確認:
 名字(ASCII)、性別(`'M'` / `'F'`)、職業 / 種族(0-indexed)、六屬性(**BCD**,順序 STR/AGI/STA/CHA/WIS/INT)。
-屬性存的是「套用 race/class 加成後」的值(輸入值與建角畫面顯示值逐一吻合)。回歸測試用
+屬性存的是「套用 race/class 加成後」的值(輸入值與建角畫面顯示值逐一吻合)。
+**HP / 食物 / 經驗 / 黃金**為 2-byte BCD:還原存檔進遊戲,狀態列顯示 `0400/0400/0000/0400`,
+對應存檔三個「04 00」+ 一個「00 00」(三者起始皆 400,欄位順序按顯示序假設)。回歸測試用
 [`tests/fixtures/`](tests/fixtures/) 兩份實機存檔斷言。
 
 ![繁中角色資料表](docs/screenshots/char_sheet.png)
