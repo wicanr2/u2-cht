@@ -13,8 +13,14 @@
  *   | 0x11        | 職業 class  | 0-indexed:0=FIGHTER 1=CLERIC 2=WIZARD 3=THIEF   |
  *   | 0x12        | 種族 race   | 0-indexed:0=HUMAN 1=ELF 2=DWARF 3=HOBBIT        |
  *   | 0x15..0x1A  | 六屬性      | **BCD**,順序 STR,AGI,STA,CHA,WIS,INT(含 race/class 加成後值) |
+ *   | 0x1B..0x1C  | H.P.        | **2-byte BCD**(4 位,高位在前);起始 0400        |
+ *   | 0x1D..0x1E  | 食物 FOOD   | 2-byte BCD;起始 0400                            |
+ *   | 0x1F..0x20  | 經驗 EXP    | 2-byte BCD;起始 0000                            |
+ *   | 0x22..0x23  | 黃金 GOLD   | 2-byte BCD;起始 0400(0x21 為 00,用途未定)     |
  *   | 0x100       | 標記        | 0x1a                                            |
- *   ⚠️ HP/食物/黃金/裝備等欄位(0x1b 之後的常數區)在兩樣本相同、尚未變動驗證,offset 待補。
+ *   證據:還原 HERO 存檔進遊戲,狀態列顯示 H.P.=0400/FOOD=0400/EXP.=0000/GOLD=0400,
+ *        對應存檔三個「04 00」+ 一個「00 00」。⚠️ 因起始 HP/FOOD/GOLD 皆 400,
+ *        HP/FOOD/GOLD 三者的欄位順序按「顯示序」假設,尚未以差異值逐欄消歧。
  */
 #ifndef U2_SAVE_H
 #define U2_SAVE_H
@@ -30,6 +36,10 @@
 #define U2_OFF_RACE    0x12
 #define U2_OFF_STATS   0x15   /* 6 個 BCD byte: STR,AGI,STA,CHA,WIS,INT */
 #define U2_NUM_STATS   6
+#define U2_OFF_HP      0x1B   /* 2-byte BCD (順序假設,見上) */
+#define U2_OFF_FOOD    0x1D
+#define U2_OFF_EXP     0x1F
+#define U2_OFF_GOLD    0x22
 
 typedef struct {
     int ok;                       /* 檔案讀取成功且大小正確 */
@@ -43,6 +53,7 @@ typedef struct {
     int  klass;                   /* 0..3 職業 (見上表) */
     int  race;                    /* 0..3 種族 (見上表) */
     int  stats[U2_NUM_STATS];     /* STR,AGI,STA,CHA,WIS,INT (BCD 解碼後十進位) */
+    int  hp, food, exp, gold;     /* 4-digit BCD 解碼後十進位 (順序假設,見上) */
 } U2Save;
 
 /* 載入 player 檔。失敗回傳 .ok = 0。 */

@@ -7,6 +7,12 @@ static int bcd_to_int(unsigned char b)
     return (b >> 4) * 10 + (b & 0x0f);
 }
 
+/* 4 位 BCD,高位 byte 在前 (0x04,0x00 -> 400) */
+static int bcd4(unsigned char hi, unsigned char lo)
+{
+    return bcd_to_int(hi) * 100 + bcd_to_int(lo);
+}
+
 static const char *CLASS_NAMES[4] = { "FIGHTER", "CLERIC", "WIZARD", "THIEF" };
 static const char *RACE_NAMES[4]  = { "HUMAN", "ELF", "DWARF", "HOBBIT" };
 static const char *STAT_NAMES[U2_NUM_STATS] =
@@ -75,6 +81,10 @@ U2Save u2_save_load(const char *path)
         s.race  = buf[U2_OFF_RACE];
         for (int i = 0; i < U2_NUM_STATS; i++)
             s.stats[i] = bcd_to_int(buf[U2_OFF_STATS + i]);
+        s.hp   = bcd4(buf[U2_OFF_HP],   buf[U2_OFF_HP + 1]);
+        s.food = bcd4(buf[U2_OFF_FOOD], buf[U2_OFF_FOOD + 1]);
+        s.exp  = bcd4(buf[U2_OFF_EXP],  buf[U2_OFF_EXP + 1]);
+        s.gold = bcd4(buf[U2_OFF_GOLD], buf[U2_OFF_GOLD + 1]);
     }
     return s;
 }

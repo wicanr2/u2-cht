@@ -90,18 +90,26 @@ static void dungeon_entry(const U2Dungeon *d, int *ox, int *oy, int *odir)
         }
 }
 
-static void draw_status_panel(SDL_Surface *cv, U2Text *body, const U2Strings *ui, int x0, int y0)
+/* 狀態列:標籤查翻譯表,數值取自真實 player 存檔(4 位,仿 U2 0400 格式)。
+   無角色時數值顯示 ----。 */
+static void draw_status_panel(SDL_Surface *cv, U2Text *body, const U2Strings *ui,
+                              const U2Save *sv, int x0, int y0)
 {
-    static const struct { const char *orig; const char *val; } st[] = {
-        { "H.P.=", "0343" }, { "FOOD=", "0184" },
-        { "EXP.=%.4d", "0018" }, { "GOLD=%.4d", "0067" },
+    int has = sv && sv->ok && sv->has_character;
+    struct { const char *orig; int val; } st[] = {
+        { "H.P.=",     has ? sv->hp   : -1 },
+        { "FOOD=",     has ? sv->food : -1 },
+        { "EXP.=%.4d", has ? sv->exp  : -1 },
+        { "GOLD=%.4d", has ? sv->gold : -1 },
     };
     for (int i=0;i<4;i++){
         const char *zh = ui ? u2_strings_lookup(ui, st[i].orig) : NULL;
         char label[64];
         if (zh){ size_t k=0; for(const char*q=zh;*q&&*q!='='&&k<sizeof label-1;q++)label[k++]=*q; label[k]=0; }
         else snprintf(label,sizeof label,"%s",st[i].orig);
-        char line[96]; snprintf(line,sizeof line,"%s  %s",label,st[i].val);
+        char val[16]; if (st[i].val>=0) snprintf(val,sizeof val,"%04d",st[i].val);
+        else snprintf(val,sizeof val,"----");
+        char line[96]; snprintf(line,sizeof line,"%s  %s",label,val);
         u2_text_draw(cv, body, line, x0, y0, 235,225,150); y0+=30;
     }
 }
@@ -131,7 +139,7 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, 
     char pos[64]; snprintf(pos,sizeof pos,"座標 (%d, %d)  地形 id=%d",
         g->player.x,g->player.y,u2_map_tile(&g->map,g->player.x,g->player.y));
     u2_text_draw(cv,body,pos,MAP_OX,by+60,150,165,150);
-    draw_status_panel(cv,body,&g->ui,640,by);
+    draw_status_panel(cv,body,&g->ui,&g->save,640,by);
 }
 
 static const char *DIR_ZH[4]={"北 N","東 E","南 S","西 W"};
@@ -153,7 +161,7 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
     snprintf(ln,sizeof ln,"前方可見深度: %d",depth);
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=40;
-    draw_status_panel(cv,body,&g->ui,rx,ry); ry+=4*30+10;
+    draw_status_panel(cv,body,&g->ui,&g->save,rx,ry); ry+=4*30+10;
 
     int by=MAP_OY+DVIEW+12;
     u2_text_draw(cv,small,"N 前進 · S 後退 · W 左轉 · E 右轉 · X 離開地牢 · C 角色表",
