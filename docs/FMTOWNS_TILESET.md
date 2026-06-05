@@ -250,3 +250,18 @@ overworld 地形圖塊與精確 palette 需進一步逆 `ENCHANT.EXP` 或乾淨�
 **真正剩餘工作(需專門一輪)**:逆 `ENCHANT.EXP` 取
 (a) 16 色 palette 暫存器表(定 index→色),(b) overworld 地形 tile 資料(疑內嵌 EXP)。
 其餘(32×32 sprite → 引擎 sprite 層、tile id 對應表)在拿到上兩者後屬填空。
+
+## 9. ENCHANT.EXP 逆向結果(專門一輪)
+- `.EXP` = FM Towns 執行檔(`MP` 標頭);非零區:0–0xe800(碼/字串)、0xe0000–0x105d0e(151KB)。
+- 0xe0000 區當 16×16 tile 解 = 高熵雜訊 → **非 raw tile;ENCHANT.EXP 執行期才從 GRAPH 載圖**。
+- palette 盲掃:RGB-888 候選 @0x1294 實為 **Shift-JIS 日文字串 + `eb XX` 色控制碼**(0xeb 是 SJIS lead),非 palette。
+- `DRIVE_R.IMG`(128KB)= TownsOS 系統碟(`CDROM`/`TOWNES SYSTEM`),非 tile。
+- **結論**:overworld 16×16 地形 tile 與 16 色 palette **暫存器表**無法由 binary 盲掃可靠取得;
+  正解需 **FM Towns 模擬器(Tsugaru/MAME)跑 UT2DEMO/遊戲 → dump video palette + 截乾淨 tile**。
+
+## 10. 本輪具體產出 ✅
+- **FM Towns 怪物 sprite 上色版**:UT1TILE0 的 64 個 32×32 sprite,以「截圖實際色 + FM Towns 風補全」的
+  16 色上色 → [`screenshots/fmtowns_monsters_colored.png`](screenshots/fmtowns_monsters_colored.png)。
+  騎士/法師/綠巨魔/龍/海蛇/火元素/惡魔等清楚可辨。⚠️ index→色 順序為估計(非暫存器精確序),
+  色彩可用但非 100% 原版;精確化待模擬器 dump palette。
+- 工具 `tools/fmtowns_decode.py` 可重現抽取。
