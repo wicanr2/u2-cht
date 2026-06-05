@@ -265,3 +265,34 @@ overworld 地形圖塊與精確 palette 需進一步逆 `ENCHANT.EXP` 或乾淨�
   騎士/法師/綠巨魔/龍/海蛇/火元素/惡魔等清楚可辨。⚠️ index→色 順序為估計(非暫存器精確序),
   色彩可用但非 100% 原版;精確化待模擬器 dump palette。
 - 工具 `tools/fmtowns_decode.py` 可重現抽取。
+
+---
+
+# 附錄 B:FM Towns 模擬器抽取成功(路徑 B 完成)
+
+> 使用者提供 FM Towns 系統 ROM(retrobios:FMT_DIC/DOS/F20/FNT/SYS.ROM)+ Trilogy CD image。
+
+## 1. 模擬器管線 ✅
+- Docker 建 **Tsugaru**(`docker/Dockerfile.tsugaru`;需 libGLU)。
+- 開機:`Tsugaru_CUI /rom -CD <cue> -FD0 <UserDisk.hdm> -BOOTKEY CD -SCALE 100`,
+  Xvfb 無頭渲染,`import` 截**無損 PNG**。
+- 自動操作(`tools/fmtowns_play.sh`):TownsMENU 雙擊 ULTIMA II → 過 wrong-disk/標題(連按 space)
+  → 主選單**按首字母**(g/j,非方向鍵)→ 建角(c→槽位→屬性 Points:30→種族 H/E/D/B→
+  性別 M/F→職業 F/C/W/T→命名→y)→ Journey Onward→Select Player→y → **overworld**。
+
+## 2. 抽取結果 ✅
+- **真實 palette = 純數位 RGB**:`(0,255,0)綠 (0,0,255)藍 (0,255,255)青 (255,255,0)黃
+  (255,255,255)白 (0,0,0)黑 (0,34,238)水藍 (255,0,0)紅`。
+  → 先前 JPEG 量化出的「濁色」(0,252,121 等)是壓縮失真;**真色是乾淨數位 RGB**。
+- **overworld tile = 32×32 px**(比 DOS 16×16 大;FM Towns enhanced)。
+  草地=黑點 dither 疊純綠;水=藍/青 dither;岸邊有白邊過渡 tile。
+- 工具 `tools/fmtowns_rip_tiles.py`:從 overworld 截圖抽 32×32 唯一 tile(格線相位自動偵測 + 純色 snap)。
+  成果:[`screenshots/fmtowns_overworld_native.png`](screenshots/fmtowns_overworld_native.png)、
+  [`screenshots/fmtowns_tiles_extracted.png`](screenshots/fmtowns_tiles_extracted.png)(草/水/森林/岸/玩家)。
+
+## 3. 仍待(若要完整導入)
+- tile id 對應表:FM Towns 32×32 tile ↔ DOS tile id(語意已知,屬填空)。
+- 完整 tileset:需走訪更多地形(山/城/沙漠/太空)各截一張再抽。
+- sprite palette 暫存器順序:overworld 確認了「用哪些色」,但 UT1TILE0 sprite 的
+  index→色 對應仍需 palette register dump 或比對(怪物精確上色用)。
+- 引擎整合:32×32 tile vs 現行 16×16 → 降採樣或引擎支援雙尺寸。
