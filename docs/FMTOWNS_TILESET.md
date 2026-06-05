@@ -235,3 +235,18 @@
 ## 6. 結論
 格式已破解並驗證;32×32 角色/怪物 sprite 可抽出可用(形狀正確,配色待真 palette)。
 overworld 地形圖塊與精確 palette 需進一步逆 `ENCHANT.EXP` 或乾淨遊玩截圖。
+
+## 7. overworld 遊玩截圖分析(第二張參考)
+來源:pixsorigin `FMtownsu212.jpg`(640×480,Vault 城遊玩畫面)。
+- ✅ **地形確認為 16×16 tile**(磚地/草地/招牌格),viewport 在左側。
+- ✅ **右側狀態面板印證本專案存檔格式**:STRENGTH=35(= 戰士基礎 15 + 加成 20,與我們 BCD 解析一致)、
+  H/F/E/G 四欄(對應 HP/Food/Exp/Gold)。
+- 配色:高飽和數位色(亮綠/藍/紅/黃/白),比 EGA 鮮。
+- ⚠️ 單張場景量化只得該景 16 常見色(偏綠/紅/藍,缺棕/青/灰/洋紅),
+  **非完整 16 色硬體 palette**;且量化順序 ≠ 暫存器順序(index→色 對應仍需 EXP palette table)。
+
+## 8. 結案評估(本階段)
+路徑 B 已完成:**格式破解 + 驗證 + 角色/怪物 sprite 抽出 + 地形=16×16 確認 + 存檔格式交叉印證**。
+**真正剩餘工作(需專門一輪)**:逆 `ENCHANT.EXP` 取
+(a) 16 色 palette 暫存器表(定 index→色),(b) overworld 地形 tile 資料(疑內嵌 EXP)。
+其餘(32×32 sprite → 引擎 sprite 層、tile id 對應表)在拿到上兩者後屬填空。
