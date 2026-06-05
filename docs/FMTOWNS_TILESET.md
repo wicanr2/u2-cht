@@ -210,3 +210,28 @@
 3. **DOS tile id ↔ FM Towns sprite 對應表**(語意已知,屬填空)。
 4. **引擎整合決策**:32×32 sprite vs 現行 16×16 tile —— 怪物可走 32×32 sprite 疊層,
    地形若也是 32×32 則需引擎支援雙尺寸或地形維持 16×16。
+
+## 4. GRAPH 檔內容清單(本機解碼判定)
+全部同格式(4bpp、寬 32px、data@512);依內容分類:
+| 檔 | 內容(灰階解碼判定) |
+|---|---|
+| `UT1TILE0` | **32×32 角色/怪物 sprite ×64**(成對=2 幀動畫:人形/龍/海蛇…)✅ 已抽出 |
+| `UT1TILE1` | 32×32 效果 sprite(星爆/魔法/太空閃光) |
+| `MAP2_1/2/3` | 城鎮/場景背景(柱廊、磚牆、建築)——非 16×16 overworld 圖塊 |
+| `MAP3` | (Ultima III 相關) |
+| `U2TITLE1` | 標題畫面 640×400 ✅ **EGA 解碼與實機截圖結構 100% 吻合 → 格式驗證通過** |
+| `U2END1-5` | U2 結局畫面 296×240 |
+| `UT2_1-4` | U2 intro 線稿(B&W) |
+| `ENEMY/ENEMY2/EXTRA/DUNMON*` | 怪物 sprite(地牢怪等) |
+| `PLAYER/HITO/CHEST/ANK/ROD…` | 玩家/人/寶箱/道具 sprite |
+
+## 5. 兩個剩餘卡點(plan C 現況)
+- **真 16 色 palette**:標題畫面只用 8 色且偏暗+JPEG,反推不可用;
+  正解需 (a) 一張**乾淨的 overworld 遊玩截圖(PNG)**對照,或 (b) 逆 `ENCHANT.EXP`(1MB)的 palette 暫存器寫入。
+- **overworld 16×16 地形圖塊落點**:不在 GRAPH/*.TIF(那些是 sprite/效果/場景);
+  疑內嵌於 `ENCHANT.EXP`(同 DOS 版把 tile 放執行檔),需逆 EXP 定位。
+- **最有效解鎖**:一張 FM Towns U2 **overworld 遊玩畫面**(非標題)能同時 (1) 給地形配色、(2) 確認地形是否 16×16。
+
+## 6. 結論
+格式已破解並驗證;32×32 角色/怪物 sprite 可抽出可用(形狀正確,配色待真 palette)。
+overworld 地形圖塊與精確 palette 需進一步逆 `ENCHANT.EXP` 或乾淨遊玩截圖。
