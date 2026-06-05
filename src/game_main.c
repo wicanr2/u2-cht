@@ -55,7 +55,7 @@ typedef struct {
     char town_path[512];
     /* 地牢 */
     U2Dungeon dg; int dg_ok;
-    int dx, dy, ddir;             /* 地牢內位置 / 朝向 */
+    int dx, dy, ddir, dlevel;     /* 地牢內位置 / 朝向 / 樓層 */
     int ret_x, ret_y;             /* 進地牢前的座標 */
     char dungeon_path[512];
     /* 翻譯 / 存檔 */
@@ -84,19 +84,19 @@ static void find_start(const U2Map *m, U2Player *p)
     p->x=cx; p->y=cy; p->tile=PLAYER_TILE;
 }
 
-/* 地牢內挑前方可見深度最大的開放格當入口 */
-static void dungeon_entry(const U2Dungeon *d, int *ox, int *oy, int *odir)
+/* 地牢某層挑前方可見深度最大的開放格當入口 */
+static void dungeon_entry(const U2Dungeon *d, int level, int *ox, int *oy, int *odir)
 {
     int FX[4]={0,1,0,-1}, FY[4]={-1,0,1,0};
     int best=-1; *ox=*oy=*odir=0;
     for (int y=0; y<U2_DNG_N; y++)
         for (int x=0; x<U2_DNG_N; x++) {
-            if (u2_dungeon_is_wall(d,x,y)) continue;
+            if (u2_dungeon_is_wall(d,level,x,y)) continue;
             for (int dd=0; dd<4; dd++) {
                 int n=0;
                 for (int k=1;k<=5;k++){
                     int nx=x+FX[dd]*k, ny=y+FY[dd]*k;
-                    if (u2_dungeon_is_wall(d,nx,ny)) break;
+                    if (u2_dungeon_is_wall(d,level,nx,ny)) break;
                     n++;
                 }
                 if (n>best){best=n;*ox=x;*oy=y;*odir=dd;}
@@ -170,7 +170,7 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
     u2_text_draw(cv,title,"地牢 — 第一人稱線框",10,4,235,235,245);
 
-    int depth=u2_dungeon_render(cv,&g->dg,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW);
+    int depth=u2_dungeon_render(cv,&g->dg,g->dlevel,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW);
 
     int rx=24+DVIEW+24, ry=MAP_OY+6; char ln[96];
     u2_text_draw(cv,body,"狀態",rx,ry,150,175,205); ry+=34;
@@ -178,12 +178,14 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
     snprintf(ln,sizeof ln,"朝向: %s",DIR_ZH[g->ddir]);
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
+    snprintf(ln,sizeof ln,"樓層: %d / 共 %d 層",g->dlevel+1,g->dg.levels);
+    u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
     snprintf(ln,sizeof ln,"前方可見深度: %d",depth);
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=40;
     draw_status_panel(cv,body,&g->ui,&g->save,rx,ry); ry+=4*30+10;
 
     int by=MAP_OY+DVIEW+12;
-    u2_text_draw(cv,small,"N 前進 · S 後退 · W 左轉 · E 右轉 · X 離開地牢 · C 角色表",
+    u2_text_draw(cv,small,"N 前進 · S 後退 · W 左轉 · E 右轉 · J 下樓 · K 上樓 · X 離開 · C 角色表",
         24,by,150,170,200);
     u2_text_draw(cv,small,g->msg,24,by+26,210,225,205);
 }
@@ -235,9 +237,39 @@ static void enter_dungeon(Game *g)
     }
     if (!g->dg_ok){ snprintf(g->msg,sizeof g->msg,"找不到地牢資料,無法進入。"); return; }
     g->ret_x=g->player.x; g->ret_y=g->player.y;
-    dungeon_entry(&g->dg,&g->dx,&g->dy,&g->ddir);
+    g->dlevel=0;
+    dungeon_entry(&g->dg,g->dlevel,&g->dx,&g->dy,&g->ddir);
     g->mode=MODE_DUNGEON;
     snprintf(g->msg,sizeof g->msg,"你踏入了黑暗的地牢…");
+}
+
+/* 下樓:站在下梯(&0x20)才生效 */
+static void dungeon_descend(Game *g)
+{
+    if (g->mode!=MODE_DUNGEON) return;
+    if (u2_dungeon_ladder(&g->dg,g->dlevel,g->dx,g->dy)!=+1){
+        snprintf(g->msg,sizeof g->msg,"腳下沒有向下的樓梯。"); return; }
+    if (g->dlevel+1>=g->dg.levels){ snprintf(g->msg,sizeof g->msg,"已是最底層。"); return; }
+    g->dlevel++;
+    if (u2_dungeon_is_wall(&g->dg,g->dlevel,g->dx,g->dy))
+        dungeon_entry(&g->dg,g->dlevel,&g->dx,&g->dy,&g->ddir);
+    snprintf(g->msg,sizeof g->msg,"你沿樓梯往下,來到第 %d 層。",g->dlevel+1);
+}
+
+/* 上樓:站在上梯(&0x10)才生效;最頂層再上則離開地牢 */
+static void dungeon_ascend(Game *g)
+{
+    if (g->mode!=MODE_DUNGEON) return;
+    if (u2_dungeon_ladder(&g->dg,g->dlevel,g->dx,g->dy)!=-1){
+        snprintf(g->msg,sizeof g->msg,"腳下沒有向上的樓梯。"); return; }
+    if (g->dlevel==0){
+        g->mode=MODE_WORLD; g->player.x=g->ret_x; g->player.y=g->ret_y;
+        snprintf(g->msg,sizeof g->msg,"你沿樓梯回到了地面。"); return;
+    }
+    g->dlevel--;
+    if (u2_dungeon_is_wall(&g->dg,g->dlevel,g->dx,g->dy))
+        dungeon_entry(&g->dg,g->dlevel,&g->dx,&g->dy,&g->ddir);
+    snprintf(g->msg,sizeof g->msg,"你沿樓梯往上,來到第 %d 層。",g->dlevel+1);
 }
 
 static void exit_dungeon(Game *g)
@@ -329,8 +361,12 @@ static void handle_dir(Game *g, char dir)
         else {
             int s=(dir=='N')?1:-1;
             int di=g->ddir; int nx=g->dx+FX[di]*s, ny=g->dy+FY[di]*s;
-            if (!u2_dungeon_is_wall(&g->dg,nx,ny)){ g->dx=nx; g->dy=ny;
-                snprintf(g->msg,sizeof g->msg, s>0?"前進。":"後退。"); }
+            if (!u2_dungeon_is_wall(&g->dg,g->dlevel,nx,ny)){ g->dx=nx; g->dy=ny;
+                int lad=u2_dungeon_ladder(&g->dg,g->dlevel,nx,ny);
+                if (lad>0) snprintf(g->msg,sizeof g->msg,"腳下有向下的樓梯(J 下樓)。");
+                else if (lad<0) snprintf(g->msg,sizeof g->msg,"腳下有向上的樓梯(K 上樓)。");
+                else snprintf(g->msg,sizeof g->msg, s>0?"前進。":"後退。");
+            }
             else snprintf(g->msg,sizeof g->msg,"前方是牆。");
         }
     }
@@ -407,6 +443,8 @@ int main(int argc, char **argv)
             if (d) handle_dir(&g,d);
             else if (c=='C'||c=='c') g.show_sheet=!g.show_sheet;
             else if (c=='T'||c=='t') do_talk(&g);
+            else if (c=='J'||c=='j') dungeon_descend(&g);
+            else if (c=='K'||c=='k') dungeon_ascend(&g);
             else if (c=='X'||c=='x'){ if (g.mode==MODE_DUNGEON) exit_dungeon(&g); else if (g.in_town) exit_town(&g); }
             else if (c=='D') enter_dungeon(&g);
             else if (c=='O') enter_town(&g);   /* 強制進城(headless 測試用) */
@@ -433,6 +471,8 @@ int main(int argc, char **argv)
                         case SDLK_RIGHT:case SDLK_d: d='E'; break;
                         case SDLK_c: g.show_sheet=!g.show_sheet; break;
                         case SDLK_t: do_talk(&g); break;
+                        case SDLK_j: dungeon_descend(&g); break;
+                        case SDLK_k: dungeon_ascend(&g); break;
                         case SDLK_x:
                             if (g.mode==MODE_DUNGEON) exit_dungeon(&g);
                             else if (g.in_town) exit_town(&g);
