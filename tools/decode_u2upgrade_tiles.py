@@ -28,6 +28,14 @@ EGA16 = [
     (85, 85, 85), (85, 85, 255), (85, 255, 85), (85, 255, 255),
     (255, 85, 85), (255, 85, 255), (255, 255, 85), (255, 255, 255),
 ]
+# FM Towns 風配色:把 EGA 16 色往更亮/更飽和/卡通感重映(風格參考,非真實 FM Towns 色值)
+# 依 docs/FMTOWNS_TILESET.md 的觀感(明亮、Ultima IV/V 級)手調。
+EGA_FMT = [
+    (0, 0, 0), (28, 64, 200), (40, 170, 64), (64, 200, 200),
+    (210, 56, 56), (200, 72, 184), (176, 112, 48), (208, 208, 216),
+    (104, 104, 128), (84, 138, 255), (96, 230, 120), (128, 236, 236),
+    (255, 104, 96), (250, 132, 232), (252, 232, 96), (255, 255, 255),
+]
 # CGA 2bpp 預設 palette(可讀 blue:黑/綠/深藍/灰白)
 CGA_BLUE = [(0, 0, 0), (0, 170, 0), (40, 60, 180), (205, 205, 205)]
 
@@ -60,15 +68,15 @@ def decode_cga(data, t):
     return [[CGA_BLUE[v] for v in row] for row in px]
 
 
-def decode_ega(data, t):
+def decode_ega(data, t, pal=EGA16):
     off = t * 128
     rows = []
     for y in range(16):
         row = []
         for xb in range(8):
             b = data[off + y * 8 + xb]
-            row.append(EGA16[(b >> 4) & 0xF])
-            row.append(EGA16[b & 0xF])
+            row.append(pal[(b >> 4) & 0xF])
+            row.append(pal[b & 0xF])
         rows.append(row)
     return rows
 
@@ -81,7 +89,13 @@ def main():
     kind = sys.argv[3] if len(sys.argv) > 3 else (
         "ega" if len(data) >= N_TILES * 128 else "cga")
     mode = sys.argv[4] if len(sys.argv) > 4 else "sheet"
-    dec = decode_ega if kind == "ega" else decode_cga
+    # kind: ega(標準) / egafmt(FM Towns 風配色) / cga
+    if kind == "egafmt":
+        dec = lambda d, t: decode_ega(d, t, EGA_FMT)
+    elif kind == "ega":
+        dec = decode_ega
+    else:
+        dec = decode_cga
 
     if mode == "strip":
         # 引擎 tileset:65 tile 橫條 (1040×16),u2_tileset 以 id*16 取 src x
