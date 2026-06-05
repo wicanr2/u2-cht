@@ -13,5 +13,5 @@ docker run --rm -v "$PWD":/work -v "$DATA_ABS":/data:ro "$IMG" bash -c "
     set -e
     cmake -S /work -B /work/build -DCMAKE_BUILD_TYPE=Release >/dev/null
     cmake --build /work/build --target u2_test -j >/dev/null
-    /work/build/u2_test /data /work/translations
+    /work/build/u2_test /data /work/translations /work/tests/fixtures
 "

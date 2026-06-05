@@ -73,11 +73,23 @@
 - 用途:地圖 (mapxNN) 只有地形/建築/招牌;**實體層 (NPC/怪物) 由 monxNN 疊上** → 空城變活城。
 - 引擎:`u2_mon.{h,c}` 解析;`render` 先畫地形 tile,再疊 monxNN 實體 tile。
 
-## player — 角色存檔 ⚠️(結構部分破解;欄位 offset 待真實存檔)
+## player — 角色存檔 ✅(欄位經 DOSBox 實機建角差分驗證)
 - 384 byte;**前 256 byte (0x100) = 角色記錄**(oracle 載入碼 `FUN_0040fa80(obj+0x120, 1, 0x100, fp)` 讀進物件並檢查回傳==0x100)。
 - **角色記錄 byte 0 != 0 = 已建角色**(0 = fresh / 無角色);offset `0x100` 有 `0x1a` 標記(與 monxNN 同)。
-- ⚠️ **bundled `player` 為空**(僅 byte 0x100=0x1a,rec[0]=0 → 無角色)→ **無真實角色資料可逐欄驗證**。各 stat(HP/食物/黃金/STR…)精確 byte offset **尚未對應**,需一份「已建角色」存檔。oracle 狀態列(`FUN_004060a0`)從**衍生工作物件**讀(H.P.@+0x74、FOOD@+0x78、`+0x738c<0x1b` 判行星/太空),非直接檔案 offset。
-- 引擎:[`u2_save`](../src/u2_save.c) 解析(ok / has_character / rec[256] / marker);測試確認 bundled 為空。
+- **驗證方法**:用 DOSBox(headless,`tools/dosbox_create*.sh`)自動建兩隻角色,值各不相同,逐 byte diff,並與建角畫面截圖交叉比對。建角機制:每屬性打**兩位數**即提交(90 點分配)→ M/F → RACE(1-4) → TYPE(1-4) → NAME → SATISFACTORY(Y/N);建角要求 player 檔為空白,否則出現「NOT A BLANK PLAYER DISK」。
+
+  | offset | 欄位 | 編碼 / 證據 |
+  |---|---|---|
+  | `0x00..0x0F` | 名字 | ASCII,NUL padding(16 byte)。HERO/ABCD |
+  | `0x10` | 性別 | ASCII `'M'`(0x4d)/ `'F'`(0x46) |
+  | `0x11` | 職業 class | 0-indexed:0=FIGHTER 1=CLERIC 2=WIZARD 3=THIEF |
+  | `0x12` | 種族 race | 0-indexed:0=HUMAN 1=ELF 2=DWARF 3=HOBBIT |
+  | `0x15..0x1A` | 六屬性 | **BCD**(0x21→21),順序 STR,AGI,STA,CHA,WIS,INT |
+  | `0x100` | 標記 | 0x1a |
+
+- **BCD + 加成關鍵證據**:ABCD 樣本輸入 STR21/AGI11/STA12/CHA13/WIS14/INT19,選 ELF/WIZARD 後建角畫面變 STR21/**AGI16**/STA12/**CHA23**/WIS14/**INT29**(race/class 加成),存檔 byte `21 16 12 23 14 29` **逐一吻合畫面顯示值** → 屬性存「套用加成後」的 BCD 值。
+- ⚠️ **尚未對應**:HP/食物/黃金/裝備等在 `0x1b` 之後的欄位,兩樣本相同(`0x1b=04 0x1d=04 0x22=04 0x24=0x25=0x14`),未做變動驗證,offset 待補。`0x11/0x12`(class/race)在兩樣本同時變動,0-indexed 假設與兩點一致但仍待第三樣本單變量確認。oracle 狀態列(`FUN_004060a0`)從**衍生工作物件**讀(H.P.@+0x74、FOOD@+0x78),非直接檔案 offset。
+- 引擎:[`u2_save`](../src/u2_save.c) 解析(name/sex/class/race/stats[6] + ok/has_character/marker);測試 [`tests/test_data.c`](../tests/test_data.c) 用 [`tests/fixtures/`](../tests/fixtures/) 兩份實機樣本斷言。
 - `monsters`(2176 B):怪物屬性表(全域,oracle 以 `s_Monsters` 載入),待本機驗證 📖。
 
 ## 中文化文字來源總結(兩處)
