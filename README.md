@@ -32,7 +32,12 @@
 
 ## 截圖 / Screenshots
 
-### 互動引擎切片(走路 demo)
+### 整合主迴圈(地面 ↔ 地牢 ↔ 角色表)
+![整合主迴圈](docs/screenshots/integrated.gif)
+> 單一 `u2_game` 狀態機:地面行走 → 進地牢切第一人稱線框 → 任意模式按 `C` 疊加繁中角色資料表。
+> 同一份引擎、同一套 CJK 文字層;此 GIF 由 headless `--script` 逐幀渲染組成。
+
+### 地面走路特寫
 ![互動引擎遊玩](docs/screenshots/gameplay.gif)
 > `u2_game`:玩家恆置中(黃框)、相機跟隨、方向鍵 / WASD 移動、`u2_passable` 擋海洋;
 > 右側中文狀態欄(生命 / 食物 / 經驗 / 黃金,標籤查 exe 翻譯表)、底部即時座標與訊息列。
@@ -159,6 +164,7 @@ Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄 MFC 殼)──�
 | player 存檔結構(BCD 屬性,DOSBox 實機差分驗證) | [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md) |
 | 繁中角色資料表(從存檔解析渲染) | [`src/sheet_main.c`](src/sheet_main.c) |
 | **地牢 3D 線框繪製首版**(真實 raw byte + oracle 畫法 + 繁中 HUD/小地圖) | [`src/u2_dungeon.c`](src/u2_dungeon.c) |
+| **整合主迴圈狀態機**(地面 ↔ 地牢 ↔ 角色表,單一 `u2_game`) | [`src/game_main.c`](src/game_main.c) |
 
 ### ⏳ 進行中 / 尚未實作
 

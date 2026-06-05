@@ -25,6 +25,24 @@ const char *u2_save_stat_name(int i)
     return (i >= 0 && i < U2_NUM_STATS) ? STAT_NAMES[i] : "?";
 }
 
+static const char *CLASS_ZH[4] = { "戰士", "牧師", "巫師", "盜賊" };
+static const char *RACE_ZH[4]  = { "人類", "精靈", "矮人", "哈比人" };
+static const char *STAT_ZH[U2_NUM_STATS] =
+    { "力量", "敏捷", "體力", "魅力", "智慧", "智力" };
+
+const char *u2_save_class_zh(int k)
+{
+    return (k >= 0 && k < 4) ? CLASS_ZH[k] : "?";
+}
+const char *u2_save_race_zh(int r)
+{
+    return (r >= 0 && r < 4) ? RACE_ZH[r] : "?";
+}
+const char *u2_save_stat_zh(int i)
+{
+    return (i >= 0 && i < U2_NUM_STATS) ? STAT_ZH[i] : "?";
+}
+
 U2Save u2_save_load(const char *path)
 {
     U2Save s = {0};

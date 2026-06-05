@@ -53,4 +53,9 @@ const char *u2_save_class_name(int klass);
 const char *u2_save_race_name(int race);
 const char *u2_save_stat_name(int i);
 
+/* 繁中對照 (同 index;越界回 "?") */
+const char *u2_save_class_zh(int klass);
+const char *u2_save_race_zh(int race);
+const char *u2_save_stat_zh(int i);
+
 #endif
