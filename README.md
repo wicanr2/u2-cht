@@ -43,6 +43,11 @@
 > 上方地圖 viewport(真實 tile + monxNN 實體層,空城 → 活城)、底部中文 NPC 對話、右側中文狀態欄。
 > 對話與狀態標籤皆**非硬編**:引擎讀原始資料 → 翻譯覆蓋層 → CJK 原生繪製。
 
+### 第一人稱線框地牢(真實地牢資料)
+![地牢線框](docs/screenshots/dungeon_wireframe.png)
+> `u2_dungeon_demo`:讀真實地牢檔 raw byte(`0x80`=牆),以 oracle `FUN_0040d000` 的程式化畫線
+> 渲染第一人稱透視走廊 + 背牆;右側繁中 HUD(座標 / 朝向 / 可見深度)+ 16×16 小地圖(玩家箭頭)。
+
 ### Ground-truth tileset(U2 Upgrade EGATILES)
 ![EGATILES](docs/screenshots/tileset_egatiles.png)
 > 65 個 16×16 tile:水 / 森林 / 山 / 城堡 / 船 / 馬 / 招牌 A–Z…(art 由玩家自備,本 repo 僅供研究對照)。
@@ -152,13 +157,16 @@ Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄 MFC 殼)──�
 | 端到端在地化(原始 tlkx → 覆蓋層 → CJK) | `src/poc_main.c` |
 | data 層自動化測試(30 斷言,headless) | [`./run_tests.sh`](run_tests.sh) |
 | player 存檔結構(BCD 屬性,DOSBox 實機差分驗證) | [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md) |
+| 繁中角色資料表(從存檔解析渲染) | [`src/sheet_main.c`](src/sheet_main.c) |
+| **地牢 3D 線框繪製首版**(真實 raw byte + oracle 畫法 + 繁中 HUD/小地圖) | [`src/u2_dungeon.c`](src/u2_dungeon.c) |
 
 ### ⏳ 進行中 / 尚未實作
 
 | 項目 | 現況 |
 |---|---|
 | 互動視窗錄製(GIF) | `game_main.c` 互動模式已可玩(需顯示器);CI 走 headless 截圖 |
-| **戰鬥 / 地牢 3D / 載具** | **僅有 oracle 機制文件,尚未在 `src/` 引擎實作** |
+| **戰鬥 / 載具** | **僅有 oracle 機制文件,尚未在 `src/` 引擎實作** |
+| 完整地牢玩法(移動 / 換層 / 戰鬥 / 法術) | 3D 線框繪製已有首版;走位邏輯 / 換層 / 怪物尚未實作 |
 | player 各 stat offset(HP / 食物 / 黃金 / 裝備) | 名字 / 性別 / 種族 / 職業 / 六屬性已解;其餘待更多真實存檔樣本 |
 | NPC / 怪物動態層(執行時改寫的 map 層) | monxNN 靜態實體已解;動態改寫層待解 |
 | CJK 文字層升級(u6-cht 點陣字 atlas) | 目前用 SDL2_ttf + WQY;production 可換 BDF atlas |
@@ -250,6 +258,12 @@ git clone https://github.com/wicanr2/u2-cht.git && cd u2-cht
 ```bash
 # 載入實機建角存檔 → 繁中角色資料表 PNG
 build/u2_sheet tests/fixtures/player_sample_abcd <font.ttf> build/char_sheet.png
+```
+
+### 地牢 3D 線框(從真實地牢資料)
+```bash
+# 自動挑前方深度最大的位置渲染;可加 [px py dir] 指定
+build/u2_dungeon_demo ../dos-original/ultima2/mapx15 <font.ttf> build/dungeon.png
 ```
 
 ### data 層自動化測試(headless)
