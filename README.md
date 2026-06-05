@@ -32,13 +32,11 @@
 
 ## 截圖 / Screenshots
 
-### 互動引擎切片(可走路)
-![互動引擎起點](docs/screenshots/gameplay_start.png)
+### 互動引擎切片(走路 demo)
+![互動引擎遊玩](docs/screenshots/gameplay.gif)
 > `u2_game`:玩家恆置中(黃框)、相機跟隨、方向鍵 / WASD 移動、`u2_passable` 擋海洋;
 > 右側中文狀態欄(生命 / 食物 / 經驗 / 黃金,標籤查 exe 翻譯表)、底部即時座標與訊息列。
-
-![互動引擎移動](docs/screenshots/gameplay_walk.png)
-> 往東南走數步後,地圖在腳下捲動,座標與地形 id 即時更新。
+> 走到海邊時顯示「W 方向被擋住。」(碰撞)。此 GIF 由 headless `--script` 模式逐幀渲染組成,非錄螢幕。
 
 ### 中文化垂直切片 PoC(城鎮)
 ![PoC 主畫面](docs/screenshots/poc_map_cjk.png)
@@ -194,6 +192,10 @@ NPC 對話每 byte `OR 0x80`(ModdingWiki 誤稱 encrypted,實為 high-bit);
 屬性存的是「套用 race/class 加成後」的值(輸入值與建角畫面顯示值逐一吻合)。回歸測試用
 [`tests/fixtures/`](tests/fixtures/) 兩份實機存檔斷言。
 
+![繁中角色資料表](docs/screenshots/char_sheet.png)
+> `u2_sheet`:載入實機建角存檔 → `u2_save` 解析 → 繁中角色資料表(姓名 / 性別 / 種族 / 職業 + 六屬性 BCD)。
+> 此圖直接從存檔 byte 解出,佐證 player 格式破解端到端。
+
 ---
 
 ## 中文化管線 / Localization
@@ -242,6 +244,12 @@ git clone https://github.com/wicanr2/u2-cht.git && cd u2-cht
 
 # 互動視窗(需顯示器,方向鍵 / WASD 走路,Q / Esc 離開):
 #   build/u2_game <mapxNN> <font.ttf> <tileset.png> <ui_tsv>
+```
+
+### 繁中角色資料表(從存檔解析)
+```bash
+# 載入實機建角存檔 → 繁中角色資料表 PNG
+build/u2_sheet tests/fixtures/player_sample_abcd <font.ttf> build/char_sheet.png
 ```
 
 ### data 層自動化測試(headless)
