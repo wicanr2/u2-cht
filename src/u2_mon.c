@@ -22,6 +22,7 @@ U2Mon u2_mon_load(const char *path)
         e->y = buf[0x20 + i];
         e->status = buf[0x40 + i];
         e->tile = t / 4;
+        e->dlg = buf[0xA0 + i];
     }
     return m;
 }

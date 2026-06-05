@@ -294,11 +294,11 @@ static void enter_town(Game *g)
     }
     if (!g->town_ok){ snprintf(g->msg,sizeof g->msg,"找不到城鎮資料,無法進入。"); return; }
     g->tret_x=g->player.x; g->tret_y=g->player.y;
-    /* 落點:站在第一個 NPC 旁的可通行格(方便交談);否則實體群中心 */
+    /* 落點:站在第一個「可交談」NPC 旁的可通行格;否則實體群中心 */
     int sx=U2_MAP_W/2, sy=U2_MAP_H/2, placed=0;
     for (int i=0;i<g->tmon.count && !placed;i++){
         U2Entity *e=&g->tmon.ent[i];
-        if (!e->tile) continue;
+        if (!e->tile || !(e->dlg & 0x80)) continue;
         int NX[4]={0,0,1,-1}, NY[4]={1,-1,0,0};
         for (int k=0;k<4;k++){
             int x=e->x+NX[k], y=e->y+NY[k];
@@ -327,17 +327,18 @@ static void do_talk(Game *g)
         int nx=g->player.x+FX[d], ny=g->player.y+FY[d];
         for (int i=0;i<g->tmon.count;i++){
             U2Entity *e=&g->tmon.ent[i];
-            if (e->tile && e->x==nx && e->y==ny){
-                if (g->talk.count<=0){ snprintf(g->msg,sizeof g->msg,"對方無話可說。"); return; }
-                int k=i % g->talk.count;
-                const char *zh=u2_strings_lookup(&g->tr, g->talk.line[k]);
-                const char *disp=zh?zh:g->talk.line[k];
-                char one[180]; size_t j=0;
-                for (const char *p=disp; *p && j<sizeof one-1; p++) one[j++]=(*p=='\r')?' ':*p;
-                one[j]=0;
-                snprintf(g->msg,sizeof g->msg,"「%s」",one);
-                return;
-            }
+            if (!e->tile || e->x!=nx || e->y!=ny) continue;
+            /* dlg & 0x80 = 可交談;行索引 = (dlg&0x7f)-1 (1-based 進 tlkx) */
+            if (!(e->dlg & 0x80)){ snprintf(g->msg,sizeof g->msg,"對方沉默不語。"); return; }
+            int k=(e->dlg & 0x7f) - 1;
+            if (k<0 || k>=g->talk.count){ snprintf(g->msg,sizeof g->msg,"對方欲言又止。"); return; }
+            const char *zh=u2_strings_lookup(&g->tr, g->talk.line[k]);
+            const char *disp=zh?zh:g->talk.line[k];
+            char one[180]; size_t j=0;
+            for (const char *p=disp; *p && j<sizeof one-1; p++) one[j++]=(*p=='\r')?' ':*p;
+            one[j]=0;
+            snprintf(g->msg,sizeof g->msg,"「%s」",one);
+            return;
         }
     }
     snprintf(g->msg,sizeof g->msg,"附近沒有人可以交談。");
