@@ -32,8 +32,8 @@ build/u2up/
 *.zip
 # 不提交大型 .EGA 圖檔(非引擎 tileset 必需)
 PIC*.EGA
-EGATHEME.ALT/
-EGATHEME.C64/
+# 注:tileset/EGATHEME.{ALT,C64}/EGATILES 已收錄供 tileset 切換;
+# build/u2up 下的解壓暫存已被 build/ 規則忽略。
 
 # === Ghidra 反編 oracle C ===
 # 專案裁示:Ultima II 已過版權、公開逆向資料多 → oracle/ 收錄供 CRPG 史保存。

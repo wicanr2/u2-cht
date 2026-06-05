@@ -61,6 +61,8 @@ typedef struct {
     /* 翻譯 / 存檔 */
     U2Strings ui; U2Strings tr;   /* ui=狀態標籤;tr=對話譯文 */
     U2Save save;
+    /* 可切換 tileset(參考 u3-cht 多平台 tileset 清單) */
+    SDL_Surface *tset[8]; char tname[8][24]; int ntset, curset;
     char msg[200];
 } Game;
 
@@ -128,9 +130,10 @@ static void draw_status_panel(SDL_Surface *cv, U2Text *body, const U2Strings *ui
     }
 }
 
-static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, SDL_Surface *tiles)
+static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
 {
     U2Map *m=amap(g); U2Mon *mon=amon(g);
+    SDL_Surface *tiles = g->ntset ? g->tset[g->curset] : NULL;
     SDL_FillRect(cv, NULL, SDL_MapRGB(cv->format,0,0,0));
     SDL_Rect hdr={0,0,CANVAS_W,HDR_H};
     SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
@@ -155,8 +158,9 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, 
                                      : "方向鍵/WASD 移動 · C 角色表 · Q 離開",
                  MAP_OX,by,150,175,205);
     u2_text_draw(cv,body,g->msg,MAP_OX,by+30,210,225,205);
-    char pos[64]; snprintf(pos,sizeof pos,"座標 (%d, %d)  地形 id=%d",
-        g->player.x,g->player.y,u2_map_tile(m,g->player.x,g->player.y));
+    char pos[96]; snprintf(pos,sizeof pos,"座標 (%d, %d)  地形 id=%d  圖塊 %s(G 切換)",
+        g->player.x,g->player.y,u2_map_tile(m,g->player.x,g->player.y),
+        g->ntset?g->tname[g->curset]:"-");
     u2_text_draw(cv,body,pos,MAP_OX,by+60,150,165,150);
     draw_status_panel(cv,body,&g->ui,&g->save,640,by);
 }
@@ -220,10 +224,9 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
     }
 }
 
-static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body,
-                       U2Text *small, SDL_Surface *tiles)
+static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
 {
-    if (g->mode==MODE_WORLD) render_world(cv,g,title,body,tiles);
+    if (g->mode==MODE_WORLD) render_world(cv,g,title,body);
     else                     render_dungeon(cv,g,title,body,small);
     if (g->show_sheet)       render_sheet_overlay(cv,g,body,small);
 }
@@ -416,6 +419,22 @@ int main(int argc, char **argv)
     char *tb=strrchr(g.town_path,'/'); tb=tb?tb+1:g.town_path;
     snprintf(tb,sizeof g.town_path-(tb-g.town_path),"mapx21");
 
+    /* tileset:tiles_path 為逗號分隔的多張 strip(可切換) */
+    {
+        char buf[1024]; snprintf(buf,sizeof buf,"%s",tiles_path);
+        for (char *tok=strtok(buf,","); tok && g.ntset<8; tok=strtok(NULL,",")){
+            SDL_Surface *s=u2_tileset_load(tok);
+            if (!s) continue;
+            g.tset[g.ntset]=s;
+            /* 名稱 = basename 去副檔名 */
+            const char *bn2=strrchr(tok,'/'); bn2=bn2?bn2+1:tok;
+            snprintf(g.tname[g.ntset],sizeof g.tname[0],"%s",bn2);
+            char *dot=strrchr(g.tname[g.ntset],'.'); if(dot)*dot=0;
+            g.ntset++;
+        }
+        g.curset=0;
+    }
+
     g.ui = ui_tsv ? u2_strings_load(ui_tsv,2,3) : (U2Strings){0};
     /* 對話譯文:由 ui_tsv 同目錄推 talk_dialogue.tsv */
     if (ui_tsv){
@@ -425,7 +444,6 @@ int main(int argc, char **argv)
         g.tr = u2_strings_load(tt,2,3);
     }
     if (player_save) g.save = u2_save_load(player_save);
-    SDL_Surface *tiles=u2_tileset_load(tiles_path);
 
     SDL_Surface *cv=SDL_CreateRGBSurfaceWithFormat(0,CANVAS_W,CANVAS_H,32,SDL_PIXELFORMAT_RGBA32);
     U2Text title=u2_text_open(font_path,20), body=u2_text_open(font_path,22), small=u2_text_open(font_path,17);
@@ -437,7 +455,7 @@ int main(int argc, char **argv)
 
     if (headless){
         int step=0; char out[600];
-        render_all(cv,&g,&title,&body,&small,tiles);
+        render_all(cv,&g,&title,&body,&small);
         snprintf(out,sizeof out,"%s%02d.png",out_prefix,step++); IMG_SavePNG(cv,out);
         for (const char *s=script;*s;s++){
             char c=*s, d=norm_dir(c);
@@ -446,11 +464,13 @@ int main(int argc, char **argv)
             else if (c=='T'||c=='t') do_talk(&g);
             else if (c=='J'||c=='j') dungeon_descend(&g);
             else if (c=='K'||c=='k') dungeon_ascend(&g);
+            else if (c=='G'||c=='g'){ if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
+                snprintf(g.msg,sizeof g.msg,"切換圖塊:%s",g.tname[g.curset]); } }
             else if (c=='X'||c=='x'){ if (g.mode==MODE_DUNGEON) exit_dungeon(&g); else if (g.in_town) exit_town(&g); }
             else if (c=='D') enter_dungeon(&g);
             else if (c=='O') enter_town(&g);   /* 強制進城(headless 測試用) */
             else continue;
-            render_all(cv,&g,&title,&body,&small,tiles);
+            render_all(cv,&g,&title,&body,&small);
             snprintf(out,sizeof out,"%s%02d.png",out_prefix,step++); IMG_SavePNG(cv,out);
         }
         printf("腳本完成:%d 步,輸出 %s00..%02d.png\n",step-1,out_prefix,step-1);
@@ -474,6 +494,8 @@ int main(int argc, char **argv)
                         case SDLK_t: do_talk(&g); break;
                         case SDLK_j: dungeon_descend(&g); break;
                         case SDLK_k: dungeon_ascend(&g); break;
+                        case SDLK_g: if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
+                            snprintf(g.msg,sizeof g.msg,"切換圖塊:%s",g.tname[g.curset]); } break;
                         case SDLK_x:
                             if (g.mode==MODE_DUNGEON) exit_dungeon(&g);
                             else if (g.in_town) exit_town(&g);
@@ -483,7 +505,7 @@ int main(int argc, char **argv)
                     if (d) handle_dir(&g,d);
                 }
             }
-            render_all(cv,&g,&title,&body,&small,tiles);
+            render_all(cv,&g,&title,&body,&small);
             SDL_Texture *tex=SDL_CreateTextureFromSurface(ren,cv);
             SDL_RenderClear(ren); SDL_RenderCopy(ren,tex,NULL,NULL); SDL_RenderPresent(ren);
             SDL_DestroyTexture(tex);
@@ -493,7 +515,7 @@ int main(int argc, char **argv)
     }
 
     u2_text_close(&title); u2_text_close(&body); u2_text_close(&small);
-    if (tiles) SDL_FreeSurface(tiles);
+    for (int i=0;i<g.ntset;i++) SDL_FreeSurface(g.tset[i]);
     SDL_FreeSurface(cv);
     TTF_Quit(); IMG_Quit(); SDL_Quit();
     return 0;
