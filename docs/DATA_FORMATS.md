@@ -73,9 +73,12 @@
 - 用途:地圖 (mapxNN) 只有地形/建築/招牌;**實體層 (NPC/怪物) 由 monxNN 疊上** → 空城變活城。
 - 引擎:`u2_mon.{h,c}` 解析;`render` 先畫地形 tile,再疊 monxNN 實體 tile。
 
-## monsters / player 📖(待本機驗證)
-- `monsters`(2176 B):怪物屬性表(全域,oracle 以 `s_Monsters` 載入)。
-- `player`(384 B):角色屬性/隊伍/存檔。重寫存檔相容性需逐欄位比對(對照 oracle `FUN_004060a0` 狀態列讀取邏輯)。
+## player — 角色存檔 ⚠️(結構部分破解;欄位 offset 待真實存檔)
+- 384 byte;**前 256 byte (0x100) = 角色記錄**(oracle 載入碼 `FUN_0040fa80(obj+0x120, 1, 0x100, fp)` 讀進物件並檢查回傳==0x100)。
+- **角色記錄 byte 0 != 0 = 已建角色**(0 = fresh / 無角色);offset `0x100` 有 `0x1a` 標記(與 monxNN 同)。
+- ⚠️ **bundled `player` 為空**(僅 byte 0x100=0x1a,rec[0]=0 → 無角色)→ **無真實角色資料可逐欄驗證**。各 stat(HP/食物/黃金/STR…)精確 byte offset **尚未對應**,需一份「已建角色」存檔。oracle 狀態列(`FUN_004060a0`)從**衍生工作物件**讀(H.P.@+0x74、FOOD@+0x78、`+0x738c<0x1b` 判行星/太空),非直接檔案 offset。
+- 引擎:[`u2_save`](../src/u2_save.c) 解析(ok / has_character / rec[256] / marker);測試確認 bundled 為空。
+- `monsters`(2176 B):怪物屬性表(全域,oracle 以 `s_Monsters` 載入),待本機驗證 📖。
 
 ## 中文化文字來源總結(兩處)
 1. **exe 內嵌 UI 字串**:392 條 → `extract/exe_translatable_strings.tsv`(vaddr/category/原文/zh_hant)。

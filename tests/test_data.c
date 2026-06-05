@@ -10,6 +10,7 @@
 #include "u2_play.h"
 #include "u2_talk.h"
 #include "u2_strings.h"
+#include "u2_save.h"
 
 static int fails = 0, total = 0;
 #define CHECK(cond, msg) do { \
@@ -67,6 +68,13 @@ int main(int argc, char **argv)
     printf("[u2_play] 可通行\n");
     CHECK(u2_passable(0) == 0, "海洋(0) 不可通行");
     CHECK(u2_passable(2) == 1, "陸地(2) 可通行");
+
+    printf("[u2_save] player 存檔\n");
+    path(p, sizeof p, dd, "player");
+    U2Save sv = u2_save_load(p);
+    CHECK(sv.ok, "player 載入成功 (384B)");
+    CHECK(sv.has_character == 0, "bundled player 無角色 (rec[0]==0, fresh)");
+    CHECK(sv.marker == 0x1a, "offset 0x100 標記 == 0x1a");
 
     printf("\n結果: %d/%d 通過%s\n", total - fails, total, fails ? "  *** 有失敗 ***" : "");
     return fails ? 1 : 0;

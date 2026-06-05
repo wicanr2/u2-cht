@@ -145,7 +145,8 @@ python3 tools/decode_talk.py path/to/ultima2/ > translations/talk_dialogue.tsv
 - [x] **隊伍移動(置中/鏡頭跟隨/海洋碰撞,headless 驗證)** ✅([docs/MOVEMENT.md](docs/MOVEMENT.md))
 - [x] **端到端在地化(引擎讀原始 tlkx → 翻譯覆蓋層 → CJK)** ✅
 - [x] **自動化測試(data 層 15 斷言,`./run_tests.sh`)** ✅
-- [ ] 互動視窗(SDL 開窗 + 鍵盤)、player 存檔解析、載具/地牢/戰鬥
+- [x] **player 存檔結構**(384B = 256B 角色記錄;byte0=角色存在旗標;bundled 為空)— 各 stat offset 待真實存檔
+- [ ] 互動視窗(SDL 開窗 + 鍵盤)、player 各欄位 offset(需真存檔)、載具/地牢/戰鬥
 - [ ] 行為對照 oracle(亂數/機率/戰鬥公式)
 - [ ] 截圖 vs Alderson exe(Wine)pass/fail loop
 
