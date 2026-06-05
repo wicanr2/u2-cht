@@ -17,18 +17,31 @@ DATA_DIR="$(dirname "$MAP_ABS")"
 MAP_NAME="$(basename "$MAP_ABS")"
 mkdir -p build
 
-# 引擎 tileset(同 build_poc:優先 U2 Upgrade EGATILES)
-EGATILES="${U2UP_TILES:-}"
-[[ -z "$EGATILES" && -f tileset/EGATILES ]] && EGATILES="tileset/EGATILES"
-[[ -z "$EGATILES" && -f "$DATA_DIR/EGATILES" ]] && EGATILES="$DATA_DIR/EGATILES"
-if [[ -n "$EGATILES" && -f "$EGATILES" ]]; then
-    echo "tileset: U2 Upgrade EGATILES ($EGATILES)"
-    /usr/bin/python3 tools/decode_u2upgrade_tiles.py "$EGATILES" build/tileset.png ega strip
-    TILES=/work/build/tileset.png
-else
-    echo "找不到 EGATILES,改用色塊 fallback"
-    TILES=/work/build/tileset.png
+# 可切換 tileset:產生 CGA / EGA / EGA-ALT / EGA-C64 strip(有哪個算哪個)
+# 主要來源 tileset/(repo 內 CGATILES/EGATILES);EGATHEME 變體需 u2upgrade-2.1.zip。
+mkdir -p build/ts build/u2up
+gen() { /usr/bin/python3 tools/decode_u2upgrade_tiles.py "$1" "$2" "$3" strip >/dev/null 2>&1 && echo "$2"; }
+declare -a STRIPS
+[[ -f tileset/EGATILES ]] && STRIPS+=("$(gen tileset/EGATILES build/ts/ega.png ega)")
+[[ -f tileset/CGATILES ]] && STRIPS+=("$(gen tileset/CGATILES build/ts/cga.png cga)")
+# EGATHEME 變體:優先 repo 內 tileset/(已收錄),否則從 u2upgrade zip 解
+ALT=""; C64=""
+[[ -f tileset/EGATHEME.ALT/EGATILES ]] && ALT="tileset/EGATHEME.ALT/EGATILES"
+[[ -f tileset/EGATHEME.C64/EGATILES ]] && C64="tileset/EGATHEME.C64/EGATILES"
+if [[ -z "$ALT" || -z "$C64" ]]; then
+    ZIP="$(ls ../u2upgrade-2.1.zip 2>/dev/null | head -1 || true)"
+    if [[ -n "${ZIP:-}" && -f "$ZIP" ]]; then
+        ( cd build/u2up && unzip -o "$(readlink -f "$OLDPWD/$ZIP")" 'EGATHEME.ALT/*' 'EGATHEME.C64/*' >/dev/null 2>&1 ) || true
+        [[ -z "$ALT" && -f build/u2up/EGATHEME.ALT/EGATILES ]] && ALT="build/u2up/EGATHEME.ALT/EGATILES"
+        [[ -z "$C64" && -f build/u2up/EGATHEME.C64/EGATILES ]] && C64="build/u2up/EGATHEME.C64/EGATILES"
+    fi
 fi
+[[ -n "$ALT" ]] && STRIPS+=("$(gen "$ALT" build/ts/ega_alt.png ega)")
+[[ -n "$C64" ]] && STRIPS+=("$(gen "$C64" build/ts/ega_c64.png ega)")
+# 串成逗號清單(容器內路徑 /work/...)
+TILES=""
+for s in "${STRIPS[@]}"; do [[ -n "$s" ]] && TILES="${TILES:+$TILES,}/work/$s"; done
+echo "tilesets: $TILES"
 
 docker build -q -t "$IMG" docker/ >/dev/null
 docker run --rm \
