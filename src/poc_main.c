@@ -43,6 +43,7 @@ int main(int argc, char **argv)
     const char *out_path = argv[3];
     const char *tiles_path = (argc > 4) ? argv[4] : NULL;
     const char *tsv_path = (argc > 5) ? argv[5] : NULL;
+    const char *ui_tsv_path = (argc > 6) ? argv[6] : NULL;  /* exe UI 翻譯表 */
 
     if (SDL_Init(0) != 0 || IMG_Init(IMG_INIT_PNG) == 0) {
         fprintf(stderr, "SDL init: %s\n", SDL_GetError());
@@ -73,6 +74,7 @@ int main(int argc, char **argv)
     if (tp) memcpy(tp, "tlk", 3);
     U2Talk talk = u2_talk_load(tlk_path);
     U2Strings tr = tsv_path ? u2_strings_load(tsv_path, 2, 3) : (U2Strings){0};
+    U2Strings ui = ui_tsv_path ? u2_strings_load(ui_tsv_path, 2, 3) : (U2Strings){0};
 
     SDL_Surface *canvas = SDL_CreateRGBSurfaceWithFormat(
         0, CANVAS_W, CANVAS_H, 32, SDL_PIXELFORMAT_RGBA32);
@@ -135,18 +137,31 @@ int main(int argc, char **argv)
     if (shown == 0)
         u2_text_draw(canvas, &body, "(此地圖無對話資料)", MAP_OX, ly, 150, 150, 150);
 
-    /* 右:狀態欄 (對齊 U2 的 H.P./FOOD/EXP/GOLD) */
-    static const char *stat_lines[] = {
-        "生命  0343",
-        "食物  0184",
-        "經驗  0018",
-        "黃金  0067",
+    /* 右:狀態欄 — 標籤從 exe UI 翻譯表查 (第二個翻譯來源,端到端) */
+    static const struct { const char *orig; const char *val; } stats[] = {
+        { "H.P.=", "0343" }, { "FOOD=", "0184" },
+        { "EXP.=%.4d", "0018" }, { "GOLD=%.4d", "0067" },
     };
     int sx0 = 640, sy0 = bottom_y;
     for (int i = 0; i < 4; i++) {
-        u2_text_draw(canvas, &body, stat_lines[i], sx0, sy0, 235, 225, 150);
+        const char *zh = u2_strings_lookup(&ui, stats[i].orig);
+        char label[64];
+        if (zh) {
+            /* 取譯文 "=" 前的標籤 (去掉 = 與格式 token) */
+            size_t k = 0;
+            for (const char *p = zh; *p && *p != '=' && k < sizeof label - 1; p++)
+                label[k++] = *p;
+            label[k] = 0;
+        } else {
+            snprintf(label, sizeof label, "%s", stats[i].orig);
+        }
+        char line[96];
+        snprintf(line, sizeof line, "%s  %s", label, stats[i].val);
+        u2_text_draw(canvas, &body, line, sx0, sy0, 235, 225, 150);
         sy0 += 30;
     }
+    /* 註記:狀態列標籤來源 */
+    u2_text_draw(canvas, &body, "(狀態標籤 ← exe 翻譯表)", sx0, sy0 + 4, 130, 145, 175);
 
     if (IMG_SavePNG(canvas, out_path) != 0) {
         fprintf(stderr, "存檔失敗: %s\n", IMG_GetError());

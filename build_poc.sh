@@ -47,6 +47,6 @@ docker run --rm \
         set -e
         cmake -S /work -B /work/build -DCMAKE_BUILD_TYPE=Release >/dev/null
         cmake --build /work/build -j >/dev/null
-        /work/build/u2_poc /data/$MAP_NAME $FONT /work/$OUT $TILES /work/translations/talk_dialogue.tsv
+        /work/build/u2_poc /data/$MAP_NAME $FONT /work/$OUT $TILES /work/translations/talk_dialogue.tsv /work/translations/exe_translatable_strings.tsv
     "
 echo "→ $OUT"

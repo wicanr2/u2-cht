@@ -65,6 +65,13 @@ int main(int argc, char **argv)
     if (zh) CHECK(strstr(zh, "格倫德") != NULL || strstr(zh, "謎題") != NULL,
                   "line0 譯文含預期繁中");
 
+    printf("[u2_strings] exe UI 翻譯表 (第二來源)\n");
+    path(p, sizeof p, td, "exe_translatable_strings.tsv");
+    U2Strings ui = u2_strings_load(p, 2, 3);
+    CHECK(ui.count > 0, "exe UI 翻譯表載入");
+    const char *hp = u2_strings_lookup(&ui, "H.P.=");
+    CHECK(hp && strstr(hp, "生命") != NULL, "H.P.= → 生命 (UI 標籤端到端)");
+
     printf("[u2_play] 可通行\n");
     CHECK(u2_passable(0) == 0, "海洋(0) 不可通行");
     CHECK(u2_passable(2) == 1, "陸地(2) 可通行");

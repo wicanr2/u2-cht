@@ -20,7 +20,9 @@
 
 **底部訊息列為端到端在地化展示**:引擎讀**原始 `tlkx21`**(high-bit ASCII 解碼)→ 經**翻譯覆蓋層** `talk_dialogue.tsv`(以原文為 key)查譯文 → 繪 CJK。畫面中「流浪漢格倫德說:精通謎題者方為真正的高手!」「安迪.格林堡抱怨:什麼?沒有軟體?!?」「羅伯.伍德海大喊:防拷!防拷!」皆為**真實 tlkx21 NPC 對話的中譯**(非硬編);查無譯文則 fallback 原文(暗色)。
 
-> 完整在地化管線:**原始資料 → 覆蓋層 → CJK**,模組 `u2_talk`(解碼)+ `u2_strings`(覆蓋層)。
+**兩個翻譯來源都端到端**:① 訊息列 = tlkx 對話 → `talk_dialogue.tsv`;② **狀態列標籤 = exe 內嵌 UI 字串 → `exe_translatable_strings.tsv`**(H.P.=→生命、FOOD=→食物…,以原文為 key 查),畫面右下註「狀態標籤 ← exe 翻譯表」。
+
+> 完整在地化管線:**原始資料 → 覆蓋層 → CJK**,模組 `u2_talk`(解碼)+ `u2_strings`(覆蓋層,兩來源共用)。
 > 截圖使用 **U2 Upgrade EGATILES**(正確 tileset:藍波浪水/綠樹/城堡/山/彩色 sprite);
 > 引擎 tileset 由 `build_poc.sh` 優先用玩家自備的 EGATILES 產生(找不到才 fallback EXE @0x7C42 PoC tile)。詳見 [DATA_FORMATS.md](DATA_FORMATS.md)。實體層見 monxNN 段。
 
