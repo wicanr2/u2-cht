@@ -49,6 +49,14 @@ int main(int argc, char **argv)
     CHECK(mon.ent[0].x == 41 && mon.ent[0].y == 56, "ent0 座標 (41,56)");
     CHECK(mon.ent[0].tile == 24, "ent0 tile==24 (0x60+i ÷4)");
     CHECK(mon.ent[0].status == 0xff, "ent0 status==0xff (固定物)");
+    /* 對話參照 0xA0+i:可交談 NPC (&0x80) 應有 4 個,索引集合 {1,2,3,4} */
+    {
+        int talkers = 0, idxmask = 0;
+        for (int i = 0; i < mon.count; i++)
+            if (mon.ent[i].dlg & 0x80) { talkers++; idxmask |= 1 << (mon.ent[i].dlg & 0x7f); }
+        CHECK(talkers == 4, "monx21 可交談 NPC 4 個 (dlg & 0x80)");
+        CHECK(idxmask == ((1<<1)|(1<<2)|(1<<3)|(1<<4)), "對話索引集合 = {1,2,3,4}");
+    }
 
     printf("[u2_talk] tlkx21 對話解碼\n");
     path(p, sizeof p, dd, "tlkx21");

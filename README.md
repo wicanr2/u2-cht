@@ -40,8 +40,9 @@
 ### 城鎮 NPC 對話(端到端在地化)
 ![城鎮對話](docs/screenshots/town_talk.gif)
 > 踩到城鎮 tile 進城 → 走到 NPC 旁按 `T` 交談:引擎讀 `tlkx` 對話 → 翻譯覆蓋層 → CJK 顯示。
-> 例:「流浪漢格倫德說:精通謎題者 方為真正的高手!」(來自 tlkx21,原文 GRENDEL)。
-> ⚠️ NPC→對話行的精確對應尚未破解,目前以實體索引啟發式選行;對話解碼與翻譯本身已驗證。
+> 例:「流浪漢格倫德說:精通謎題者 方為真正的高手!」(tlkx21,原文 GRENDEL)。
+> **NPC→對話行對應已破解**:monxNN 第 6 陣列 `0xA0+i`(`&0x80`=可交談,行索引 `(dlg&0x7f)-1`);
+> monx21 的 4 個交談 NPC 正好對上 tlkx21 的 4 行對話。
 
 ### 地面走路特寫
 ![互動引擎遊玩](docs/screenshots/gameplay.gif)
@@ -175,6 +176,7 @@ Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄 MFC 殼)──�
 | **地牢 3D 線框 + 多層換層**(16 層 `level*256+Y*16+X`、樓梯 `&0x10`/`&0x20`、J/K 換層) | [`src/u2_dungeon.c`](src/u2_dungeon.c) |
 | **整合主迴圈狀態機**(地面 ↔ 城鎮 ↔ 地牢 ↔ 角色表,單一 `u2_game`) | [`src/game_main.c`](src/game_main.c) |
 | **城鎮 NPC 對話**(進城 → 鄰格 NPC → T → tlkx 解碼 → 翻譯 → CJK) | [`src/game_main.c`](src/game_main.c) |
+| **NPC→對話行對應破解**(monxNN `0xA0+i` 第 6 陣列,`&0x80`+1-based 索引) | [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md) |
 
 ### ⏳ 進行中 / 尚未實作
 

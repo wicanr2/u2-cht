@@ -79,8 +79,12 @@
   | status | `0x40 + i` | 狀態/旗標 (固定物=`0xff`,活動實體=其他) |
   | tile | `0x60 + i` | **tile_id × 4**(同地圖編碼);`0`=空 slot |
   | flag | `0x80 + i` | 次要旗標 (多為 `0x08`);`0x100` 處固定 `0x1a` 標頭 |
+  | dlg | `0xA0 + i` | **對話參照**:`& 0x80`=可交談,行索引 = `(dlg & 0x7f) - 1`(1-based 進 tlkx) |
 
 - **驗證**:monx21 中 tile=24 的 8 個實體,其 (X,Y) 與 mapx21 地圖上 8 個 id-24 格**完全吻合** → 格式確認。
+- **對話對應驗證**:monx21 中 `dlg & 0x80` 的 NPC 恰 4 個(`0x81/0x82/0x83/0x84`),
+  而 tlkx21 恰 4 行對話(GRENDEL/ANDY GREENBERG/ROBERT WOODHEAD/NYMPH)→ `(dlg&0x7f)-1` 為 1-based 行索引。
+  取代先前「實體索引啟發式」;交談時依此選正確對話行。
 - 用途:地圖 (mapxNN) 只有地形/建築/招牌;**實體層 (NPC/怪物) 由 monxNN 疊上** → 空城變活城。
 - 引擎:`u2_mon.{h,c}` 解析;`render` 先畫地形 tile,再疊 monxNN 實體 tile。
 
