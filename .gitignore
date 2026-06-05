@@ -35,11 +35,11 @@ PIC*.EGA
 EGATHEME.ALT/
 EGATHEME.C64/
 
-# === Ghidra 反編 oracle C（Alderson binary 衍生物，不公開）===
-# 註:我們「乾淨重寫」的 src/ 可公開;反編 oracle 本身不公開
+# === Ghidra 反編 oracle C ===
+# 專案裁示:Ultima II 已過版權、公開逆向資料多 → oracle/ 收錄供 CRPG 史保存。
+# 僅忽略本機工作目錄;repo 內 oracle/ 已提交。
 decompile/
-*_decompiled.c
-ultima2_decompiled.c
+build/u2up/
 
 # === 原始壓縮檔 ===
 *.zip
