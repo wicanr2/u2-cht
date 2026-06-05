@@ -19,13 +19,13 @@
 static const char *DIR_ZH[4] = { "北 N", "東 E", "南 S", "西 W" };
 
 /* 沿 dir 數前方連續可走格數(到牆為止) */
-static int fwd_depth(const U2Dungeon *d, int px, int py, int dir)
+static int fwd_depth(const U2Dungeon *d, int level, int px, int py, int dir)
 {
     int FX[4] = { 0, 1, 0, -1 }, FY[4] = { -1, 0, 1, 0 };
     int n = 0;
     for (int k = 1; k <= 5; k++) {
         int x = px + FX[dir] * k, y = py + FY[dir] * k;
-        if (u2_dungeon_is_wall(d, x, y)) break;
+        if (u2_dungeon_is_wall(d, level, x, y)) break;
         n++;
     }
     return n;
@@ -44,6 +44,7 @@ int main(int argc, char **argv)
     U2Dungeon dg = u2_dungeon_load(argv[1]);
     if (!dg.ok) { fprintf(stderr, "無法載入地牢: %s\n", argv[1]); return 1; }
 
+    int level = 0;
     /* 起點:給定或自動挑前方深度最大者 */
     int px, py, dir;
     if (argc >= 7) {
@@ -52,9 +53,9 @@ int main(int argc, char **argv)
         px = py = dir = 0; int best = -1;
         for (int y = 0; y < U2_DNG_N; y++)
             for (int x = 0; x < U2_DNG_N; x++) {
-                if (u2_dungeon_is_wall(&dg, x, y)) continue;
+                if (u2_dungeon_is_wall(&dg, level, x, y)) continue;
                 for (int dd = 0; dd < 4; dd++) {
-                    int v = fwd_depth(&dg, x, y, dd);
+                    int v = fwd_depth(&dg, level, x, y, dd);
                     if (v > best) { best = v; px = x; py = y; dir = dd; }
                 }
             }
@@ -72,7 +73,7 @@ int main(int argc, char **argv)
     u2_text_draw(cv, &title, "地牢 — 第一人稱線框(Ultima II)", 12, 5, 235, 235, 245);
 
     /* 左:3D 線框視區 */
-    int depth = u2_dungeon_render(cv, &dg, px, py, dir, 16, 50, VIEW, VIEW);
+    int depth = u2_dungeon_render(cv, &dg, level, px, py, dir, 16, 50, VIEW, VIEW);
 
     /* 右:繁中 HUD */
     int rx = 16 + VIEW + 24, ry = 60;
@@ -83,6 +84,8 @@ int main(int argc, char **argv)
     snprintf(ln, sizeof ln, "朝向: %s", DIR_ZH[dir]);
     u2_text_draw(cv, &body, ln, rx, ry, 225, 225, 230); ry += 30;
     snprintf(ln, sizeof ln, "前方可見深度: %d", depth);
+    u2_text_draw(cv, &body, ln, rx, ry, 225, 225, 230); ry += 30;
+    snprintf(ln, sizeof ln, "樓層: %d / 共 %d 層", level + 1, dg.levels);
     u2_text_draw(cv, &body, ln, rx, ry, 225, 225, 230); ry += 42;
 
     /* 小地圖 (16×16,每格 18px) */
@@ -90,9 +93,9 @@ int main(int argc, char **argv)
     int cell = 18, mx = rx, my = ry;
     for (int y = 0; y < U2_DNG_N; y++)
         for (int x = 0; x < U2_DNG_N; x++) {
-            unsigned char c = dg.cell[y][x];
+            unsigned char c = dg.cell[level][y][x];
             Uint8 r=18,g=20,b=28;
-            if (u2_dungeon_is_wall(&dg, x, y)) { r=70;g=78;b=95; }
+            if (u2_dungeon_is_wall(&dg, level, x, y)) { r=70;g=78;b=95; }
             else if (c==0xC0||c==0xE0) { r=200;g=170;b=70; }   /* 門/梯 */
             else { r=30;g=44;b=36; }                            /* 走廊 */
             SDL_Rect rc = { mx + x*cell, my + y*cell, cell-1, cell-1 };

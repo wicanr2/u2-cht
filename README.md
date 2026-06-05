@@ -54,10 +54,13 @@
 > 上方地圖 viewport(真實 tile + monxNN 實體層,空城 → 活城)、底部中文 NPC 對話、右側中文狀態欄。
 > 對話與狀態標籤皆**非硬編**:引擎讀原始資料 → 翻譯覆蓋層 → CJK 原生繪製。
 
-### 第一人稱線框地牢(真實地牢資料)
+### 第一人稱線框地牢 + 多層換層
+![地牢探索換層](docs/screenshots/dungeon_descend.gif)
+> 真實地牢檔(16 層,`level*256+Y*16+X`)以 oracle `FUN_0040d000` 程式化畫線渲染第一人稱走廊;
+> 走到下梯(`&0x20`)按 `J` 下樓(HUD「樓層 1 → 2」),上梯(`&0x10`)按 `K`。右側繁中 HUD + 16×16 小地圖。
+
 ![地牢線框](docs/screenshots/dungeon_wireframe.png)
-> `u2_dungeon_demo`:讀真實地牢檔 raw byte(`0x80`=牆),以 oracle `FUN_0040d000` 的程式化畫線
-> 渲染第一人稱透視走廊 + 背牆;右側繁中 HUD(座標 / 朝向 / 可見深度)+ 16×16 小地圖(玩家箭頭)。
+> 單張線框特寫:透視走廊 + 背牆 + 樓層/深度 HUD;小地圖黃色為門/梯,紅色為玩家。
 
 ### Ground-truth tileset(U2 Upgrade EGATILES)
 ![EGATILES](docs/screenshots/tileset_egatiles.png)
@@ -169,7 +172,7 @@ Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄 MFC 殼)──�
 | data 層自動化測試(30 斷言,headless) | [`./run_tests.sh`](run_tests.sh) |
 | player 存檔結構(BCD 屬性,DOSBox 實機差分驗證) | [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md) |
 | 繁中角色資料表(從存檔解析渲染) | [`src/sheet_main.c`](src/sheet_main.c) |
-| **地牢 3D 線框繪製首版**(真實 raw byte + oracle 畫法 + 繁中 HUD/小地圖) | [`src/u2_dungeon.c`](src/u2_dungeon.c) |
+| **地牢 3D 線框 + 多層換層**(16 層 `level*256+Y*16+X`、樓梯 `&0x10`/`&0x20`、J/K 換層) | [`src/u2_dungeon.c`](src/u2_dungeon.c) |
 | **整合主迴圈狀態機**(地面 ↔ 城鎮 ↔ 地牢 ↔ 角色表,單一 `u2_game`) | [`src/game_main.c`](src/game_main.c) |
 | **城鎮 NPC 對話**(進城 → 鄰格 NPC → T → tlkx 解碼 → 翻譯 → CJK) | [`src/game_main.c`](src/game_main.c) |
 
@@ -179,7 +182,7 @@ Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄 MFC 殼)──�
 |---|---|
 | 互動視窗錄製(GIF) | `game_main.c` 互動模式已可玩(需顯示器);CI 走 headless 截圖 |
 | **戰鬥 / 載具** | **僅有 oracle 機制文件,尚未在 `src/` 引擎實作** |
-| 完整地牢玩法(移動 / 換層 / 戰鬥 / 法術) | 3D 線框繪製已有首版;走位邏輯 / 換層 / 怪物尚未實作 |
+| 地牢戰鬥 / 法術 / 怪物 | 線框繪製 + 走位 + 換層(J/K)已實作;地牢內怪物 / 戰鬥 / 法術尚未 |
 | player 各 stat offset(HP / 食物 / 黃金 / 裝備) | 名字 / 性別 / 種族 / 職業 / 六屬性已解;其餘待更多真實存檔樣本 |
 | NPC / 怪物動態層(執行時改寫的 map 層) | monxNN 靜態實體已解;動態改寫層待解 |
 | CJK 文字層升級(u6-cht 點陣字 atlas) | 目前用 SDL2_ttf + WQY;production 可換 BDF atlas |

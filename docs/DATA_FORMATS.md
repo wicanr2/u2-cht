@@ -51,13 +51,16 @@
 - 全 15 檔已解 → **108 行對話**,輸出 `extract/talk_dialogue.tsv`(file/index/原文/zh_hant 欄)。
 - 中文化原則(沿用 U3):**不寫回 `.tlkx`**(會破壞長度);用外部 UTF-8 覆蓋層以 `(檔名, index)` 為 key。
 
-## 地牢(mapxN4/N5)✅(cell 編碼本機驗證 + oracle 對照)
-- ⚠️ **實測檔案為 4224 byte(64×66,與地面圖同 loader)**,非文件常說的 256 byte 單層;
-  本引擎讀**左上 16×16 當一層**(多層堆疊方式待驗證)。oracle 座標限 0..15、index `(level*0x10+Y)*0x10+X`。
-- **cell 用 raw byte(非地圖的 ÷4)**;mapx15 左上 16×16 實際 byte 分佈:
-  `0x00`(走廊,最多)、`0x80`(牆,次多)、`0xC0`(門)、`0xE0`(梯)、`0x08/0x0C`(特殊標記)。
-- **牆判定**:實心牆 = `0x80`;門 `0xC0` / 梯 `0xE0` 雖 `&0x80` 但為通道(oracle 可走集合
-  `0x00/0x10/0x20/0x30/0x40/0xC0/0xE0`;PASSWALL 清 `&0x80` 的牆)。
+## 地牢(mapxN4/N5)✅(多層格式本機驗證 + oracle 對照)
+- 檔案 4224 byte;**多層平鋪,每層 16×16 = 256 byte,row stride 16**,
+  index = **`level*256 + Y*16 + X`**(與 oracle `(level*0x10+Y)*0x10+X` 一致)。
+  mapx15 實測解出 16 層連貫迷宮(逐層皆有牆/走廊/門/梯)。
+  > ⚠️ 早期誤用 stride 64 讀「左上 16×16」可得貌似合理的迷宮,但非正解;已改 stride 16 多層。
+- **cell 用 raw byte(非地圖的 ÷4)**:`0x00`走廊、`0x80`牆、`0xC0`門、`0xE0`下梯。
+- **牆判定**:實心牆 = `& 0x80`(但 `0xC0`門 / `0xE0`下梯為通道);oracle 可走集合
+  `0x00/0x10/0x20/0x30/0x40/0xC0/0xE0`;PASSWALL 清 `&0x80` 的牆。
+- **樓梯(oracle 位元)**:`& 0x10` = 上梯(KLIMB up)、`& 0x20` = 下梯(DESCEND down);
+  `0xE0` 含 `0x20` 為下梯。引擎 `u2_dungeon_ladder` 依此判定,踩到樓梯按 K/J 換層(level 0 上梯→回地面)。
 - **繪製**:oracle `FUN_0040d000` 為 3D 線框主迴圈(`FUN_0040dd90` = LineTo),沿朝向掃深度畫透視框 +
   側牆 + 背牆,**程式化畫線**非 tile bitmap。引擎 [`u2_dungeon`](../src/u2_dungeon.c) 以此重寫(SDL 畫線),
   demo 見 [`src/dungeon_main.c`](../src/dungeon_main.c) 與 `docs/screenshots/dungeon_wireframe.png`。
