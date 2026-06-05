@@ -14,17 +14,6 @@
 #define W 600
 #define H 560
 
-/* 顯示用繁中對照(index 對齊 u2_save 的 0-indexed 編碼) */
-static const char *RACE_ZH[4]  = { "人類", "精靈", "矮人", "哈比人" };
-static const char *CLASS_ZH[4] = { "戰士", "牧師", "巫師", "盜賊" };
-static const char *STAT_ZH[U2_NUM_STATS] =
-    { "力量", "敏捷", "體力", "魅力", "智慧", "智力" };
-
-static const char *idx(const char *const *arr, int n, int i)
-{
-    return (i >= 0 && i < n) ? arr[i] : "?";
-}
-
 int main(int argc, char **argv)
 {
     if (argc < 4) {
@@ -63,9 +52,9 @@ int main(int argc, char **argv)
         u2_text_draw(cv, &body, ln, x, y, 230, 230, 235); y += lh;
         snprintf(ln, sizeof ln, "性別: %s", s.sex == 'F' ? "女" : "男");
         u2_text_draw(cv, &body, ln, x, y, 230, 230, 235); y += lh;
-        snprintf(ln, sizeof ln, "種族: %s", idx(RACE_ZH, 4, s.race));
+        snprintf(ln, sizeof ln, "種族: %s", u2_save_race_zh(s.race));
         u2_text_draw(cv, &body, ln, x, y, 230, 230, 235); y += lh;
-        snprintf(ln, sizeof ln, "職業: %s", idx(CLASS_ZH, 4, s.klass));
+        snprintf(ln, sizeof ln, "職業: %s", u2_save_class_zh(s.klass));
         u2_text_draw(cv, &body, ln, x, y, 230, 230, 235); y += lh + 8;
 
         /* 分隔線 */
@@ -75,7 +64,7 @@ int main(int argc, char **argv)
         u2_text_draw(cv, &small, "屬性(由 BCD 解碼)", x, y, 150, 170, 205); y += 28;
         for (int i = 0; i < U2_NUM_STATS; i++) {
             char lab[64];
-            snprintf(lab, sizeof lab, "%s %s", STAT_ZH[i], u2_save_stat_name(i));
+            snprintf(lab, sizeof lab, "%s %s", u2_save_stat_zh(i), u2_save_stat_name(i));
             u2_text_draw(cv, &body, lab, x, y, 210, 215, 225);
             char val[16];
             snprintf(val, sizeof val, "%2d", s.stats[i]);

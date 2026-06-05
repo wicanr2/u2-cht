@@ -38,6 +38,6 @@ docker run --rm \
         set -e
         cmake -S /work -B /work/build -DCMAKE_BUILD_TYPE=Release >/dev/null
         cmake --build /work/build --target u2_game -j >/dev/null
-        /work/build/u2_game /data/$MAP_NAME $FONT $TILES /work/translations/exe_translatable_strings.tsv --script $MOVES /work/$PREFIX
+        /work/build/u2_game /data/$MAP_NAME $FONT $TILES /work/translations/exe_translatable_strings.tsv /work/tests/fixtures/player_sample_abcd --script $MOVES /work/$PREFIX
     "
 echo "→ ${PREFIX}NN.png"
