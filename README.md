@@ -1,169 +1,312 @@
-# Ultima II: Revenge of the Enchantress 繁體中文化專案
+# Ultima II: Revenge of the Enchantress — 繁體中文化專案 (u2-cht)
+### 創世紀 II:女巫的復仇 — 繁體中文化 + SDL2 引擎重建
 
-> 把 1983 年的《創世紀 II:女巫的復仇》以**乾淨重寫的跨平台 C 引擎**重建,並完整中文化。
+> 把 1982 年的《創世紀 II:女巫的復仇》以**乾淨重寫的跨平台 C / SDL2 引擎**重建,並完整繁體中文化。
+> 方法:反編原版當行為 oracle、破解原版資料格式、手寫可公開維護的引擎。
 > 系列姊妹作:[u3-cht](https://github.com/wicanr2/u3-cht)(Ultima III)、[u6-cht](https://github.com/wicanr2/u6-cht)(Ultima VI)。
+
+![Code](https://img.shields.io/badge/code-MIT-blue)
+![Engine](https://img.shields.io/badge/engine-SDL2%20clean%20rewrite-green)
+![Lang](https://img.shields.io/badge/lang-C-orange)
+![i18n](https://img.shields.io/badge/i18n-繁體中文-red)
+![Phase](https://img.shields.io/badge/phase-逆向%20%2B%20PoC%20%2B%20互動切片-yellow)
+![Tests](https://img.shields.io/badge/tests-30%20passing-brightgreen)
 
 ---
 
 ## 目錄
 
-- [專案現況](#專案現況)
-- [策略:反編當 oracle,乾淨重寫](#策略反編當-oracle乾淨重寫)
-- [取得流程概覽](#取得流程概覽)
-- [中文化文字兩來源](#中文化文字兩來源)
-- [渲染與 CJK 策略](#渲染與-cjk-策略)
-- [專案結構](#專案結構)
-- [快速開始](#快速開始)
-- [路線圖](#路線圖)
-- [授權與免責](#授權與免責)
-- [致謝](#致謝)
+- [截圖](#截圖--screenshots)
+- [關於 Ultima II](#關於-ultima-ii--about-ultima-ii)
+- [為什麼做這個](#為什麼做這個--why)
+- [技術架構](#技術架構--architecture)
+- [進度](#進度--status)
+- [資料格式破解亮點](#資料格式破解亮點--reverse-engineered-formats)
+- [中文化管線](#中文化管線--localization)
+- [建置與執行](#建置與執行--build--run)
+- [專案結構](#專案結構--layout)
+- [授權與免責](#授權與免責--license)
+- [致謝與參考](#致謝與參考--credits--references)
 
 ---
 
-## 專案現況
+## 截圖 / Screenshots
 
-目前處於 **逆向取得 + 格式文件化** 階段(Phase A–E 完成),引擎重寫(Phase F)尚未開始。
+### 互動引擎切片(可走路)
+![互動引擎起點](docs/screenshots/gameplay_start.png)
+> `u2_game`:玩家恆置中(黃框)、相機跟隨、方向鍵 / WASD 移動、`u2_passable` 擋海洋;
+> 右側中文狀態欄(生命 / 食物 / 經驗 / 黃金,標籤查 exe 翻譯表)、底部即時座標與訊息列。
 
-| 段落 | 狀態 | 產物 |
-|---|---|---|
-| 二進位分流 | ✅ | PE32 / stripped / MFC / GDI 判定 |
-| 反編 oracle | ✅ | 1190 函式反編 C(不公開)+ 函式索引 |
-| 字串錨定導航 | ✅ | [`docs/ORACLE_MAP.md`](docs/ORACLE_MAP.md) |
-| 抽可中文化字串 | ✅ | exe 392 條 + 對話 108 行 |
-| 資料格式盤點 | ✅ | [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md) |
-| 渲染解析度決策 | ✅ | [`docs/adr/0001-rendering-resolution-cjk.md`](docs/adr/0001-rendering-resolution-cjk.md) |
-| 垂直切片 PoC | ✅ | [`docs/POC.md`](docs/POC.md)(地圖 + 中文一次到位) |
-| SDL2 引擎重寫 | ⏳ | `src/`(PoC 骨架已就緒,feature 模組規劃中) |
+![互動引擎移動](docs/screenshots/gameplay_walk.png)
+> 往東南走數步後,地圖在腳下捲動,座標與地形 id 即時更新。
+
+### 中文化垂直切片 PoC(城鎮)
+![PoC 主畫面](docs/screenshots/poc_map_cjk.png)
+> 上方地圖 viewport(真實 tile + monxNN 實體層,空城 → 活城)、底部中文 NPC 對話、右側中文狀態欄。
+> 對話與狀態標籤皆**非硬編**:引擎讀原始資料 → 翻譯覆蓋層 → CJK 原生繪製。
+
+### Ground-truth tileset(U2 Upgrade EGATILES)
+![EGATILES](docs/screenshots/tileset_egatiles.png)
+> 65 個 16×16 tile:水 / 森林 / 山 / 城堡 / 船 / 馬 / 招牌 A–Z…(art 由玩家自備,本 repo 僅供研究對照)。
 
 ---
 
-## 策略:反編當 oracle,乾淨重寫
+## 關於 Ultima II / About Ultima II
 
-手上的標的是 John Alderson《Windows Native Ultima II》v1.01 (2000) —— 一個
-**stripped 的 MFC / GDI** Win 移植 exe。直接把它反編成可用引擎是最硬的路
-(無型別 `FUN_xxx`、纏繞 MFC runtime)。
+> 以下標 **[史實]** 為公開可考的常識性史實;標 **[本專案]** 為本 repo 的逆向發現或推測。
 
-因此採與 [u3-cht](https://github.com/wicanr2/u3-cht) 相同的成功模式:
+**《Ultima II: The Revenge of the Enchantress》(創世紀 II:女巫的復仇)** 是 Richard Garriott
+(遊戲中化身 **Lord British / 不列顛王**)設計的角色扮演遊戲,**1982 年由 Sierra On-Line 發行**,
+是 Ultima(創世紀)系列的第二作。 **[史實]**(Ultima II 是系列中唯一由 Sierra 發行者;
+Garriott 隨後於 1983 年成立 Origin Systems 自行發行 Ultima III 起的後續作品。)
+
+- **劇情設定 [史實]**:反派是女巫 **Minax(米娜克斯)**——前作 Ultima I 大魔王 **Mondain(蒙丹)**
+  的徒弟。Minax 操弄時間復仇,玩家(**The Stranger / 異鄉人**)必須穿越
+  **Time Doors(時光之門)** 在不同時代與星球間旅行,最終於傳說時代的城堡
+  **Shadowguard(影域堡)** 擊敗她。
+- **時空與星際旅行 [史實]**:本作以「時空旅行」為招牌設定,玩家可造訪太陽系各行星;
+  地球場景橫跨史前、古代,以及核戰後的「浩劫餘生(Aftermath)」等紀元。
+- **CRPG 史地位 [史實]**:Ultima II 是早期家用電腦 CRPG 的代表作之一,
+  奠定 Ultima 系列「開放世界 + 圖塊地圖 + NPC 對話」雛形;系列後續成為西方 CRPG 奠基者之一。
+
+**本專案考證到的細節(逆向發現)**:
+
+- **[本專案]** 太空 hyperwarp 以三元座標(XENO / YAKO / ZABO)定位行星——
+  例如撞上太陽座標即死。座標查表見 [`docs/ORACLE_MECHANICS.md`](docs/ORACLE_MECHANICS.md)。
+- **[本專案]** 載具(馬 / 船 / 飛機 / 火箭)各有道具門檻(行為 oracle 推測,offset 待最終定稿)。
+- **[本專案]** 存檔以 **BCD** 編碼六屬性,經 DOSBox 實機建角差分驗證(見下)。
+
+> 譯名對照(對齊 u3-cht / u6-cht 系列一致性)見 [`CONTEXT.md`](CONTEXT.md)。
+
+---
+
+## 為什麼做這個 / Why
+
+1. **CRPG 歷史保存**:Ultima II(1982)年代久遠、公開逆向資料多。把資料格式、機制公式、
+   反編 oracle 系統化文件化,本身就是一種保存,為人類記錄這段 CRPG 史。
+2. **繁體中文化**:系列前作 [u3-cht](https://github.com/wicanr2/u3-cht) /
+   [u6-cht](https://github.com/wicanr2/u6-cht) 已驗證「乾淨重寫 + CJK pipeline」可行,
+   本作沿用同一套經驗,讓中文玩家能以母語體驗這款早期 CRPG。
+3. **可維護的開源引擎**:直接反編商業 binary 得到的是不可維護的 `FUN_xxx`;
+   本專案改採「反編只當行為參考、引擎手寫乾淨版」,產物可公開、可維護、好中文化。
+
+> 非商業之保存與在地化研究;原版遊戲資料不散布,玩家須自備合法副本(見「授權與免責」)。
+
+---
+
+## 技術架構 / Architecture
+
+### 策略:反編當 oracle,乾淨重寫
+
+手上標的是 **John Alderson《Windows Native Ultima II》v1.01 (2000)**——一個 stripped 的
+**MFC / GDI** Windows 移植 exe。直接反編成可用引擎是最硬的路(無型別 `FUN_xxx`、纏繞 MFC runtime)。
+因此採與 u3-cht 相同的成功模式:
 
 ```
-Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄)──┐
-文件化 U2 資料格式 ─────────────────────────────────┼──▶ 手寫乾淨 SDL2 C 引擎
-原版資料檔(玩家自備)───────────────────────────────┘     (可公開、可維護、好中文化)
+Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄 MFC 殼)──┐
+破解 U2 原版資料格式 ───────────────────────────────────┼──▶ 手寫乾淨 SDL2 C 引擎
+原版資料檔(玩家自備)─────────────────────────────────┘     (可公開、可維護、好中文化)
 ```
 
-- **oracle**:`Ultima2.exe` 的 Ghidra 反編,僅作行為對照(亂數/機率/戰鬥公式),**不公開**(衍生物)。
-- **乾淨重寫**:自寫的 `src/`,SDL2 取代 GDI,UTF-8 + CJK 字型,**可公開上 GitHub**。
-
-詳見 [`PLAN.md`](PLAN.md)。
-
----
-
-## 取得流程概覽
-
-可重複的逆向取得管線(完整見 [`docs/EXTRACTION_PROCESS.md`](docs/EXTRACTION_PROCESS.md)):
-
-| Phase | 工具 | 產物 |
+| 角色 | 內容 | 公開? |
 |---|---|---|
-| A 分流 | `file` / `objdump` / `strings` | 路線決策 |
-| B 反編 | Ghidra 12.1 headless(Docker,Java script) | 反編 C + 函式索引 |
-| C 導航 | awk 字串錨定 | `docs/ORACLE_MAP.md` |
-| D 抽字串 | [`tools/extract_exe_strings.py`](tools/extract_exe_strings.py) / [`tools/decode_talk.py`](tools/decode_talk.py) | 2 張翻譯表 |
-| E 格式 | `xxd` / python + ModdingWiki | `docs/DATA_FORMATS.md` |
-| F 重寫 | SDL2 + u6-cht CJK pipeline | 中文化引擎(待做) |
+| **行為 oracle** | [`oracle/ultima2_decompiled.c`](oracle/)(~46k 行)+ 函式索引 | ✅ 已收錄(CRPG 史保存) |
+| **資料格式真值** | [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md)(map / monx / tlkx / player 等) | ✅ |
+| **乾淨重寫** | [`src/`](src/)(SDL2 取代 GDI、UTF-8 + CJK) | ✅ |
+| 原版 binary / 資料檔 | Alderson exe + DOS 原版資料 | ❌ 玩家自備 |
 
-> 全程 Docker;CJK 字型 pipeline 直接複用 u6-cht 的 Big5/BDF 工具,不重造輪子。
+### oracle 已產出的機制分析(節錄)
+
+`oracle/` 經字串錨定導航後,抽出載具 / 地牢 / 戰鬥演算法,例如:
+
+- **RNG**:標準 LCG `seed = seed*0x343fd + 0x269ec3`。
+- **3D 線框地牢**:first-person 風格,沿朝向掃深度畫梯形側牆(可直接以 `SDL_RenderDrawLine` 重寫)。
+- **戰鬥命中 / 傷害 / 掉落公式**、狀態效果(麻痺 / 睡眠)計時器 offset。
+
+> 完整分析見 [`docs/ORACLE_MECHANICS.md`](docs/ORACLE_MECHANICS.md);信心以 `[確定] / [推測] / [未解]` 標示。
+
+### 目標引擎(deep modules / 垂直切片)
+
+按 feature 切而非按抽象層攤平,adapter 只放邊界(SDL2)。目前 `src/` 已有可運作的垂直切片:
+`u2_map / u2_mon / u2_talk / u2_strings / u2_tileset / u2_render / u2_text / u2_play / u2_save`,
+以及 `poc_main`(靜態 PoC)、`demo_main`(移動序列)、`game_main`(互動視窗 + headless 腳本)。詳見 [`PLAN.md`](PLAN.md)。
 
 ---
 
-## 中文化文字兩來源
+## 進度 / Status
+
+目前處於 **逆向取得 + 格式破解 + 互動切片** 階段;完整引擎(town/dungeon/space/combat)逐步重寫中。
+
+### ✅ 已完成
+
+| 段落 | 證據 |
+|---|---|
+| 二進位分流 + Ghidra 反編 oracle(~46k 行) | [`oracle/`](oracle/) |
+| oracle 機制分析(載具 / 地牢 / 戰鬥) | [`docs/ORACLE_MECHANICS.md`](docs/ORACLE_MECHANICS.md) |
+| 資料格式破解(map / monx / tlkx / player) | [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md) |
+| 抽可中文化字串(exe 392 條 + 對話 108 行) | [`translations/`](translations/) |
+| 渲染 / CJK 解析度決策 | [`docs/adr/0001-rendering-resolution-cjk.md`](docs/adr/0001-rendering-resolution-cjk.md) |
+| 垂直切片 PoC(繪圖 / 資料 / 中文 一次驗證) | [`docs/POC.md`](docs/POC.md) |
+| ground-truth tileset = U2 Upgrade EGATILES | [`tileset/`](tileset/) |
+| 翻譯 UI 字串 369/369 + NPC 對話 78/108 | [`translations/`](translations/) |
+| 隊伍移動(置中 / 鏡頭跟隨 / 海洋碰撞,headless) | [`docs/MOVEMENT.md`](docs/MOVEMENT.md) |
+| **互動引擎切片(SDL 視窗 + 鍵盤移動 + CJK 狀態列)** | [`src/game_main.c`](src/game_main.c) |
+| 端到端在地化(原始 tlkx → 覆蓋層 → CJK) | `src/poc_main.c` |
+| data 層自動化測試(30 斷言,headless) | [`./run_tests.sh`](run_tests.sh) |
+| player 存檔結構(BCD 屬性,DOSBox 實機差分驗證) | [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md) |
+
+### ⏳ 進行中 / 尚未實作
+
+| 項目 | 現況 |
+|---|---|
+| 互動視窗錄製(GIF) | `game_main.c` 互動模式已可玩(需顯示器);CI 走 headless 截圖 |
+| **戰鬥 / 地牢 3D / 載具** | **僅有 oracle 機制文件,尚未在 `src/` 引擎實作** |
+| player 各 stat offset(HP / 食物 / 黃金 / 裝備) | 名字 / 性別 / 種族 / 職業 / 六屬性已解;其餘待更多真實存檔樣本 |
+| NPC / 怪物動態層(執行時改寫的 map 層) | monxNN 靜態實體已解;動態改寫層待解 |
+| CJK 文字層升級(u6-cht 點陣字 atlas) | 目前用 SDL2_ttf + WQY;production 可換 BDF atlas |
+| 行為對照 oracle(亂數 / 機率 / 戰鬥公式) | 公式已抽出,待引擎實作後逐項對照 |
+| 截圖 vs Alderson exe(Wine)pass/fail loop | 規劃中 |
+
+---
+
+## 資料格式破解亮點 / Reverse-Engineered Formats
+
+完整見 [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md)。四個值得一提的破解:
+
+### 1. 地圖 `mapxNN` — tile id 要 ÷4
+4224 byte = 64×66 cell,**無 header**,純 tile array。存檔時 `tile id × 4`(低 2 bit 是 flag),
+讀取要 **÷4**。尾碼 0=行星總圖、1/2/3=城鎮、4/5=地牢。
+
+![地球大地圖](docs/screenshots/terrain_in_context.png)
+> mapx20(地球):海 / 森林 / 山以正確 tileset 渲染,驗證 tile÷4 解碼。
+
+### 2. 對話 `tlkxNN` — high-bit ASCII
+NPC 對話每 byte `OR 0x80`(ModdingWiki 誤稱 encrypted,實為 high-bit);
+解碼 `byte & 0x7f`、`\r` 換行。15 檔共解出 **108 行對話**。
+
+### 3. 實體層 `monxNN` — 32 格平行陣列
+地圖只存地形 / 建築;NPC / 怪物座標另存於 `monxNN`(X / Y / status / tile / flag 五個平行陣列)。
+**交叉驗證**:monx21 中 tile=24 的 8 個實體座標,與 mapx21 上 8 個 id-24 格完全吻合 → 「空城 → 活城」。
+
+### 4. 存檔 `player` — BCD 屬性(DOSBox 實機差分驗證)
+用 headless DOSBox 自動建兩隻角色、逐 byte diff,並與建角畫面交叉比對,確認:
+名字(ASCII)、性別(`'M'` / `'F'`)、職業 / 種族(0-indexed)、六屬性(**BCD**,順序 STR/AGI/STA/CHA/WIS/INT)。
+屬性存的是「套用 race/class 加成後」的值(輸入值與建角畫面顯示值逐一吻合)。回歸測試用
+[`tests/fixtures/`](tests/fixtures/) 兩份實機存檔斷言。
+
+---
+
+## 中文化管線 / Localization
+
+### 兩個翻譯來源
 
 | 來源 | 數量 | 已譯 | 翻譯表 |
 |---|---|---|---|
-| Alderson exe 內嵌 UI 字串 | 392 條(可譯 369) | **369/369** ✅ | [`translations/exe_translatable_strings.tsv`](translations/exe_translatable_strings.tsv) |
+| Alderson exe 內嵌 UI 字串 | 392 條(可譯 369) | **369/369** | [`translations/exe_translatable_strings.tsv`](translations/exe_translatable_strings.tsv) |
 | DOS `tlkx` NPC 對話 | 108 行 | **78/108**(餘為 buffer 殘片) | [`translations/talk_dialogue.tsv`](translations/talk_dialogue.tsv) |
 
-`zh_hant` 欄已填繁中(依 [CONTEXT.md](CONTEXT.md) 專名詞表)。原則:**不寫回原始檔**,以外部 UTF-8 覆蓋層載入時覆蓋。譯文由 [`tools/apply_translations.py`](tools/apply_translations.py) / [`tools/apply_dialogue.py`](tools/apply_dialogue.py) 套用。
+原則:**不寫回原始檔**,以外部 UTF-8 覆蓋層、`(來源, key)` 為索引,載入時覆蓋原文(查無譯文則 fallback 原文)。
+
+### 雙層渲染 + 內外解析度解耦(見 [ADR 0001](docs/adr/0001-rendering-resolution-cjk.md))
+
+- **像素圖層**:原版 16×16 tile 整數倍放大(nearest 預設)。
+- **文字圖層**:CJK glyph 在內部高解析度**原生繪製**,永不被縮放 → 恆銳利。
+- **內部 render** 320×200×N(N 決定 glyph 大小,推薦 3× = 960×600 / CJK 24×24);視窗解析度獨立。
 
 ---
 
-## 渲染與 CJK 策略
+## 建置與執行 / Build & Run
 
-為了讓中文字清晰塞入,採**雙層渲染 + 內外解析度解耦**(完整見 [ADR 0001](docs/adr/0001-rendering-resolution-cjk.md)):
+> 全程 Docker(`docker/Dockerfile`:SDL2 + SDL2_ttf + SDL2_image + fonts-wqy-zenhei)。
+> 需自備合法 Ultima II 資料檔(本 repo 不含)。
 
-- **像素圖層**:原版 16×16 tile 整數倍放大(nearest 預設,bilinear/bicubic 選項)。
-- **文字圖層**:CJK glyph 在內部高解析度**原生繪製**,永不被縮放 → 恆為銳利。
-- **內部 render 解析度** 320×200×N 決定 glyph 大小(推薦 3× = 960×600,CJK 24×24);**視窗解析度**(640×480 等)獨立,present 階段再縮放。
+```bash
+git clone https://github.com/wicanr2/u2-cht.git && cd u2-cht
+```
+
+### 垂直切片 PoC(headless,存 PNG)
+```bash
+./build_poc.sh ../dos-original/ultima2/mapx21 build/poc_out.png
+```
+
+### 隊伍移動 demo(headless 截圖序列)
+```bash
+./build_demo.sh ../dos-original/ultima2/mapx20 EEEESSSSWWWWWWWW build/move blue 31 33
+# → build/move_00.png .. move_16.png
+```
+
+### 互動引擎切片
+```bash
+# headless 腳本驗證(Docker,逐步存 PNG):
+./build_game.sh ../dos-original/ultima2/mapx20 EEESSSWWWNNNN build/game_step_
+
+# 互動視窗(需顯示器,方向鍵 / WASD 走路,Q / Esc 離開):
+#   build/u2_game <mapxNN> <font.ttf> <tileset.png> <ui_tsv>
+```
+
+### data 層自動化測試(headless)
+```bash
+./run_tests.sh ../dos-original/ultima2   # 30 斷言,Docker 內跑
+```
 
 ---
 
-## 專案結構
+## 專案結構 / Layout
 
 ```
 u2-cht/
   README.md / PLAN.md / CONTEXT.md / LICENSE
+  CMakeLists.txt / build_poc.sh / build_demo.sh / build_game.sh / run_tests.sh
+  docker/                   # Docker 建置環境(SDL2 + CJK 字型;另含 Dockerfile.dosbox)
+  oracle/                   # Ghidra 反編 oracle(行為參考,非編譯標的)
+    ultima2_decompiled.c    #   ~46k 行 + functions_index.tsv / oracle_string_map.txt
   docs/
-    EXTRACTION_PROCESS.md   # 取得流程 methodology
     DATA_FORMATS.md         # U2 資料格式真值
-    ORACLE_MAP.md           # 反編 landmark 導航
-    functions_index.tsv / oracle_string_map.txt
-    adr/0001-rendering-resolution-cjk.md
-  translations/             # 兩張翻譯表 (原文 + zh_hant)
-  tools/                    # 抽取/反編 script
-  src/                      # 乾淨重寫引擎 (規劃中)
+    ORACLE_MECHANICS.md     # 載具 / 地牢 / 戰鬥機制分析
+    EXTRACTION_PROCESS.md   # 逆向取得 methodology
+    MOVEMENT.md / POC.md    # 驗證紀錄
+    adr/0001-...            # 渲染 / CJK 解析度決策
+    screenshots/            # 截圖
+  src/                      # 乾淨重寫引擎(垂直切片)
+    u2_{map,mon,talk,strings,tileset,render,text,play,save}.c
+    poc_main.c / demo_main.c / game_main.c
+  tileset/                  # U2 Upgrade CGATILES / EGATILES(研究用途)
+  translations/             # 兩張翻譯表(原文 + zh_hant)
+  tools/                    # 抽取 / 反編 / 渲染 / DOSBox 建角 script
+  tests/                    # data 層測試 + 實機存檔 fixtures
 ```
 
-> 原版 binary / 資料檔 / 反編 oracle C 皆 **gitignore**(版權物,玩家自備)。
+> 原版 binary / 資料檔皆 **gitignore**(版權物,玩家自備);oracle 與 tileset 經專案裁示收錄供研究保存。
 
 ---
 
-## 快速開始
+## 授權與免責 / License
 
-目前無可執行引擎(重寫未開始)。重現逆向取得流程:
+「引擎與資料分離」:
 
-```bash
-# 1. 自備合法 Ultima II(DOS 原版 + Alderson Win port)放到工作目錄
-# 2. 抽 exe 內嵌字串
-python3 tools/extract_exe_strings.py Ultima2.exe > translations/exe_translatable_strings.tsv
-# 3. 解碼 NPC 對話
-python3 tools/decode_talk.py path/to/ultima2/ > translations/talk_dialogue.tsv
-# 4. (選用) Ghidra 反編當 oracle,見 docs/EXTRACTION_PROCESS.md Phase B
-```
+- **本專案原創碼 / 工具 / 文件**:**MIT**(`src/` / `tools/` / `docs/`)。
+- **反編 oracle**(`oracle/`):為 CRPG 歷史保存、逆向研究與在地化用途收錄;
+  Ultima II(1982)年代久遠、公開逆向資料多,不主張著作權。
+- **原版遊戲資料 / Alderson binary / U2 Upgrade art**:**不包含、不散布**,玩家須自備合法副本
+  (`.gitignore` 已排除)。
 
----
-
-## 路線圖
-
-- [x] 逆向取得 + 格式文件化(Phase A–E)
-- [x] 渲染/CJK 解析度決策(ADR 0001)
-- [x] **垂直切片 PoC — 三假設一次驗證**([docs/POC.md](docs/POC.md))✅
-- [x] **tileset ground truth = U2 Upgrade CGATILES/EGATILES**(65 tile,id 名稱確認:water/forest/mountain/town/castle/horse/ship/sword/A–Z…);**已收錄於 [`tileset/`](tileset/)**(研究/保存用途),引擎 `build_poc.sh`/`build_demo.sh` 直接使用;對照 sheet 見 `docs/screenshots/tileset_egatiles.png`
-- [x] **誠實更正**:`ultimaii.exe @0x7C42` embedded tile 僅 PoC,與 U2 Upgrade **只有 id 0 相同** → 非正確 tileset(見 [DATA_FORMATS](docs/DATA_FORMATS.md));font 招牌字在 U2 Upgrade 即 32–57 A–Z tile,EXE 內為未解 raw
-- [ ] SDL2 引擎骨架(deep modules:world / town / dungeon / space / combat / party / text)
-- [ ] NPC/怪物動態層解析(疊在地形上)
-- [ ] CJK 文字層升級(複用 u6-cht 點陣字 pipeline)
-- [x] **翻譯 UI 字串(369/369)+ NPC 對話(78/108)** ✅
-- [x] **隊伍移動(置中/鏡頭跟隨/海洋碰撞,headless 驗證)** ✅([docs/MOVEMENT.md](docs/MOVEMENT.md))
-- [x] **端到端在地化(引擎讀原始 tlkx → 翻譯覆蓋層 → CJK)** ✅
-- [x] **自動化測試(data 層 15 斷言,`./run_tests.sh`)** ✅
-- [x] **player 存檔結構**(384B = 256B 角色記錄;byte0=角色存在旗標;bundled 為空)— 各 stat offset 待真實存檔
-- [ ] 互動視窗(SDL 開窗 + 鍵盤)、player 各欄位 offset(需真存檔)、載具/地牢/戰鬥
-- [ ] 行為對照 oracle(亂數/機率/戰鬥公式)
-- [ ] 截圖 vs Alderson exe(Wine)pass/fail loop
+非商業之保存與在地化研究。著作權人如有異議請聯繫移除。詳見 [`LICENSE`](LICENSE)。
 
 ---
 
-## 授權與免責
+## 致謝與參考 / Credits & References
 
-「引擎與資料分離」:本專案原創碼/工具/文件採 **MIT**;原版遊戲資料與 Alderson binary
-**不包含、不散布**,玩家須自備合法副本。詳見 [`LICENSE`](LICENSE)。
-
-非商業之保存與在地化研究。著作權人如有異議請聯繫移除。
-
----
-
-## 致謝
-
-- **Origin Systems / Richard Garriott (Lord British)** — Ultima II 原作(1983)。
+- **Richard Garriott (Lord British) / Sierra On-Line** — Ultima II 原作(1982,Garriott 設計、Sierra 發行)。
 - **John Alderson** — Windows Native Ultima II 移植版(2000),本案行為 oracle 來源。
+- **mcmagi(Ultima Exodus / U2 Upgrade)** — ground-truth tileset 與保存專案。
 - **TheAlmightyGuru / shikadi ModdingWiki** — U2 資料格式逆向文件。
 - **姊妹專案** [u3-cht](https://github.com/wicanr2/u3-cht) / [u6-cht](https://github.com/wicanr2/u6-cht) — CJK pipeline 與移植經驗。
+
+**參考**
+- [Ultima II Map Format — shikadi ModdingWiki](https://moddingwiki.shikadi.net/wiki/Ultima_II_Map_Format)
+- [Ultima II Dungeon Format](https://moddingwiki.shikadi.net/wiki/Ultima_II_Dungeon_Format)
+- [Ultima II 總覽 — ModdingWiki](https://moddingwiki.shikadi.net/wiki/Ultima_II:_Revenge_of_the_Enchantress)
+- [Dino's Ultima Page — U2](https://gigi.nullneuron.net/ultima/u2.php)
+- [Ultima Codex wiki](https://wiki.ultimacodex.com/wiki/Ultima_II:_The_Revenge_of_the_Enchantress)
+</content>
+</invoke>
