@@ -26,6 +26,7 @@
 #include "u2_text.h"
 #include "u2_dungeon.h"
 #include "u2_save.h"
+#include "u2_talk.h"
 
 #define CANVAS_W   960
 #define CANVAS_H   600
@@ -37,6 +38,7 @@
 #define MAP_OY     (HDR_H + 8)
 #define PLAYER_TILE 16
 #define WORLD_DUNGEON_TILE 9      /* 地面上的地牢入口 tile id */
+#define WORLD_TOWN_TILE 5         /* 地面上的城鎮入口 tile id */
 #define DVIEW 520                 /* 地牢線框視區邊長 */
 
 enum Mode { MODE_WORLD, MODE_DUNGEON };
@@ -44,15 +46,27 @@ enum Mode { MODE_WORLD, MODE_DUNGEON };
 typedef struct {
     enum Mode mode;
     int show_sheet;
-    U2Map map; U2Mon mon;
+    U2Map map; U2Mon mon;         /* 地面(overworld) */
     U2Player player;
+    /* 城鎮 */
+    int in_town;
+    U2Map town; U2Mon tmon; U2Talk talk; int town_ok;
+    int tret_x, tret_y;           /* 進城前的地面座標 */
+    char town_path[512];
+    /* 地牢 */
     U2Dungeon dg; int dg_ok;
     int dx, dy, ddir;             /* 地牢內位置 / 朝向 */
-    int ret_x, ret_y;             /* 進地牢前的地面座標 */
-    U2Strings ui; U2Save save;
+    int ret_x, ret_y;             /* 進地牢前的座標 */
     char dungeon_path[512];
-    char msg[160];
+    /* 翻譯 / 存檔 */
+    U2Strings ui; U2Strings tr;   /* ui=狀態標籤;tr=對話譯文 */
+    U2Save save;
+    char msg[200];
 } Game;
+
+/* 目前作用中的地圖 / 實體層(城鎮 or 地面) */
+static U2Map *amap(Game *g) { return g->in_town ? &g->town : &g->map; }
+static U2Mon *amon(Game *g) { return g->in_town ? &g->tmon : &g->mon; }
 
 static void clampi(int *v, int lo, int hi) { if (*v<lo)*v=lo; if (*v>hi)*v=hi; }
 
@@ -116,15 +130,18 @@ static void draw_status_panel(SDL_Surface *cv, U2Text *body, const U2Strings *ui
 
 static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, SDL_Surface *tiles)
 {
+    U2Map *m=amap(g); U2Mon *mon=amon(g);
     SDL_FillRect(cv, NULL, SDL_MapRGB(cv->format,0,0,0));
     SDL_Rect hdr={0,0,CANVAS_W,HDR_H};
     SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
-    u2_text_draw(cv,title,"Ultima II:女巫的復仇 — 繁體中文",10,4,235,235,245);
+    u2_text_draw(cv,title, g->in_town ? "Ultima II — 城鎮(T 交談 · X 離開)"
+                                      : "Ultima II:女巫的復仇 — 繁體中文",
+                 10,4,235,235,245);
 
     int cam_x=g->player.x-VIEW_COLS/2, cam_y=g->player.y-VIEW_ROWS/2;
     clampi(&cam_x,0,U2_MAP_W-VIEW_COLS); clampi(&cam_y,0,U2_MAP_H-VIEW_ROWS);
-    u2_render_viewport(cv,&g->map,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
-    u2_render_entities(cv,&g->mon,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
+    u2_render_viewport(cv,m,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
+    u2_render_entities(cv,mon,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
 
     int px=MAP_OX+(g->player.x-cam_x)*TILE_PX, py=MAP_OY+(g->player.y-cam_y)*TILE_PX;
     if (tiles) u2_tileset_blit(cv,tiles,g->player.tile,px,py,TILE_PX);
@@ -134,10 +151,12 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, 
     SDL_FillRect(cv,&t,col);SDL_FillRect(cv,&b,col);SDL_FillRect(cv,&l,col);SDL_FillRect(cv,&rr,col);
 
     int by=MAP_OY+VIEW_ROWS*TILE_PX+10;
-    u2_text_draw(cv,body,"方向鍵/WASD 移動 · C 角色表 · Q 離開",MAP_OX,by,150,175,205);
+    u2_text_draw(cv,body, g->in_town ? "方向鍵/WASD 移動 · T 交談 · C 角色表 · X 離開城鎮"
+                                     : "方向鍵/WASD 移動 · C 角色表 · Q 離開",
+                 MAP_OX,by,150,175,205);
     u2_text_draw(cv,body,g->msg,MAP_OX,by+30,210,225,205);
     char pos[64]; snprintf(pos,sizeof pos,"座標 (%d, %d)  地形 id=%d",
-        g->player.x,g->player.y,u2_map_tile(&g->map,g->player.x,g->player.y));
+        g->player.x,g->player.y,u2_map_tile(m,g->player.x,g->player.y));
     u2_text_draw(cv,body,pos,MAP_OX,by+60,150,165,150);
     draw_status_panel(cv,body,&g->ui,&g->save,640,by);
 }
@@ -228,15 +247,82 @@ static void exit_dungeon(Game *g)
     snprintf(g->msg,sizeof g->msg,"你回到了地面。");
 }
 
+/* 進城:載入城鎮地圖 + 實體 + 對話 */
+static void enter_town(Game *g)
+{
+    if (!g->town_ok){
+        g->town = u2_map_load(g->town_path);
+        char mp[512]; snprintf(mp,sizeof mp,"%s",g->town_path);
+        char *b=strrchr(mp,'/'); b=b?b+1:mp; char *p=strstr(b,"map"); if(p)memcpy(p,"mon",3);
+        g->tmon = u2_mon_load(mp);
+        char tp[512]; snprintf(tp,sizeof tp,"%s",g->town_path);
+        b=strrchr(tp,'/'); b=b?b+1:tp; p=strstr(b,"map"); if(p)memcpy(p,"tlk",3);
+        g->talk = u2_talk_load(tp);
+        g->town_ok = g->town.ok;
+    }
+    if (!g->town_ok){ snprintf(g->msg,sizeof g->msg,"找不到城鎮資料,無法進入。"); return; }
+    g->tret_x=g->player.x; g->tret_y=g->player.y;
+    /* 落點:站在第一個 NPC 旁的可通行格(方便交談);否則實體群中心 */
+    int sx=U2_MAP_W/2, sy=U2_MAP_H/2, placed=0;
+    for (int i=0;i<g->tmon.count && !placed;i++){
+        U2Entity *e=&g->tmon.ent[i];
+        if (!e->tile) continue;
+        int NX[4]={0,0,1,-1}, NY[4]={1,-1,0,0};
+        for (int k=0;k<4;k++){
+            int x=e->x+NX[k], y=e->y+NY[k];
+            if (x<0||y<0||x>=U2_MAP_W||y>=U2_MAP_H) continue;
+            if (u2_passable(u2_map_tile(&g->town,x,y))){ sx=x; sy=y; placed=1; break; }
+        }
+    }
+    g->player.x=sx; g->player.y=sy;
+    g->in_town=1;
+    snprintf(g->msg,sizeof g->msg,"你進入了城鎮。");
+}
+
+static void exit_town(Game *g)
+{
+    g->in_town=0;
+    g->player.x=g->tret_x; g->player.y=g->tret_y;
+    snprintf(g->msg,sizeof g->msg,"你離開了城鎮。");
+}
+
+/* 交談:鄰格若有 NPC 實體,顯示其 tlkx 對話(查翻譯覆蓋層) */
+static void do_talk(Game *g)
+{
+    if (!g->in_town){ snprintf(g->msg,sizeof g->msg,"這裡沒有人可以交談。"); return; }
+    int FX[4]={0,1,0,-1}, FY[4]={-1,0,1,0};
+    for (int d=0; d<4; d++){
+        int nx=g->player.x+FX[d], ny=g->player.y+FY[d];
+        for (int i=0;i<g->tmon.count;i++){
+            U2Entity *e=&g->tmon.ent[i];
+            if (e->tile && e->x==nx && e->y==ny){
+                if (g->talk.count<=0){ snprintf(g->msg,sizeof g->msg,"對方無話可說。"); return; }
+                int k=i % g->talk.count;
+                const char *zh=u2_strings_lookup(&g->tr, g->talk.line[k]);
+                const char *disp=zh?zh:g->talk.line[k];
+                char one[180]; size_t j=0;
+                for (const char *p=disp; *p && j<sizeof one-1; p++) one[j++]=(*p=='\r')?' ':*p;
+                one[j]=0;
+                snprintf(g->msg,sizeof g->msg,"「%s」",one);
+                return;
+            }
+        }
+    }
+    snprintf(g->msg,sizeof g->msg,"附近沒有人可以交談。");
+}
+
 /* 依模式處理一個方向鍵(dir ∈ N/S/E/W) */
 static void handle_dir(Game *g, char dir)
 {
     int FX[4]={0,1,0,-1}, FY[4]={-1,0,1,0};  /* N E S W */
     if (g->mode==MODE_WORLD){
-        int moved=u2_player_move(&g->player,&g->map,dir);
+        int moved=u2_player_move(&g->player,amap(g),dir);
         snprintf(g->msg,sizeof g->msg, moved?"往 %c 移動。":"%c 方向被擋住。",dir);
-        if (moved && u2_map_tile(&g->map,g->player.x,g->player.y)==WORLD_DUNGEON_TILE)
-            enter_dungeon(g);
+        if (moved){
+            unsigned char t=u2_map_tile(amap(g),g->player.x,g->player.y);
+            if (!g->in_town && t==WORLD_DUNGEON_TILE) enter_dungeon(g);
+            else if (!g->in_town && t==WORLD_TOWN_TILE) enter_town(g);
+        }
     } else { /* DUNGEON: N前進 S後退 W左轉 E右轉 */
         if (dir=='W'){ g->ddir=(g->ddir+3)&3; snprintf(g->msg,sizeof g->msg,"左轉。"); }
         else if (dir=='E'){ g->ddir=(g->ddir+1)&3; snprintf(g->msg,sizeof g->msg,"右轉。"); }
@@ -288,8 +374,19 @@ int main(int argc, char **argv)
     snprintf(g.dungeon_path,sizeof g.dungeon_path,"%s",map_path);
     char *db=strrchr(g.dungeon_path,'/'); db=db?db+1:g.dungeon_path;
     snprintf(db,sizeof g.dungeon_path-(db-g.dungeon_path),"mapx15");
+    /* 城鎮檔路徑:同目錄的 mapx21 */
+    snprintf(g.town_path,sizeof g.town_path,"%s",map_path);
+    char *tb=strrchr(g.town_path,'/'); tb=tb?tb+1:g.town_path;
+    snprintf(tb,sizeof g.town_path-(tb-g.town_path),"mapx21");
 
     g.ui = ui_tsv ? u2_strings_load(ui_tsv,2,3) : (U2Strings){0};
+    /* 對話譯文:由 ui_tsv 同目錄推 talk_dialogue.tsv */
+    if (ui_tsv){
+        char tt[512]; snprintf(tt,sizeof tt,"%s",ui_tsv);
+        char *e=strrchr(tt,'/'); e=e?e+1:tt;
+        snprintf(e,sizeof tt-(e-tt),"talk_dialogue.tsv");
+        g.tr = u2_strings_load(tt,2,3);
+    }
     if (player_save) g.save = u2_save_load(player_save);
     SDL_Surface *tiles=u2_tileset_load(tiles_path);
 
@@ -309,8 +406,10 @@ int main(int argc, char **argv)
             char c=*s, d=norm_dir(c);
             if (d) handle_dir(&g,d);
             else if (c=='C'||c=='c') g.show_sheet=!g.show_sheet;
-            else if (c=='X'||c=='x'){ if (g.mode==MODE_DUNGEON) exit_dungeon(&g); }
+            else if (c=='T'||c=='t') do_talk(&g);
+            else if (c=='X'||c=='x'){ if (g.mode==MODE_DUNGEON) exit_dungeon(&g); else if (g.in_town) exit_town(&g); }
             else if (c=='D') enter_dungeon(&g);
+            else if (c=='O') enter_town(&g);   /* 強制進城(headless 測試用) */
             else continue;
             render_all(cv,&g,&title,&body,&small,tiles);
             snprintf(out,sizeof out,"%s%02d.png",out_prefix,step++); IMG_SavePNG(cv,out);
@@ -333,7 +432,11 @@ int main(int argc, char **argv)
                         case SDLK_LEFT:case SDLK_a: d='W'; break;
                         case SDLK_RIGHT:case SDLK_d: d='E'; break;
                         case SDLK_c: g.show_sheet=!g.show_sheet; break;
-                        case SDLK_x: if (g.mode==MODE_DUNGEON) exit_dungeon(&g); break;
+                        case SDLK_t: do_talk(&g); break;
+                        case SDLK_x:
+                            if (g.mode==MODE_DUNGEON) exit_dungeon(&g);
+                            else if (g.in_town) exit_town(&g);
+                            break;
                         case SDLK_q:case SDLK_ESCAPE: running=0; break;
                     }
                     if (d) handle_dir(&g,d);
