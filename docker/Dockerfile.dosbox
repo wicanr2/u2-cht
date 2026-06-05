@@ -1,0 +1,7 @@
+# DOSBox headless(Xvfb + xdotool 自動建角色)→ 產生非空 player 存檔
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        dosbox xvfb xdotool imagemagick x11-utils ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /game

@@ -83,6 +83,30 @@ int main(int argc, char **argv)
     CHECK(sv.has_character == 0, "bundled player 無角色 (rec[0]==0, fresh)");
     CHECK(sv.marker == 0x1a, "offset 0x100 標記 == 0x1a");
 
+    /* 實機建角樣本 (DOSBox 差分驗證);fixtures 目錄為選填 argv[3] */
+    const char *fx = (argc >= 4) ? argv[3] : "tests/fixtures";
+    printf("[u2_save] 建角樣本 HERO (human/fighter/male, all 15)\n");
+    path(p, sizeof p, fx, "player_sample_hero");
+    U2Save h = u2_save_load(p);
+    CHECK(h.ok && h.has_character, "HERO 樣本已建角色");
+    CHECK(strcmp(h.name, "HERO") == 0, "name == HERO");
+    CHECK(h.sex == 'M', "sex == 'M'");
+    CHECK(h.klass == 0 && h.race == 0, "class=FIGHTER(0) race=HUMAN(0)");
+    /* 螢幕值:STR35 AGI15 STA15 CHA15 WIS15 INT20 (含加成) */
+    CHECK(h.stats[0] == 35 && h.stats[1] == 15 && h.stats[5] == 20,
+          "HERO 屬性 BCD: STR35 AGI15 INT20");
+
+    printf("[u2_save] 建角樣本 ABCD (elf/wizard/female, distinct)\n");
+    path(p, sizeof p, fx, "player_sample_abcd");
+    U2Save a = u2_save_load(p);
+    CHECK(a.ok && a.has_character, "ABCD 樣本已建角色");
+    CHECK(strcmp(a.name, "ABCD") == 0, "name == ABCD");
+    CHECK(a.sex == 'F', "sex == 'F'");
+    CHECK(a.klass == 2 && a.race == 1, "class=WIZARD(2) race=ELF(1)");
+    /* 螢幕值(含 ELF/WIZARD 加成):STR21 AGI16 STA12 CHA23 WIS14 INT29 */
+    CHECK(a.stats[0] == 21 && a.stats[1] == 16 && a.stats[3] == 23 && a.stats[5] == 29,
+          "ABCD 屬性 BCD 含加成: STR21 AGI16 CHA23 INT29");
+
     printf("\n結果: %d/%d 通過%s\n", total - fails, total, fails ? "  *** 有失敗 ***" : "");
     return fails ? 1 : 0;
 }
