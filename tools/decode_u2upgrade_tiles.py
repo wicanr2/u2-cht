@@ -80,7 +80,20 @@ def main():
     out = sys.argv[2]
     kind = sys.argv[3] if len(sys.argv) > 3 else (
         "ega" if len(data) >= N_TILES * 128 else "cga")
+    mode = sys.argv[4] if len(sys.argv) > 4 else "sheet"
     dec = decode_ega if kind == "ega" else decode_cga
+
+    if mode == "strip":
+        # 引擎 tileset:65 tile 橫條 (1040×16),u2_tileset 以 id*16 取 src x
+        strip = Image.new("RGB", (N_TILES * 16, 16), (0, 0, 0))
+        for t in range(N_TILES):
+            rows = dec(data, t)
+            for y in range(16):
+                for x in range(16):
+                    strip.putpixel((t * 16 + x, y), rows[y][x])
+        strip.save(out)
+        print(f"wrote {out} ({kind} engine strip, {N_TILES} tiles)")
+        return
 
     cols, sc, gp, lab = 8, 5, 10, 14
     tw = 16 * sc

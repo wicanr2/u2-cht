@@ -21,7 +21,8 @@
 **底部訊息列為端到端在地化展示**:引擎讀**原始 `tlkx21`**(high-bit ASCII 解碼)→ 經**翻譯覆蓋層** `talk_dialogue.tsv`(以原文為 key)查譯文 → 繪 CJK。畫面中「流浪漢格倫德說:精通謎題者方為真正的高手!」「安迪.格林堡抱怨:什麼?沒有軟體?!?」「羅伯.伍德海大喊:防拷!防拷!」皆為**真實 tlkx21 NPC 對話的中譯**(非硬編);查無譯文則 fallback 原文(暗色)。
 
 > 完整在地化管線:**原始資料 → 覆蓋層 → CJK**,模組 `u2_talk`(解碼)+ `u2_strings`(覆蓋層)。
-> 注:本 PoC 截圖用早期 `ultimaii.exe @0x7C42` PoC tile;**正確 tileset ground truth 為 U2 Upgrade CGATILES/EGATILES**(此 PoC tile 與其只有 id 0 相同),詳見 [DATA_FORMATS.md](DATA_FORMATS.md)。實體層見 monxNN 段。
+> 截圖使用 **U2 Upgrade EGATILES**(正確 tileset:藍波浪水/綠樹/城堡/山/彩色 sprite);
+> 引擎 tileset 由 `build_poc.sh` 優先用玩家自備的 EGATILES 產生(找不到才 fallback EXE @0x7C42 PoC tile)。詳見 [DATA_FORMATS.md](DATA_FORMATS.md)。實體層見 monxNN 段。
 
 ## 架構(deep modules / 垂直層)
 
@@ -31,7 +32,7 @@ src/
   u2_mon.{h,c}      # data 層:monxNN 實體層 (NPC/怪物,32 格陣列)
   u2_talk.{h,c}     # data 層:tlkxNN 對話解碼 (high-bit ASCII)
   u2_strings.{h,c}  # i18n 層:翻譯覆蓋層 (原文→zh_hant)
-  u2_tileset.{h,c}  # render 層:真實 CGA tile (從 ultimaii.exe 抽出) blit
+  u2_tileset.{h,c}  # render 層:tileset strip (U2 Upgrade EGATILES) blit
   u2_render.{h,c}   # render 層:viewport + 實體疊繪 (真 tile,色塊 fallback)
   u2_text.{h,c}     # text 層:SDL2_ttf UTF-8 繪字 (ADR 0001 文字層原生繪製)
   poc_main.c        # 接線:仿 U2 版面 + 端到端在地化展示

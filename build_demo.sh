@@ -13,7 +13,17 @@ FONT=/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc
 MAP_ABS="$(readlink -f "$MAP")"; DATA="$(dirname "$MAP_ABS")"; NAME="$(basename "$MAP_ABS")"
 EXE="$DATA/ultimaii.exe"
 mkdir -p build
-/usr/bin/python3 tools/extract_tiles.py "$EXE" build/tileset.png "$PAL"
+# 優先 U2 Upgrade EGATILES (正確);找不到 fallback EXE @0x7C42 (PoC)
+EGATILES="${U2UP_TILES:-}"
+[[ -z "$EGATILES" && -f "$DATA/EGATILES" ]] && EGATILES="$DATA/EGATILES"
+[[ -z "$EGATILES" && -f build/u2up/EGATILES ]] && EGATILES="build/u2up/EGATILES"
+if [[ -n "$EGATILES" && -f "$EGATILES" ]]; then
+    echo "tileset: U2 Upgrade EGATILES ($EGATILES)"
+    /usr/bin/python3 tools/decode_u2upgrade_tiles.py "$EGATILES" build/tileset.png ega strip
+else
+    echo "⚠️ 無 EGATILES,fallback EXE @0x7C42 (PoC)"
+    /usr/bin/python3 tools/extract_tiles.py "$EXE" build/tileset.png "$PAL"
+fi
 docker build -q -t "$IMG" docker/ >/dev/null
 docker run --rm -v "$PWD":/work -v "$DATA":/data:ro "$IMG" bash -c "
     set -e
