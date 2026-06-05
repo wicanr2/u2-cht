@@ -1,0 +1,14 @@
+# Tsugaru FM Towns 模擬器(headless build)
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git cmake g++ make zlib1g-dev libsdl2-dev libsdl2-ttf-dev \
+    libglu1-mesa-dev freeglut3-dev libgl1-mesa-dev libasound2-dev \
+    ca-certificates xvfb x11-utils xdotool imagemagick && \
+    rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+RUN git clone --depth 1 https://github.com/captainys/TOWNSEMU.git
+RUN cd TOWNSEMU && mkdir -p build && cd build && \
+    cmake ../src -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) Tsugaru_CUI
+RUN find /build/TOWNSEMU/build -name 'Tsugaru*' -type f -exec ls -la {} \;
