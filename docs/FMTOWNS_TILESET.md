@@ -179,3 +179,34 @@
 > 未能讀取(伺服器 403 / 連線拒絕):The Spriters Resource 站內搜尋頁、justsolve ICN 頁(改以搜尋結果摘要佐證)。
 </content>
 </invoke>
+
+---
+
+# 附錄:實際抽取進度(路徑 B,本機)
+
+> 來源:使用者提供 `Ultima-Trilogy-I-II-III_FM-Towns_JA-EN_UserDisk-incl.zip`
+> (CloneCD:`.ccd/.cue/.img/.sub` + UserDisk `.hdm`)。原始 image **不進 repo**。
+
+## 1. 取得檔案 ✅
+- `.img` = **MODE1/2352 raw CD**(141,649,200 = 2352×60225;sync header `00 ff…ff 00`)。
+- Track 1(資料)約前 8850 sectors;抽每 sector 的 2048 byte(offset 16)→ 乾淨 ISO9660。
+- ISO 內含 `GRAPH/*.TIF`(62 個圖)、`ENCHANT.EXP`(U2 執行檔)、`BRITISH.EXP`(U1)、`EXODUS.EXP`(U3)等。
+
+## 2. 圖檔格式破解 ✅
+- `GRAPH/*.TIF` 是 little-endian TIFF 容器,但 **header 謊報 ImageWidth/Height=32**;
+  真實 pixel data 從 `StripOffsets=512` 起到檔尾。
+- 像素:**4bpp chunky,寬 32px(16 byte/列),高 nibble = 左 px**。
+  證據:byte 值多為雙 nibble 相同(0x33/0x11/0x22…=純色區)、自相關 stride 16 byte 最強。
+- 物件多為 **32×32 sprite**,常**成對 = 2 幀動畫**。
+  - `UT1TILE0.TIF`(33,280 B)= 64 個 32×32 sprite = 約 32 個怪物/人物 × 2 幀(灰階驗證形狀清晰)。
+- ⚠️ TIFF **無 ColorMap**;真實 16 色 palette 在遊戲執行期設定(EXP/FM Towns 暫存器),
+  目前用 EGA/灰階佔位出圖看形狀。**正式上色需取得真 palette**(下一步)。
+- 工具:[`tools/fmtowns_decode.py`](../tools/fmtowns_decode.py)(解 TIF → 32×32 sprite grid / 32px strip)。
+
+## 3. 仍待處理
+1. **真實 16 色 palette**:疑在 `ENCHANT.EXP` 或 FM Towns 標準 16 色暫存器;需逆 EXP 或對照實機截圖。
+2. **overworld 地形 tile(16×16 water/grass…)落點**:`UT1TILE0` 是 32×32 角色/怪物;
+   地形 tile 可能在別檔(`MAP2_*` 為非 TIFF 變體、`UT1TILE1` 等待驗證),或 FM Towns 以 32×32 呈現地形。
+3. **DOS tile id ↔ FM Towns sprite 對應表**(語意已知,屬填空)。
+4. **引擎整合決策**:32×32 sprite vs 現行 16×16 tile —— 怪物可走 32×32 sprite 疊層,
+   地形若也是 32×32 則需引擎支援雙尺寸或地形維持 16×16。
