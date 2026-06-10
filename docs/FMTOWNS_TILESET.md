@@ -296,3 +296,27 @@ overworld 地形圖塊與精確 palette 需進一步逆 `ENCHANT.EXP` 或乾淨�
 - sprite palette 暫存器順序:overworld 確認了「用哪些色」,但 UT1TILE0 sprite 的
   index→色 對應仍需 palette register dump 或比對(怪物精確上色用)。
 - 引擎整合:32×32 tile vs 現行 16×16 → 降採樣或引擎支援雙尺寸。
+
+---
+
+# 附錄 C:FM Towns palette 暫存器順序破解(驗證完成)
+
+由 `U2TITLE1.TIF`(4bpp index)與模擬器標題截圖(真色)做**同圖頻率排序對映**,
+再以該 palette 重畫 U2TITLE1 與實機 **100% 吻合**驗證:
+
+| index | 色 | RGB |
+|---|---|---|
+| 0 | 黑 | (0,0,0) |
+| 1 | 綠 | (0,255,0) |
+| 2 | 紅 | (255,0,0) |
+| 3 | 洋紅 | (255,0,255) |
+| 4 | 藍 | (0,0,255) |
+| 5 | 青 | (0,255,255) |
+| 6 | 黃 | (255,255,0) |
+| 7 | 白 | (255,255,255) |
+
+- **UT1TILE0 等 sprite 只用 index 0-7** → 此 8 色即完整。8-15 未觀測(sprite 未用)。
+- 以此精確 palette 重畫 UT1TILE0 的 64 個怪物/角色 sprite →
+  [`screenshots/fmtowns_monsters_colored.png`](screenshots/fmtowns_monsters_colored.png)(精確版,取代先前近似)。
+- 驗證圖:[`screenshots/fmtowns_palette_verify.png`](screenshots/fmtowns_palette_verify.png)(重畫標題與實機吻合)。
+- 工具 `tools/fmtowns_decode.py` 預設 palette 已改為此驗證值。
