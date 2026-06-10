@@ -28,6 +28,7 @@ stage_data(){  # $1 = 目標 share 目錄
   cp /tmp/ts/*.png "$S/tileset/"
   cp translations/exe_translatable_strings.tsv translations/talk_dialogue.tsv "$S/translations/"
   [ -f /work/build/splash.png ] && cp /work/build/splash.png "$S/splash.png" || true   # 開場全家福
+  [ -f docs/screenshots/fmtowns_title_decoded.png ] && cp docs/screenshots/fmtowns_title_decoded.png "$S/title.png" || true  # 原版開場標題
 }
 
 # ---------- 2) Linux AppImage ----------
@@ -68,8 +69,9 @@ export LD_LIBRARY_PATH="$HERE/usr/lib:$LD_LIBRARY_PATH"
 S="$HERE/usr/share/u2cht"
 TS="$S/tileset/ega.png,$S/tileset/fmtowns.png,$S/tileset/vivid.png,$S/tileset/cga.png,$S/tileset/ega_alt.png,$S/tileset/ega_c64.png"
 SPL=""; [ -f "$S/splash.png" ] && SPL="--splash $S/splash.png"
+TTL=""; [ -f "$S/title.png" ] && TTL="--title $S/title.png"
 exec "$HERE/usr/bin/u2cht_bin" "$S/data/mapx20" "$S/font/wqy-zenhei.ttc" "$TS" \
-     "$S/translations/exe_translatable_strings.tsv" "$S/data/player" $SPL "$@"
+     "$S/translations/exe_translatable_strings.tsv" "$S/data/player" $TTL $SPL "$@"
 EOF
   chmod +x /tmp/AppDir/AppRun
   ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run /tmp/AppDir "$OUT/Ultima2-繁中試玩版-x86_64.AppImage"
@@ -103,7 +105,7 @@ build_windows(){
 @echo off
 cd /d "%~dp0"
 set TS=share\tileset\ega.png,share\tileset\fmtowns.png,share\tileset\vivid.png,share\tileset\cga.png,share\tileset\ega_alt.png,share\tileset\ega_c64.png
-Ultima2-cht.exe share\data\mapx20 share\font\wqy-zenhei.ttc %TS% share\translations\exe_translatable_strings.tsv share\data\player --splash share\splash.png
+Ultima2-cht.exe share\data\mapx20 share\font\wqy-zenhei.ttc %TS% share\translations\exe_translatable_strings.tsv share\data\player --title share\title.png --splash share\splash.png
 EOF
   cat > "$M/pkg/README.txt" <<'EOF'
 Ultima II: 女巫的復仇 — 繁體中文化(C/SDL2 重寫引擎)【試玩版 / DEMO】
