@@ -673,6 +673,173 @@ static char norm_dir(char c)
     return 0;
 }
 
+/* ===================== 開場選單 + 原版建角流程 ===================== */
+
+/* 各種族基礎屬性 STR,AGI,STA,CHA,WIS,INT(demo 指派:均衡/智敏/壯碩/靈巧) */
+static const int RACE_BASE[4][6] = {
+    {15,15,15,15,15,15},   /* 人類 */
+    {12,17,12,15,15,18},   /* 精靈 */
+    {18,12,18,12,12,12},   /* 矮人 */
+    {12,18,12,18,15,15},   /* 哈比人 */
+};
+#define CREATE_POOL 25       /* 可分配點數 */
+#define STAT_CAP    50       /* 建角時單項上限 */
+
+enum CreateStep { CS_NAME, CS_SEX, CS_RACE, CS_CLASS, CS_STATS, CS_DONE };
+
+typedef struct {
+    int step;
+    char name[16]; int nlen;
+    int sex, race, klass;     /* sex 0=M 1=F */
+    int stats[6], pool, cur;
+} Create;
+
+static void create_init(Create *c)
+{
+    memset(c,0,sizeof *c);
+    c->step=CS_NAME;
+    for (int i=0;i<6;i++) c->stats[i]=RACE_BASE[0][i];
+    c->pool=CREATE_POOL;
+}
+
+/* 選種族時重設屬性基底 */
+static void create_apply_race(Create *c)
+{
+    for (int i=0;i<6;i++) c->stats[i]=RACE_BASE[c->race][i];
+    c->pool=CREATE_POOL; c->cur=0;
+}
+
+/* 餵一個輸入給建角狀態機。key=SDL keycode,ch=可列印字元(0 表無)。回傳 1=已完成 */
+static int create_feed(Create *c, int key, char ch)
+{
+    switch (c->step){
+    case CS_NAME:
+        if ((ch>='A'&&ch<='Z')||(ch>='a'&&ch<='z')||(ch>='0'&&ch<='9')||ch==' '){
+            if (c->nlen<15){ char u=(ch>='a'&&ch<='z')?ch-32:ch; c->name[c->nlen++]=u; c->name[c->nlen]=0; }
+        } else if (key==SDLK_BACKSPACE){ if (c->nlen>0) c->name[--c->nlen]=0; }
+        else if (key==SDLK_RETURN){ if (c->nlen>0) c->step=CS_SEX; }
+        break;
+    case CS_SEX:
+        if (key==SDLK_LEFT||key==SDLK_RIGHT||key==SDLK_UP||key==SDLK_DOWN) c->sex^=1;
+        else if (key==SDLK_RETURN) c->step=CS_RACE;
+        break;
+    case CS_RACE:
+        if (key==SDLK_LEFT||key==SDLK_UP){ c->race=(c->race+3)&3; create_apply_race(c); }
+        else if (key==SDLK_RIGHT||key==SDLK_DOWN){ c->race=(c->race+1)&3; create_apply_race(c); }
+        else if (key==SDLK_RETURN) c->step=CS_CLASS;
+        break;
+    case CS_CLASS:
+        if (key==SDLK_LEFT||key==SDLK_UP) c->klass=(c->klass+3)&3;
+        else if (key==SDLK_RIGHT||key==SDLK_DOWN) c->klass=(c->klass+1)&3;
+        else if (key==SDLK_RETURN) c->step=CS_STATS;
+        break;
+    case CS_STATS:
+        if (key==SDLK_UP) c->cur=(c->cur+5)%6;
+        else if (key==SDLK_DOWN) c->cur=(c->cur+1)%6;
+        else if (key==SDLK_RIGHT){ if (c->pool>0 && c->stats[c->cur]<STAT_CAP){ c->stats[c->cur]++; c->pool--; } }
+        else if (key==SDLK_LEFT){ if (c->stats[c->cur]>RACE_BASE[c->race][c->cur]){ c->stats[c->cur]--; c->pool++; } }
+        else if (key==SDLK_RETURN){ c->step=CS_DONE; return 1; }
+        break;
+    default: return 1;
+    }
+    return c->step==CS_DONE;
+}
+
+/* 由完成的 Create 產生 U2Save(寫 raw[] + 解析欄位;數值在 store 時編碼成 BCD) */
+static U2Save make_character(const Create *c)
+{
+    U2Save s; memset(&s,0,sizeof s);
+    s.ok=1; s.has_character=1;
+    for (int i=0;i<16;i++) s.raw[i]=(i<c->nlen)?(unsigned char)c->name[i]:0;
+    memcpy(s.name,c->name,c->nlen); s.name[c->nlen]=0;
+    s.raw[U2_OFF_SEX]=c->sex?'F':'M'; s.sex=s.raw[U2_OFF_SEX];
+    s.raw[U2_OFF_CLASS]=(unsigned char)c->klass; s.klass=c->klass;
+    s.raw[U2_OFF_RACE]=(unsigned char)c->race;   s.race=c->race;
+    for (int i=0;i<6;i++) s.stats[i]=c->stats[i];
+    s.hp=400; s.food=400; s.exp=0; s.gold=400;     /* 新角色起始(見 u2_save.h 起始值) */
+    s.raw[0x100]=0x1a; s.marker=0x1a;
+    memcpy(s.rec,s.raw,U2_REC_SIZE);
+    return s;
+}
+
+static const char *SEX_ZH[2]={"男","女"};
+
+/* 渲染建角當前步驟 */
+static void render_create(SDL_Surface *cv, const Create *c, U2Text *title, U2Text *body, U2Text *small)
+{
+    SDL_FillRect(cv,NULL,SDL_MapRGB(cv->format,12,14,28));
+    SDL_Rect hdr={0,0,CANVAS_W,HDR_H}; SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
+    u2_text_draw(cv,title,"建立角色",16,4,250,240,140);
+    const char *steps[]={"① 姓名","② 性別","③ 種族","④ 職業","⑤ 屬性分配"};
+    char bar[128]=""; for (int i=0;i<5;i++){ strcat(bar,(i==c->step)?"[":" "); strcat(bar,steps[i]); strcat(bar,(i==c->step)?"]":" "); }
+    u2_text_draw(cv,small,bar,16,40,170,185,215);
+
+    int x=60, y=110, lh=40;
+    char ln[160];
+    /* 已決定欄位摘要 */
+    if (c->step>CS_NAME){ snprintf(ln,sizeof ln,"姓名:%s",c->name); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
+    if (c->step>CS_SEX){ snprintf(ln,sizeof ln,"性別:%s",SEX_ZH[c->sex]); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
+    if (c->step>CS_RACE){ snprintf(ln,sizeof ln,"種族:%s",u2_save_race_zh(c->race)); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
+    if (c->step>CS_CLASS){ snprintf(ln,sizeof ln,"職業:%s",u2_save_class_zh(c->klass)); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
+
+    y=110+CS_STATS*0;  /* 當前步驟提示區固定在下半 */
+    int py=320;
+    switch (c->step){
+    case CS_NAME:
+        snprintf(ln,sizeof ln,"輸入姓名:%s_",c->name);
+        u2_text_draw(cv,body,ln,x,py,245,235,180);
+        u2_text_draw(cv,small,"鍵入 A–Z / 0–9,Backspace 刪除,Enter 確認",x,py+44,180,195,220);
+        break;
+    case CS_SEX:
+        snprintf(ln,sizeof ln,"性別:◀ %s ▶",SEX_ZH[c->sex]);
+        u2_text_draw(cv,body,ln,x,py,245,235,180);
+        u2_text_draw(cv,small,"←/→ 切換,Enter 確認",x,py+44,180,195,220);
+        break;
+    case CS_RACE:
+        snprintf(ln,sizeof ln,"種族:◀ %s ▶",u2_save_race_zh(c->race));
+        u2_text_draw(cv,body,ln,x,py,245,235,180);
+        u2_text_draw(cv,small,"←/→ 選擇(人類/精靈/矮人/哈比人),Enter 確認",x,py+44,180,195,220);
+        break;
+    case CS_CLASS:
+        snprintf(ln,sizeof ln,"職業:◀ %s ▶",u2_save_class_zh(c->klass));
+        u2_text_draw(cv,body,ln,x,py,245,235,180);
+        u2_text_draw(cv,small,"←/→ 選擇(戰士/牧師/巫師/盜賊),Enter 確認",x,py+44,180,195,220);
+        break;
+    case CS_STATS: {
+        snprintf(ln,sizeof ln,"屬性分配  剩餘點數:%d",c->pool);
+        u2_text_draw(cv,body,ln,x,260,245,235,180);
+        for (int i=0;i<6;i++){
+            int yy=300+i*30;
+            char lab[80]; snprintf(lab,sizeof lab,"%s %s %s",(i==c->cur)?"▶":"  ",u2_save_stat_zh(i),u2_save_stat_name(i));
+            u2_text_draw(cv,body,lab,x,yy,(i==c->cur)?250:210,(i==c->cur)?235:215,(i==c->cur)?150:225);
+            char v[8]; snprintf(v,sizeof v,"%d",c->stats[i]);
+            u2_text_draw(cv,body,v,x+230,yy,245,225,150);
+        }
+        u2_text_draw(cv,small,"↑/↓ 選屬性,←/→ 增減,Enter 完成建角",x,300+6*30+8,180,195,220);
+        break; }
+    default: break;
+    }
+}
+
+/* 渲染開場選單 */
+static void render_menu(SDL_Surface *cv, const char *opts[], int n, int sel,
+                        SDL_Surface *titleimg, U2Text *title, U2Text *body)
+{
+    SDL_FillRect(cv,NULL,SDL_MapRGB(cv->format,8,10,22));
+    if (titleimg){
+        double s=(double)CANVAS_W/titleimg->w; if (titleimg->h*s>CANVAS_H-150) s=(double)(CANVAS_H-150)/titleimg->h;
+        int w=(int)(titleimg->w*s), h=(int)(titleimg->h*s);
+        SDL_Rect dst={(CANVAS_W-w)/2,20,w,h}; SDL_BlitScaled(titleimg,NULL,cv,&dst);
+    }
+    int by=CANVAS_H-210;
+    for (int i=0;i<n;i++){
+        int yy=by+i*44;
+        if (i==sel){ SDL_Rect r={CANVAS_W/2-160,yy-4,320,40}; SDL_FillRect(cv,&r,SDL_MapRGB(cv->format,40,50,120)); }
+        u2_text_draw(cv,body,opts[i],CANVAS_W/2-120,yy,(i==sel)?250:200,(i==sel)?235:205,(i==sel)?150:215);
+    }
+    u2_text_draw(cv,title,"↑/↓ 選擇 · Enter 確認",CANVAS_W/2-150,CANVAS_H-28,170,185,215);
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 5){
@@ -682,13 +849,16 @@ int main(int argc, char **argv)
     }
     const char *map_path=argv[1], *font_path=argv[2], *tiles_path=argv[3], *ui_tsv=argv[4];
     const char *player_save=NULL, *script=NULL, *out_prefix=NULL, *splash_path=NULL, *title_path=NULL;
+    const char *save_override=NULL, *screens_prefix=NULL;
     for (int i=5;i<argc;i++){
         if (!strcmp(argv[i],"--script") && i+2<argc){ script=argv[i+1]; out_prefix=argv[i+2]; i+=2; }
         else if (!strcmp(argv[i],"--splash") && i+1<argc){ splash_path=argv[i+1]; i+=1; }
         else if (!strcmp(argv[i],"--title") && i+1<argc){ title_path=argv[i+1]; i+=1; }
+        else if (!strcmp(argv[i],"--save") && i+1<argc){ save_override=argv[i+1]; i+=1; }
+        else if (!strcmp(argv[i],"--screens") && i+1<argc){ screens_prefix=argv[i+1]; i+=1; }
         else if (!player_save) player_save=argv[i];
     }
-    int headless=(script!=NULL);
+    int headless=(script!=NULL || screens_prefix!=NULL);
 
     if (SDL_Init(headless?0:SDL_INIT_VIDEO)!=0 || IMG_Init(IMG_INIT_PNG)==0){
         fprintf(stderr,"SDL init: %s\n",SDL_GetError()); return 1;
@@ -734,13 +904,61 @@ int main(int argc, char **argv)
         snprintf(e,sizeof tt-(e-tt),"talk_dialogue.tsv");
         g.tr = u2_strings_load(tt,2,3);
     }
-    if (player_save) g.save = u2_save_load(player_save);
+    /* 可寫存檔路徑:--save 覆寫 > headless 用 player_save > SDL_GetPrefPath(跨平台可寫) */
+    char save_path[1024];
+    if (save_override) snprintf(save_path,sizeof save_path,"%s",save_override);
+    else if (headless && player_save) snprintf(save_path,sizeof save_path,"%s",player_save);
+    else {
+        char *pref=SDL_GetPrefPath("LairWare-cht","Ultima2");   /* 自動建立目錄 */
+        if (pref){ snprintf(save_path,sizeof save_path,"%splayer",pref); SDL_free(pref); }
+        else snprintf(save_path,sizeof save_path,"u2cht_player");
+    }
+    U2Save wsave = u2_save_load(save_path);                       /* 可寫存檔(繼續用) */
+    U2Save tmpl  = player_save ? u2_save_load(player_save) : (U2Save){0};  /* 打包範本(唯讀) */
+    int have_continue = wsave.ok && wsave.has_character;
+    /* headless / 預設:有可寫存檔用它,否則用範本 */
+    g.save = have_continue ? wsave : tmpl;
 
     SDL_Surface *cv=SDL_CreateRGBSurfaceWithFormat(0,CANVAS_W,CANVAS_H,32,SDL_PIXELFORMAT_RGBA32);
     U2Text title=u2_text_open(font_path,20), body=u2_text_open(font_path,22), small=u2_text_open(font_path,17);
     if (!title.font||!body.font||!small.font){ fprintf(stderr,"字型失敗: %s\n",TTF_GetError()); return 1; }
     SDL_Surface *splash = splash_path ? IMG_Load(splash_path) : NULL;
     SDL_Surface *titleimg = title_path ? IMG_Load(title_path) : NULL;
+
+    /* --screens:渲染選單 + 建角各步驟到 PNG(版面驗證),不進遊戲 */
+    if (screens_prefix){
+        char out[600];
+        const char *opts[]={"繼續冒險","新遊戲(建立角色)","試玩範例角色","離開"};
+        render_menu(cv,opts,4,1,titleimg,&title,&body);
+        snprintf(out,sizeof out,"%smenu.png",screens_prefix); IMG_SavePNG(cv,out);
+        Create c; create_init(&c);
+        const char *seq="NAME|sex|race|class|stats";  /* 標記用 */
+        (void)seq;
+        /* 模擬一路填到各步驟 */
+        const char *demo="HERO"; for (const char*p=demo;*p;p++) create_feed(&c,0,*p);
+        render_create(cv,&c,&title,&body,&small); snprintf(out,sizeof out,"%s1name.png",screens_prefix); IMG_SavePNG(cv,out);
+        create_feed(&c,SDLK_RETURN,0); /* →sex */
+        render_create(cv,&c,&title,&body,&small); snprintf(out,sizeof out,"%s2sex.png",screens_prefix); IMG_SavePNG(cv,out);
+        create_feed(&c,SDLK_RIGHT,0); create_feed(&c,SDLK_RETURN,0); /* 女→race */
+        render_create(cv,&c,&title,&body,&small); snprintf(out,sizeof out,"%s3race.png",screens_prefix); IMG_SavePNG(cv,out);
+        create_feed(&c,SDLK_RIGHT,0); create_feed(&c,SDLK_RETURN,0); /* 精靈→class */
+        render_create(cv,&c,&title,&body,&small); snprintf(out,sizeof out,"%s4class.png",screens_prefix); IMG_SavePNG(cv,out);
+        create_feed(&c,SDLK_RIGHT,0); create_feed(&c,SDLK_RETURN,0); /* 牧師→stats */
+        create_feed(&c,SDLK_DOWN,0); create_feed(&c,SDLK_RIGHT,0); create_feed(&c,SDLK_RIGHT,0);
+        render_create(cv,&c,&title,&body,&small); snprintf(out,sizeof out,"%s5stats.png",screens_prefix); IMG_SavePNG(cv,out);
+        /* 新角色存檔 round-trip 驗證 */
+        create_feed(&c,SDLK_RETURN,0);   /* 完成建角 */
+        U2Save made=make_character(&c);
+        char sp[600]; snprintf(sp,sizeof sp,"%snewchar",screens_prefix);
+        if (u2_save_store(&made,sp)){
+            U2Save rl=u2_save_load(sp);
+            printf("建角存檔 round-trip:name=%s sex=%c race=%s class=%s STR=%d INT=%d hp=%d gold=%d\n",
+                   rl.name,rl.sex,u2_save_race_name(rl.race),u2_save_class_name(rl.klass),
+                   rl.stats[0],rl.stats[5],rl.hp,rl.gold);
+        } else printf("建角存檔失敗\n");
+        printf("screens 輸出:%smenu/1name/2sex/3race/4class/5stats.png\n",screens_prefix);
+        return 0;
+    }
 
     g.mode=MODE_WORLD;
     find_start(&g.map,&g.player);
@@ -806,6 +1024,64 @@ int main(int argc, char **argv)
                 SDL_Delay(16);
             }
         }
+        /* ---- 開場選單:繼續 / 新遊戲 / 試玩範例 / 離開 ---- */
+        {
+            const char *opts[4]; int code[4], n=0;
+            if (have_continue){ opts[n]="繼續冒險"; code[n++]=0; }
+            opts[n]="新遊戲(建立角色)"; code[n++]=1;
+            if (tmpl.ok && tmpl.has_character){ opts[n]="試玩範例角色"; code[n++]=2; }
+            opts[n]="離開"; code[n++]=3;
+            int sel=0, chosen=-1;
+            while (running && chosen<0){
+                render_menu(cv,opts,n,sel,titleimg,&title,&body);
+                SDL_Texture *t=SDL_CreateTextureFromSurface(ren,cv);
+                SDL_RenderClear(ren); SDL_RenderCopy(ren,t,NULL,NULL); SDL_RenderPresent(ren);
+                SDL_DestroyTexture(t);
+                SDL_Event e;
+                while (SDL_WaitEvent(&e)){
+                    if (e.type==SDL_QUIT){ running=0; break; }
+                    if (e.type==SDL_KEYDOWN){
+                        SDL_Keycode k=e.key.keysym.sym;
+                        if (k==SDLK_UP||k==SDLK_w) { sel=(sel+n-1)%n; break; }
+                        if (k==SDLK_DOWN||k==SDLK_s){ sel=(sel+1)%n; break; }
+                        if (k==SDLK_RETURN||k==SDLK_SPACE){ chosen=code[sel]; break; }
+                        if (k==SDLK_ESCAPE){ chosen=3; break; }
+                    }
+                }
+            }
+            if (chosen==3) running=0;
+            else if (chosen==0) g.save=wsave;
+            else if (chosen==2) g.save=tmpl;
+            else if (chosen==1){
+                /* 原版建角流程 */
+                Create c; create_init(&c);
+                int done=0;
+                while (running && !done){
+                    render_create(cv,&c,&title,&body,&small);
+                    SDL_Texture *t=SDL_CreateTextureFromSurface(ren,cv);
+                    SDL_RenderClear(ren); SDL_RenderCopy(ren,t,NULL,NULL); SDL_RenderPresent(ren);
+                    SDL_DestroyTexture(t);
+                    SDL_Event e;
+                    while (SDL_WaitEvent(&e)){
+                        if (e.type==SDL_QUIT){ running=0; break; }
+                        if (e.type==SDL_KEYDOWN){
+                            SDL_Keycode k=e.key.keysym.sym;
+                            char ch=0;
+                            if (k>=SDLK_a&&k<=SDLK_z) ch='A'+(k-SDLK_a);
+                            else if (k>=SDLK_0&&k<=SDLK_9) ch='0'+(k-SDLK_0);
+                            else if (k==SDLK_SPACE) ch=' ';
+                            done=create_feed(&c,k,ch);
+                            break;
+                        }
+                    }
+                }
+                if (done){
+                    g.save=make_character(&c);
+                    u2_save_store(&g.save,save_path);   /* 立即存檔,下次可「繼續」 */
+                }
+            }
+            g.php=(g.save.ok && g.save.has_character)?g.save.hp:400;
+        }
         while (running){
             SDL_Event e;
             while (SDL_PollEvent(&e)){
@@ -843,13 +1119,13 @@ int main(int argc, char **argv)
         SDL_DestroyRenderer(ren); SDL_DestroyWindow(win);
     }
 
-    /* 離開時把執行時狀態(HP/EXP/GOLD…)寫回 player 存檔 */
-    if (player_save && g.save.ok && g.save.has_character){
+    /* 離開時把執行時狀態(HP/EXP/GOLD…)寫回可寫存檔 */
+    if (g.save.ok && g.save.has_character){
         g.save.hp = g.php;
-        if (u2_save_store(&g.save, player_save))
-            printf("已存檔:%s\n", player_save);
+        if (u2_save_store(&g.save, save_path))
+            printf("已存檔:%s\n", save_path);
         else
-            fprintf(stderr, "存檔失敗:%s(%s)\n", player_save, strerror(errno));
+            fprintf(stderr, "存檔失敗:%s(%s)\n", save_path, strerror(errno));
     }
 
     u2_text_close(&title); u2_text_close(&body); u2_text_close(&small);
