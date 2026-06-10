@@ -57,6 +57,7 @@ docker run --rm \
         set -e
         cmake -S /work -B /work/build -DCMAKE_BUILD_TYPE=Release >/dev/null
         cmake --build /work/build --target u2_game -j >/dev/null
-        /work/build/u2_game /data/$MAP_NAME $FONT $TILES /work/translations/exe_translatable_strings.tsv /work/tests/fixtures/player_sample_abcd --script $MOVES /work/$PREFIX
+        SPL=""; [ -f /work/build/splash.png ] && SPL="--splash /work/build/splash.png"
+        /work/build/u2_game /data/$MAP_NAME $FONT $TILES /work/translations/exe_translatable_strings.tsv /work/tests/fixtures/player_sample_abcd \$SPL --script $MOVES /work/$PREFIX
     "
 echo "→ ${PREFIX}NN.png"

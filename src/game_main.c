@@ -67,8 +67,10 @@ typedef struct {
     struct { int x, y, hp, maxhp, atk; unsigned char tile; const char *name; } mob[8];
     int nmob, php, turn;
     unsigned int rng;             /* 簡易 LCG,determinism 供 headless 驗證 */
+    int vehicle;                  /* 0=步行 1=船(frigate) */
     char msg[200];
 } Game;
+#define SHIP_TILE 18              /* 地圖上的船 tile id */
 
 /* 簡易 LCG(同 oracle 風格,seed 固定 → headless 可重現) */
 static unsigned int rng_next(Game *g)
@@ -175,7 +177,7 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
 
     int by=MAP_OY+VIEW_ROWS*TILE_PX+10;
     u2_text_draw(cv,body, g->in_town ? "方向鍵/WASD 移動 · T 交談 · C 角色表 · X 離開城鎮"
-                                     : "方向鍵/WASD 移動 · C 角色表 · Q 離開",
+                                     : "方向鍵/WASD 移動 · B 登船 · G 畫風 · C 角色表 · Q 離開",
                  MAP_OX,by,150,175,205);
     u2_text_draw(cv,body,g->msg,MAP_OX,by+30,210,225,205);
     char pos[96]; snprintf(pos,sizeof pos,"座標 (%d, %d)  地形 id=%d  圖塊 %s(G 切換)",
@@ -461,6 +463,84 @@ static int attack_mob(Game *g, int nx, int ny)
     return 0;
 }
 
+/* 在玩家附近的水域(相鄰陸地可上下船)放一艘船,供登船示範 */
+static void place_ship(Game *g)
+{
+    int NX[4]={0,1,0,-1}, NY[4]={-1,0,1,0};
+    for (int r=1;r<24;r++)
+        for (int dy=-r;dy<=r;dy++) for (int dx=-r;dx<=r;dx++){
+            if (abs(dx)<r && abs(dy)<r) continue;
+            int x=g->player.x+dx, y=g->player.y+dy;
+            if (x<1||y<1||x>=U2_MAP_W-1||y>=U2_MAP_H-1) continue;
+            if (u2_map_tile(&g->map,x,y)!=0) continue;        /* 要水 */
+            for (int d=0;d<4;d++){
+                int lx=x+NX[d], ly=y+NY[d];
+                unsigned char at=u2_map_tile(&g->map,lx,ly);
+                if (at!=0 && u2_passable(at)){
+                    g->map.tile[y][x]=SHIP_TILE;
+                    g->player.x=lx; g->player.y=ly;   /* 玩家移到船旁陸地,方便登船 */
+                    return;
+                }
+            }
+        }
+}
+/* B:登船(腳下/相鄰 ship tile)或下船(在船上→相鄰陸地) */
+static void board_ship(Game *g)
+{
+    if (g->mode!=MODE_WORLD || g->in_town){ snprintf(g->msg,sizeof g->msg,"這裡無法登船。"); return; }
+    int NX[4]={0,1,0,-1}, NY[4]={-1,0,1,0};
+    if (g->vehicle==1){                                       /* 下船 */
+        for (int d=0;d<4;d++){
+            int x=g->player.x+NX[d], y=g->player.y+NY[d];
+            if (x<0||y<0||x>=U2_MAP_W||y>=U2_MAP_H) continue;
+            unsigned char t=u2_map_tile(&g->map,x,y);
+            if (t!=0 && t!=1 && u2_passable(t)){
+                g->map.tile[g->player.y][g->player.x]=SHIP_TILE;  /* 留船在水面 */
+                g->player.x=x; g->player.y=y; g->vehicle=0; g->player.tile=PLAYER_TILE;
+                snprintf(g->msg,sizeof g->msg,"你上岸了,船停在水邊。"); return;
+            }
+        }
+        snprintf(g->msg,sizeof g->msg,"附近沒有陸地可上岸。"); return;
+    }
+    /* 登船:腳下是船 */
+    if (u2_map_tile(&g->map,g->player.x,g->player.y)==SHIP_TILE){
+        g->vehicle=1; g->player.tile=SHIP_TILE;
+        snprintf(g->msg,sizeof g->msg,"你登上了船,可在水上航行。"); return;
+    }
+    /* 相鄰是船 → 走過去登船 */
+    for (int d=0;d<4;d++){
+        int x=g->player.x+NX[d], y=g->player.y+NY[d];
+        if (x<0||y<0||x>=U2_MAP_W||y>=U2_MAP_H) continue;
+        if (u2_map_tile(&g->map,x,y)==SHIP_TILE){
+            g->map.tile[y][x]=0; g->player.x=x; g->player.y=y;
+            g->vehicle=1; g->player.tile=SHIP_TILE;
+            snprintf(g->msg,sizeof g->msg,"你登上了船,可在水上航行。"); return;
+        }
+    }
+    snprintf(g->msg,sizeof g->msg,"附近沒有船(船在水邊,走近後按 B)。");
+}
+
+/* 開場 splash:全家福 + 試玩版標註 */
+static void render_splash(SDL_Surface *cv, SDL_Surface *photo, U2Text *title, U2Text *body)
+{
+    SDL_FillRect(cv, NULL, SDL_MapRGB(cv->format,12,14,28));
+    SDL_Rect hdr={0,0,CANVAS_W,HDR_H}; SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
+    u2_text_draw(cv,title,"Ultima II:女巫的復仇 — 繁體中文化(試玩版)",10,4,250,240,140);
+    if (photo){
+        int maxh=CANVAS_H-150, maxw=CANVAS_W-80;
+        double s=(double)maxh/photo->h; if (photo->w*s>maxw) s=(double)maxw/photo->w;
+        int w=(int)(photo->w*s), h=(int)(photo->h*s);
+        SDL_Rect dst={(CANVAS_W-w)/2,52,w,h};
+        SDL_BlitScaled(photo,NULL,cv,&dst);
+        Uint32 fr=SDL_MapRGB(cv->format,250,240,90);
+        SDL_Rect e1={dst.x-3,dst.y-3,w+6,3},e2={dst.x-3,dst.y+h,w+6,3},
+                 e3={dst.x-3,dst.y-3,3,h+6},e4={dst.x+w,dst.y-3,3,h+6};
+        SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
+    }
+    u2_text_draw(cv,body,"※ 試玩版(demo):核心引擎與在地化展示,非完整遊戲。",60,CANVAS_H-84,210,210,220);
+    u2_text_draw(cv,body,"感謝遊玩 ── 獻給我的家人。  按任意鍵開始。",60,CANVAS_H-52,180,205,235);
+}
+
 /* 依模式處理一個方向鍵(dir ∈ N/S/E/W) */
 static void handle_dir(Game *g, char dir)
 {
@@ -470,14 +550,22 @@ static void handle_dir(Game *g, char dir)
         int di = (dir=='N')?0:(dir=='E')?1:(dir=='S')?2:3;
         int tx=g->player.x+FX[di], ty=g->player.y+FY[di];
         if (!g->in_town && attack_mob(g,tx,ty)){ step_mobs(g); return; }
-        int moved=u2_player_move(&g->player,amap(g),dir);
-        if (moved){
-            snprintf(g->msg,sizeof g->msg,"往 %c 移動。",dir);
-            unsigned char t=u2_map_tile(amap(g),g->player.x,g->player.y);
+        /* 載具感知移動:船=水域可走,步行=陸地;城鎮一律步行 */
+        U2Map *am=amap(g);
+        int inb = tx>=0&&ty>=0&&tx<U2_MAP_W&&ty<U2_MAP_H;
+        unsigned char tt = inb ? u2_map_tile(am,tx,ty) : 0;
+        int pass;
+        if (!g->in_town && g->vehicle==1) pass = inb && (tt==0||tt==1);   /* 船:水域 */
+        else pass = inb && u2_passable(tt);                               /* 步行 */
+        if (pass){
+            g->player.x=tx; g->player.y=ty;
+            snprintf(g->msg,sizeof g->msg, g->vehicle?"航行 %c。":"往 %c 移動。",dir);
+            unsigned char t=u2_map_tile(am,g->player.x,g->player.y);
             if (!g->in_town && t==WORLD_DUNGEON_TILE) { g->nmob=0; enter_dungeon(g); }
             else if (!g->in_town && t==WORLD_TOWN_TILE) { g->nmob=0; enter_town(g); }
             else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); }
-        } else snprintf(g->msg,sizeof g->msg,"%c 方向被擋住。",dir);
+        } else snprintf(g->msg,sizeof g->msg,
+                        (!g->in_town&&g->vehicle&&tt!=0&&tt!=1)?"船無法駛上陸地(B 下船)。":"%c 方向被擋住。",dir);
     } else { /* DUNGEON: N前進 S後退 W左轉 E右轉 */
         if (dir=='W'){ g->ddir=(g->ddir+3)&3; snprintf(g->msg,sizeof g->msg,"左轉。"); }
         else if (dir=='E'){ g->ddir=(g->ddir+1)&3; snprintf(g->msg,sizeof g->msg,"右轉。"); }
@@ -510,9 +598,10 @@ int main(int argc, char **argv)
         return 2;
     }
     const char *map_path=argv[1], *font_path=argv[2], *tiles_path=argv[3], *ui_tsv=argv[4];
-    const char *player_save=NULL, *script=NULL, *out_prefix=NULL;
+    const char *player_save=NULL, *script=NULL, *out_prefix=NULL, *splash_path=NULL;
     for (int i=5;i<argc;i++){
         if (!strcmp(argv[i],"--script") && i+2<argc){ script=argv[i+1]; out_prefix=argv[i+2]; i+=2; }
+        else if (!strcmp(argv[i],"--splash") && i+1<argc){ splash_path=argv[i+1]; i+=1; }
         else if (!player_save) player_save=argv[i];
     }
     int headless=(script!=NULL);
@@ -567,15 +656,19 @@ int main(int argc, char **argv)
     SDL_Surface *cv=SDL_CreateRGBSurfaceWithFormat(0,CANVAS_W,CANVAS_H,32,SDL_PIXELFORMAT_RGBA32);
     U2Text title=u2_text_open(font_path,20), body=u2_text_open(font_path,22), small=u2_text_open(font_path,17);
     if (!title.font||!body.font||!small.font){ fprintf(stderr,"字型失敗: %s\n",TTF_GetError()); return 1; }
+    SDL_Surface *splash = splash_path ? IMG_Load(splash_path) : NULL;
 
     g.mode=MODE_WORLD;
     find_start(&g.map,&g.player);
     g.rng = 1;                                          /* 固定 seed → headless 可重現 */
     g.php = (g.save.ok && g.save.has_character) ? g.save.hp : 400;
+    place_ship(&g);                                     /* 起點附近放一艘可登的船 */
     snprintf(g.msg,sizeof g.msg,"歡迎來到 Sosaria,冒險者。");
 
     if (headless){
         int step=0; char out[600];
+        if (splash){ render_splash(cv,splash,&title,&body);
+            snprintf(out,sizeof out,"%ssplash.png",out_prefix); IMG_SavePNG(cv,out); }
         render_all(cv,&g,&title,&body,&small);
         snprintf(out,sizeof out,"%s%02d.png",out_prefix,step++); IMG_SavePNG(cv,out);
         for (const char *s=script;*s;s++){
@@ -588,6 +681,7 @@ int main(int argc, char **argv)
             else if (c=='G'||c=='g'){ if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
                 snprintf(g.msg,sizeof g.msg,"切換圖塊:%s",g.tname[g.curset]); } }
             else if (c=='X'||c=='x'){ if (g.mode==MODE_DUNGEON) exit_dungeon(&g); else if (g.in_town) exit_town(&g); }
+            else if (c=='B'||c=='b') board_ship(&g);
             else if (c=='D') enter_dungeon(&g);
             else if (c=='O') enter_town(&g);   /* 強制進城(headless 測試用) */
             else continue;
@@ -600,6 +694,19 @@ int main(int argc, char **argv)
             SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,CANVAS_W,CANVAS_H,0);
         SDL_Renderer *ren=SDL_CreateRenderer(win,-1,SDL_RENDERER_ACCELERATED);
         int running=1;
+        /* 開場 splash:全家福 + 試玩版,按任意鍵或 ~4 秒後進遊戲 */
+        if (splash){
+            render_splash(cv,splash,&title,&body);
+            SDL_Texture *st=SDL_CreateTextureFromSurface(ren,cv);
+            SDL_RenderClear(ren); SDL_RenderCopy(ren,st,NULL,NULL); SDL_RenderPresent(ren);
+            SDL_DestroyTexture(st);
+            Uint32 t0=SDL_GetTicks(); int go=0;
+            while (!go && SDL_GetTicks()-t0<4000){
+                SDL_Event e;
+                while (SDL_PollEvent(&e)) if (e.type==SDL_KEYDOWN||e.type==SDL_QUIT||e.type==SDL_MOUSEBUTTONDOWN) go=1;
+                SDL_Delay(16);
+            }
+        }
         while (running){
             SDL_Event e;
             while (SDL_PollEvent(&e)){
@@ -615,6 +722,7 @@ int main(int argc, char **argv)
                         case SDLK_t: do_talk(&g); break;
                         case SDLK_j: dungeon_descend(&g); break;
                         case SDLK_k: dungeon_ascend(&g); break;
+                        case SDLK_b: board_ship(&g); break;
                         case SDLK_g: if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
                             snprintf(g.msg,sizeof g.msg,"切換圖塊:%s",g.tname[g.curset]); } break;
                         case SDLK_x:
@@ -637,6 +745,7 @@ int main(int argc, char **argv)
 
     u2_text_close(&title); u2_text_close(&body); u2_text_close(&small);
     for (int i=0;i<g.ntset;i++) SDL_FreeSurface(g.tset[i]);
+    if (splash) SDL_FreeSurface(splash);
     SDL_FreeSurface(cv);
     TTF_Quit(); IMG_Quit(); SDL_Quit();
     return 0;
