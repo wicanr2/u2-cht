@@ -588,6 +588,21 @@ static void board_ship(Game *g)
     snprintf(g->msg,sizeof g->msg,"附近沒有船(船在水邊,走近後按 B)。");
 }
 
+/* 原版 FM Towns 開場標題畫面(整張等比放大置中 + 提示) */
+static void render_title(SDL_Surface *cv, SDL_Surface *img, U2Text *title, U2Text *body)
+{
+    SDL_FillRect(cv, NULL, SDL_MapRGB(cv->format,0,0,0));
+    if (img){
+        double s=(double)CANVAS_W/img->w;
+        if (img->h*s > CANVAS_H-44) s=(double)(CANVAS_H-44)/img->h;
+        int w=(int)(img->w*s), h=(int)(img->h*s);
+        SDL_Rect dst={(CANVAS_W-w)/2,(CANVAS_H-h)/2-8,w,h};
+        SDL_BlitScaled(img,NULL,cv,&dst);
+    }
+    u2_text_draw(cv,title,"Ultima II:女巫的復仇",16,8,210,205,150);
+    u2_text_draw(cv,body,"繁體中文化(試玩版) ── 按任意鍵繼續",CANVAS_W/2-180,CANVAS_H-34,200,210,235);
+}
+
 /* 開場 splash:全家福 + 試玩版標註 */
 static void render_splash(SDL_Surface *cv, SDL_Surface *photo, U2Text *title, U2Text *body)
 {
@@ -666,10 +681,11 @@ int main(int argc, char **argv)
         return 2;
     }
     const char *map_path=argv[1], *font_path=argv[2], *tiles_path=argv[3], *ui_tsv=argv[4];
-    const char *player_save=NULL, *script=NULL, *out_prefix=NULL, *splash_path=NULL;
+    const char *player_save=NULL, *script=NULL, *out_prefix=NULL, *splash_path=NULL, *title_path=NULL;
     for (int i=5;i<argc;i++){
         if (!strcmp(argv[i],"--script") && i+2<argc){ script=argv[i+1]; out_prefix=argv[i+2]; i+=2; }
         else if (!strcmp(argv[i],"--splash") && i+1<argc){ splash_path=argv[i+1]; i+=1; }
+        else if (!strcmp(argv[i],"--title") && i+1<argc){ title_path=argv[i+1]; i+=1; }
         else if (!player_save) player_save=argv[i];
     }
     int headless=(script!=NULL);
@@ -724,6 +740,7 @@ int main(int argc, char **argv)
     U2Text title=u2_text_open(font_path,20), body=u2_text_open(font_path,22), small=u2_text_open(font_path,17);
     if (!title.font||!body.font||!small.font){ fprintf(stderr,"字型失敗: %s\n",TTF_GetError()); return 1; }
     SDL_Surface *splash = splash_path ? IMG_Load(splash_path) : NULL;
+    SDL_Surface *titleimg = title_path ? IMG_Load(title_path) : NULL;
 
     g.mode=MODE_WORLD;
     find_start(&g.map,&g.player);
@@ -734,6 +751,8 @@ int main(int argc, char **argv)
 
     if (headless){
         int step=0; char out[600];
+        if (titleimg){ render_title(cv,titleimg,&title,&body);
+            snprintf(out,sizeof out,"%stitle.png",out_prefix); IMG_SavePNG(cv,out); }
         if (splash){ render_splash(cv,splash,&title,&body);
             snprintf(out,sizeof out,"%ssplash.png",out_prefix); IMG_SavePNG(cv,out); }
         render_all(cv,&g,&title,&body,&small);
@@ -762,7 +781,19 @@ int main(int argc, char **argv)
             SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,CANVAS_W,CANVAS_H,0);
         SDL_Renderer *ren=SDL_CreateRenderer(win,-1,SDL_RENDERER_ACCELERATED);
         int running=1;
-        /* 開場 splash:全家福 + 試玩版,按任意鍵或 ~4 秒後進遊戲 */
+        /* 開場序列:原版標題 → 全家福 splash(各按任意鍵或逾時) */
+        if (titleimg){
+            render_title(cv,titleimg,&title,&body);
+            SDL_Texture *st=SDL_CreateTextureFromSurface(ren,cv);
+            SDL_RenderClear(ren); SDL_RenderCopy(ren,st,NULL,NULL); SDL_RenderPresent(ren);
+            SDL_DestroyTexture(st);
+            Uint32 t0=SDL_GetTicks(); int go=0;
+            while (!go && SDL_GetTicks()-t0<5000){
+                SDL_Event e;
+                while (SDL_PollEvent(&e)) if (e.type==SDL_KEYDOWN||e.type==SDL_QUIT||e.type==SDL_MOUSEBUTTONDOWN) go=1;
+                SDL_Delay(16);
+            }
+        }
         if (splash){
             render_splash(cv,splash,&title,&body);
             SDL_Texture *st=SDL_CreateTextureFromSurface(ren,cv);
@@ -824,6 +855,7 @@ int main(int argc, char **argv)
     u2_text_close(&title); u2_text_close(&body); u2_text_close(&small);
     for (int i=0;i<g.ntset;i++) SDL_FreeSurface(g.tset[i]);
     if (splash) SDL_FreeSurface(splash);
+    if (titleimg) SDL_FreeSurface(titleimg);
     SDL_FreeSurface(cv);
     TTF_Quit(); IMG_Quit(); SDL_Quit();
     return 0;
