@@ -37,7 +37,6 @@
 | `docs/screenshots/tileset_egatiles.png` | U2 Upgrade EGATILES 65-tile 對照表(彩色) | 「ground-truth tileset(EGA 65 tile):水/森林/城堡/船/馬/A–Z 招牌字…」 |
 | `docs/screenshots/tileset_cgatiles.png` | 同上 CGA 版 | 「CGA 4 色版 tileset 對照(同 65 tile)」 |
 | `docs/screenshots/terrain_in_context.png` | mapx20(地球)整張地圖以 EGATILES 渲染 | 「地球大地圖 mapx20:海/森林/山以正確 tileset 渲染,驗證 tile÷4 解碼」 |
-| `docs/screenshots/font_raw_stream.png` | EXE 內字型 raw dump | 「(技術註記)早期從 EXE 抽字型的 raw stream;後改用 U2 Upgrade 乾淨 A–Z tile」 |
 
 > 主截圖建議用 `poc_map_cjk.png` 置頂於「截圖展示區」;`tileset_egatiles.png` 與 `terrain_in_context.png` 放「資料格式破解亮點」章節旁佐證。
 
