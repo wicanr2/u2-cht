@@ -184,6 +184,7 @@ Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄 MFC 殼)──�
 | **整合主迴圈狀態機**(地面 ↔ 城鎮 ↔ 地牢 ↔ 角色表,單一 `u2_game`) | [`src/game_main.c`](src/game_main.c) |
 | **城鎮 NPC 對話**(進城 → 鄰格 NPC → T → tlkx 解碼 → 翻譯 → CJK) | [`src/game_main.c`](src/game_main.c) |
 | **NPC→對話行對應破解**(monxNN `0xA0+i` 第 6 陣列,`&0x80`+1-based 索引) | [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md) |
+| **FM Towns 素材抽取**(模擬器 dump 真 palette/tile + 怪物 sprite 圖鑑) | [`docs/FMTOWNS_TILESET.md`](docs/FMTOWNS_TILESET.md) · [`docs/MONSTERS.md`](docs/MONSTERS.md) |
 | **可切換 tileset**(G 鍵循環 CGA/EGA/EGA-ALT/EGA-C64,參考 u3-cht) | [`src/game_main.c`](src/game_main.c) |
 
 ### ⏳ 進行中 / 尚未實作
