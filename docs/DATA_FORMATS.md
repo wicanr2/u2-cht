@@ -42,7 +42,7 @@
 - 早期 PoC 從 `ultimaii.exe @0x7C42` 抽 16×16 2bpp tile,作為「能用真資料渲染」的概念驗證。
 - ⚠️ **誠實更正**:逐 byte 比對發現此 EXE tile set 與 U2 Upgrade CGATILES **只有 id 0 相同**,id 1–31 皆不同 —— 故 **EXE @0x7C42 不是正確 tileset**,先前用它推測 ship/horse/castle 會錯。已改以 U2 Upgrade 為主。
 - EXE 抽取流程保留於 `tools/extract_tiles.py`(標為 PoC/fallback);幾何(16×16/2bpp/stride 64)成立,但**內容非遊戲實際 tileset**。
-- font/招牌字(EXE id 32+)為變動-stride、未解 glyph(`screenshots/font_raw_stream.png` 僅 raw dump)—— 在 U2 Upgrade 中招牌字就是乾淨的 32–57 A–Z tile;中文化時招牌走訊息系統 + SDL_ttf 翻譯,故無論如何非必要。
+- font/招牌字(EXE id 32+)為變動-stride、未解 glyph(早期 raw dump 切錯,已棄)—— 在 U2 Upgrade 中招牌字就是乾淨的 32–57 A–Z tile;中文化時招牌走訊息系統 + SDL_ttf 翻譯,故無論如何非必要。
 
 ## tlkxNN — 對話 ✅(中文化主目標)
 - **編碼:high-bit-set ASCII**(每 byte `OR 0x80`),清掉 bit7 還原;`\x00` 分段,`\r`(0x0d)換行。
