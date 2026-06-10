@@ -66,7 +66,11 @@
 ### 可切換 tileset(CGA / EGA / EGA-ALT / EGA-C64)
 ![tileset 切換](docs/screenshots/tileset_switch.gif)
 > 遊戲中按 `G` 即時切換畫風(參考 u3-cht 的具名 tileset 清單做法):
-> EGA 標準 → vivid(FM Towns 風近似配色)→ CGA 4 色 → EGA-ALT → EGA-C64。同一張地圖、同一引擎。
+> EGA 標準 → **fmtowns(真實 FM Towns 地形,模擬器抽出)** → vivid → CGA → EGA-ALT → EGA-C64。同一張地圖、同一引擎。
+
+![FM Towns 地形](docs/screenshots/fmtowns_engine.png)
+> `fmtowns` 圖塊:草/水/森林為**真實 FM Towns 美術**(模擬器 dump + 抽取),山/城堡暫沿用 EGA。
+> 見 [`docs/FMTOWNS_TILESET.md`](docs/FMTOWNS_TILESET.md)、[`docs/MONSTERS.md`](docs/MONSTERS.md)。
 > ⚠️ Ultima II 實際只有 CGA(原版)+ EGA(U2 Upgrade);**無 VGA/NES/PCE**(那些是 U3 以後才有)。
 > FM Towns 版(1990,彩色重畫)評估見 [`docs/FMTOWNS_TILESET.md`](docs/FMTOWNS_TILESET.md)。
 
