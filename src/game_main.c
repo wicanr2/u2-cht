@@ -63,8 +63,19 @@ typedef struct {
     U2Save save;
     /* 可切換 tileset(參考 u3-cht 多平台 tileset 清單) */
     SDL_Surface *tset[8]; char tname[8][24]; int ntset, curset;
+    /* 地面隨機遭遇 / 戰鬥(U2 overworld 怪物動態生成) */
+    struct { int x, y, hp; unsigned char tile; } mob[8];
+    int nmob, php, turn;
+    unsigned int rng;             /* 簡易 LCG,determinism 供 headless 驗證 */
     char msg[200];
 } Game;
+
+/* 簡易 LCG(同 oracle 風格,seed 固定 → headless 可重現) */
+static unsigned int rng_next(Game *g)
+{
+    g->rng = g->rng * 0x343fd + 0x269ec3;
+    return (g->rng >> 16) & 0x7fff;
+}
 
 /* 目前作用中的地圖 / 實體層(城鎮 or 地面) */
 static U2Map *amap(Game *g) { return g->in_town ? &g->town : &g->map; }
@@ -146,6 +157,15 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
     u2_render_viewport(cv,m,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
     u2_render_entities(cv,mon,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
 
+    /* 動態怪物(地面遭遇) */
+    if (!g->in_town && tiles)
+        for (int i=0;i<g->nmob;i++){
+            int mx=g->mob[i].x-cam_x, my=g->mob[i].y-cam_y;
+            if (mx<0||my<0||mx>=VIEW_COLS||my>=VIEW_ROWS) continue;
+            u2_tileset_blit(cv,tiles,g->mob[i].tile,
+                            MAP_OX+mx*TILE_PX, MAP_OY+my*TILE_PX, TILE_PX);
+        }
+
     int px=MAP_OX+(g->player.x-cam_x)*TILE_PX, py=MAP_OY+(g->player.y-cam_y)*TILE_PX;
     if (tiles) u2_tileset_blit(cv,tiles,g->player.tile,px,py,TILE_PX);
     Uint32 col=SDL_MapRGB(cv->format,250,240,90);
@@ -162,6 +182,7 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
         g->player.x,g->player.y,u2_map_tile(m,g->player.x,g->player.y),
         g->ntset?g->tname[g->curset]:"-");
     u2_text_draw(cv,body,pos,MAP_OX,by+60,150,165,150);
+    if (g->save.has_character) g->save.hp = g->php;   /* 顯示運行時生命 */
     draw_status_panel(cv,body,&g->ui,&g->save,640,by);
 }
 
@@ -347,18 +368,80 @@ static void do_talk(Game *g)
     snprintf(g->msg,sizeof g->msg,"附近沒有人可以交談。");
 }
 
+/* ---- 地面隨機遭遇 / 戰鬥 ---- */
+/* 視野邊緣可通行格生成怪物(~28%/回合) */
+static void spawn_mob(Game *g)
+{
+    if (g->nmob >= 8 || g->in_town || g->mode != MODE_WORLD) return;
+    if (rng_next(g) % 100 >= 28) return;
+    static const unsigned char mt[8] = {12,13,14,15,60,61,62,63};
+    for (int t = 0; t < 8; t++) {
+        int dx = (rng_next(g)%VIEW_COLS) - VIEW_COLS/2;
+        int dy = (rng_next(g)%VIEW_ROWS) - VIEW_ROWS/2;
+        int x = g->player.x+dx, y = g->player.y+dy;
+        if (x<0||y<0||x>=U2_MAP_W||y>=U2_MAP_H) continue;
+        if ((x==g->player.x&&y==g->player.y) || !u2_passable(u2_map_tile(&g->map,x,y))) continue;
+        int occ=0; for(int i=0;i<g->nmob;i++) if(g->mob[i].x==x&&g->mob[i].y==y) occ=1;
+        if (occ) continue;
+        int m=g->nmob++;
+        g->mob[m].x=x; g->mob[m].y=y; g->mob[m].hp=20+(rng_next(g)%30);
+        g->mob[m].tile=mt[rng_next(g)%8];
+        snprintf(g->msg,sizeof g->msg,"一隻怪物出現了!");
+        return;
+    }
+}
+/* 怪物朝玩家移動;貼身則攻擊玩家 */
+static void step_mobs(Game *g)
+{
+    for (int i=0;i<g->nmob;i++){
+        int dx=g->player.x-g->mob[i].x, dy=g->player.y-g->mob[i].y;
+        if (abs(dx)+abs(dy)==1){
+            int dmg=3+(rng_next(g)%6); g->php-=dmg; if(g->php<0)g->php=0;
+            snprintf(g->msg,sizeof g->msg,"怪物攻擊你!失去 %d 點生命。",dmg);
+            continue;
+        }
+        int sx=dx>0?1:dx<0?-1:0, sy=dy>0?1:dy<0?-1:0;
+        int nx=g->mob[i].x, ny=g->mob[i].y;
+        if (abs(dx)>=abs(dy) && sx) nx+=sx; else if (sy) ny+=sy; else if(sx) nx+=sx;
+        if (nx==g->player.x&&ny==g->player.y) continue;
+        int occ=0; for(int j=0;j<g->nmob;j++) if(j!=i&&g->mob[j].x==nx&&g->mob[j].y==ny) occ=1;
+        if (!occ && u2_passable(u2_map_tile(&g->map,nx,ny))){ g->mob[i].x=nx; g->mob[i].y=ny; }
+    }
+}
+/* 玩家攻擊 (nx,ny) 上的怪物;回傳 1=有打到(該方向被攻擊取代移動) */
+static int attack_mob(Game *g, int nx, int ny)
+{
+    for (int i=0;i<g->nmob;i++){
+        if (g->mob[i].x==nx && g->mob[i].y==ny){
+            int dmg=8+(rng_next(g)%12); g->mob[i].hp-=dmg;
+            if (g->mob[i].hp<=0){
+                snprintf(g->msg,sizeof g->msg,"你擊敗了怪物!");
+                g->save.exp += 2;
+                g->mob[i]=g->mob[--g->nmob];
+            } else snprintf(g->msg,sizeof g->msg,"你攻擊怪物,造成 %d 傷害。",dmg);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* 依模式處理一個方向鍵(dir ∈ N/S/E/W) */
 static void handle_dir(Game *g, char dir)
 {
     int FX[4]={0,1,0,-1}, FY[4]={-1,0,1,0};  /* N E S W */
     if (g->mode==MODE_WORLD){
+        /* 朝向怪物移動 = 攻擊(不移動);否則正常走 + 觸發怪物回合 */
+        int di = (dir=='N')?0:(dir=='E')?1:(dir=='S')?2:3;
+        int tx=g->player.x+FX[di], ty=g->player.y+FY[di];
+        if (!g->in_town && attack_mob(g,tx,ty)){ step_mobs(g); return; }
         int moved=u2_player_move(&g->player,amap(g),dir);
-        snprintf(g->msg,sizeof g->msg, moved?"往 %c 移動。":"%c 方向被擋住。",dir);
         if (moved){
+            snprintf(g->msg,sizeof g->msg,"往 %c 移動。",dir);
             unsigned char t=u2_map_tile(amap(g),g->player.x,g->player.y);
-            if (!g->in_town && t==WORLD_DUNGEON_TILE) enter_dungeon(g);
-            else if (!g->in_town && t==WORLD_TOWN_TILE) enter_town(g);
-        }
+            if (!g->in_town && t==WORLD_DUNGEON_TILE) { g->nmob=0; enter_dungeon(g); }
+            else if (!g->in_town && t==WORLD_TOWN_TILE) { g->nmob=0; enter_town(g); }
+            else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); }
+        } else snprintf(g->msg,sizeof g->msg,"%c 方向被擋住。",dir);
     } else { /* DUNGEON: N前進 S後退 W左轉 E右轉 */
         if (dir=='W'){ g->ddir=(g->ddir+3)&3; snprintf(g->msg,sizeof g->msg,"左轉。"); }
         else if (dir=='E'){ g->ddir=(g->ddir+1)&3; snprintf(g->msg,sizeof g->msg,"右轉。"); }
@@ -451,6 +534,8 @@ int main(int argc, char **argv)
 
     g.mode=MODE_WORLD;
     find_start(&g.map,&g.player);
+    g.rng = 1;                                          /* 固定 seed → headless 可重現 */
+    g.php = (g.save.ok && g.save.has_character) ? g.save.hp : 400;
     snprintf(g.msg,sizeof g.msg,"歡迎來到 Sosaria,冒險者。");
 
     if (headless){
