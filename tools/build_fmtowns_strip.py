@@ -5,15 +5,15 @@
 見 docs/FMTOWNS_TILESET.md)。其餘 id 沿用 base strip(EGA),形成「FM Towns 地形 +
 EGA 其餘」的混合 tileset,接進引擎 G 鍵切換。
 
-DOS tile id ↔ FM Towns tile:0/1=water 2=grass 3=forest 11=shore。
+DOS tile id ↔ FM Towns tile:0/1=water 2=grass 3=forest 11=shore;16=主角 avatar。
 
 用法:build_fmtowns_strip.py <base_ega_strip.png> <fmtowns_dir> <out_strip.png>
 """
 import sys
 from PIL import Image
 
-# DOS tile id -> FM Towns tile 檔名
-MAP = {0: "water", 1: "water", 2: "grass", 3: "forest", 11: "shore"}
+# DOS tile id -> FM Towns tile 檔名(地形 + 主角 avatar,讓 G 切換時主角也變)
+MAP = {0: "water", 1: "water", 2: "grass", 3: "forest", 11: "shore", 16: "player"}
 
 
 def main():
