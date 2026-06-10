@@ -13,7 +13,11 @@ tlkg*
 MAPG*
 MONG*
 TLKG*
-monsters
+/monsters
+dos-original/**/monsters
+# 注:docs/monsters/ 為怪物圖鑑 sprite,需保留(下方放行)
+!docs/monsters/
+!docs/monsters/**
 player
 pic*
 Font.txt
