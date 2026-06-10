@@ -45,6 +45,7 @@ typedef struct {
     int ok;                       /* 檔案讀取成功且大小正確 */
     int has_character;            /* rec[0] != 0 = 已建角色 */
     unsigned char rec[U2_REC_SIZE]; /* 256-byte 角色記錄 */
+    unsigned char raw[U2_SAVE_SIZE];/* 完整 384-byte 原始映像 (寫回基底,保留未解析欄位) */
     unsigned char marker;         /* offset 0x100 的標記值 (空檔=0x1a) */
 
     /* 解析後欄位 (僅 has_character 時有意義) */
@@ -58,6 +59,11 @@ typedef struct {
 
 /* 載入 player 檔。失敗回傳 .ok = 0。 */
 U2Save u2_save_load(const char *path);
+
+/* 把 s 的執行時欄位 (hp/food/exp/gold/stats) 重新編碼成 BCD 寫回 raw[],
+ * 並輸出完整 384-byte 檔到 path。未解析欄位沿用原始映像。
+ * 數值會 clamp:4 位欄位 0..9999、屬性 0..99。回傳 1=成功。 */
+int u2_save_store(const U2Save *s, const char *path);
 
 /* 職業 / 種族 / 屬性的英文名 (index 對應上表;越界回 "?") */
 const char *u2_save_class_name(int klass);

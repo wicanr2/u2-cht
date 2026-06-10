@@ -13,6 +13,23 @@ static int bcd4(unsigned char hi, unsigned char lo)
     return bcd_to_int(hi) * 100 + bcd_to_int(lo);
 }
 
+/* 十進位 0..99 -> BCD byte (15 -> 0x15)。越界 clamp。 */
+static unsigned char int_to_bcd(int v)
+{
+    if (v < 0) v = 0;
+    if (v > 99) v = 99;
+    return (unsigned char)(((v / 10) << 4) | (v % 10));
+}
+
+/* 十進位 0..9999 -> 2-byte BCD (高位在前;dst[0]=百位以上, dst[1]=個十位)。 */
+static void int_to_bcd4(int v, unsigned char *dst)
+{
+    if (v < 0) v = 0;
+    if (v > 9999) v = 9999;
+    dst[0] = int_to_bcd(v / 100);
+    dst[1] = int_to_bcd(v % 100);
+}
+
 static const char *CLASS_NAMES[4] = { "FIGHTER", "CLERIC", "WIZARD", "THIEF" };
 static const char *RACE_NAMES[4]  = { "HUMAN", "ELF", "DWARF", "HOBBIT" };
 static const char *STAT_NAMES[U2_NUM_STATS] =
@@ -63,6 +80,8 @@ U2Save u2_save_load(const char *path)
 
     for (int i = 0; i < U2_REC_SIZE; i++)
         s.rec[i] = buf[i];
+    for (int i = 0; i < U2_SAVE_SIZE; i++)
+        s.raw[i] = buf[i];
     s.marker = buf[0x100];
     s.has_character = (buf[0] != 0);
     s.ok = 1;
@@ -87,4 +106,27 @@ U2Save u2_save_load(const char *path)
         s.gold = bcd4(buf[U2_OFF_GOLD], buf[U2_OFF_GOLD + 1]);
     }
     return s;
+}
+
+int u2_save_store(const U2Save *s, const char *path)
+{
+    if (!s || !s->ok || !path)
+        return 0;
+    unsigned char buf[U2_SAVE_SIZE];
+    for (int i = 0; i < U2_SAVE_SIZE; i++)
+        buf[i] = s->raw[i];   /* 以原始映像為基底,只覆寫執行時欄位 */
+
+    for (int i = 0; i < U2_NUM_STATS; i++)
+        buf[U2_OFF_STATS + i] = int_to_bcd(s->stats[i]);
+    int_to_bcd4(s->hp,   &buf[U2_OFF_HP]);
+    int_to_bcd4(s->food, &buf[U2_OFF_FOOD]);
+    int_to_bcd4(s->exp,  &buf[U2_OFF_EXP]);
+    int_to_bcd4(s->gold, &buf[U2_OFF_GOLD]);
+
+    FILE *f = fopen(path, "wb");
+    if (!f)
+        return 0;
+    size_t n = fwrite(buf, 1, sizeof buf, f);
+    fclose(f);
+    return n == sizeof buf;
 }
