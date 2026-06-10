@@ -23,6 +23,11 @@ mkdir -p build/ts build/u2up
 gen() { /usr/bin/python3 tools/decode_u2upgrade_tiles.py "$1" "$2" "$3" strip >/dev/null 2>&1 && echo "$2"; }
 declare -a STRIPS
 [[ -f tileset/EGATILES ]] && STRIPS+=("$(gen tileset/EGATILES build/ts/ega.png ega)")
+# 真實 FM Towns 地形(模擬器抽出)覆寫到 EGA strip 對應 id
+if [[ -f build/ts/ega.png && -d tileset/fmtowns ]]; then
+    /usr/bin/python3 tools/build_fmtowns_strip.py build/ts/ega.png tileset/fmtowns build/ts/fmtowns.png >/dev/null 2>&1 \
+      && STRIPS+=("build/ts/fmtowns.png")
+fi
 [[ -f tileset/EGATILES ]] && STRIPS+=("$(gen tileset/EGATILES build/ts/vivid.png egafmt)")  # 鮮豔配色(FM Towns 風近似)
 [[ -f tileset/CGATILES ]] && STRIPS+=("$(gen tileset/CGATILES build/ts/cga.png cga)")
 # EGATHEME 變體:優先 repo 內 tileset/(已收錄),否則從 u2upgrade zip 解
