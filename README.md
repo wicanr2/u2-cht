@@ -37,6 +37,11 @@
 > 單一 `u2_game` 狀態機:地面行走 → 進地牢切第一人稱線框 → 任意模式按 `C` 疊加繁中角色資料表。
 > 同一份引擎、同一套 CJK 文字層;此 GIF 由 headless `--script` 逐幀渲染組成。
 
+### 地面隨機遭遇戰鬥
+![遭遇戰鬥](docs/screenshots/combat_encounter.png)
+> 走在地面時動態生成怪物(U2 overworld encounter),怪物朝玩家移動並包圍;
+> 朝怪物移動 = 攻擊(撞擊),怪物貼身則攻擊你(生命下降);擊敗得經驗。簡化版,非完整 oracle 公式。
+
 ### 城鎮 NPC 對話(端到端在地化)
 ![城鎮對話](docs/screenshots/town_talk.gif)
 > 踩到城鎮 tile 進城 → 走到 NPC 旁按 `T` 交談:引擎讀 `tlkx` 對話 → 翻譯覆蓋層 → CJK 顯示。
@@ -187,6 +192,7 @@ Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄 MFC 殼)──�
 | **地牢 3D 線框 + 多層換層**(16 層 `level*256+Y*16+X`、樓梯 `&0x10`/`&0x20`、J/K 換層) | [`src/u2_dungeon.c`](src/u2_dungeon.c) |
 | **整合主迴圈狀態機**(地面 ↔ 城鎮 ↔ 地牢 ↔ 角色表,單一 `u2_game`) | [`src/game_main.c`](src/game_main.c) |
 | **城鎮 NPC 對話**(進城 → 鄰格 NPC → T → tlkx 解碼 → 翻譯 → CJK) | [`src/game_main.c`](src/game_main.c) |
+| **地面隨機遭遇 / 戰鬥-lite**(動態生怪 → 追逐 → 撞擊攻擊 → HP/經驗) | [`src/game_main.c`](src/game_main.c) |
 | **NPC→對話行對應破解**(monxNN `0xA0+i` 第 6 陣列,`&0x80`+1-based 索引) | [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md) |
 | **FM Towns 素材抽取**(模擬器 dump 真 palette/tile + 怪物 sprite 圖鑑) | [`docs/FMTOWNS_TILESET.md`](docs/FMTOWNS_TILESET.md) · [`docs/MONSTERS.md`](docs/MONSTERS.md) |
 | **可切換 tileset**(G 鍵循環 CGA/EGA/EGA-ALT/EGA-C64,參考 u3-cht) | [`src/game_main.c`](src/game_main.c) |
