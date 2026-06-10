@@ -17,6 +17,7 @@
 #include <SDL_image.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include "u2_map.h"
 #include "u2_mon.h"
 #include "u2_play.h"
@@ -46,6 +47,7 @@ enum Mode { MODE_WORLD, MODE_DUNGEON };
 typedef struct {
     enum Mode mode;
     int show_sheet;
+    int show_help;                /* F1 指令表疊加 */
     U2Map map; U2Mon mon;         /* 地面(overworld) */
     U2Player player;
     /* 城鎮 */
@@ -53,6 +55,8 @@ typedef struct {
     U2Map town; U2Mon tmon; U2Talk talk; int town_ok;
     int tret_x, tret_y;           /* 進城前的地面座標 */
     char town_path[512];
+    char data_dir[512];           /* mapxNN 所在目錄(動態組地點檔路徑) */
+    char town_loaded[8];          /* 目前已載入的城鎮編號(偵測換城重載) */
     /* 地牢 */
     U2Dungeon dg; int dg_ok;
     int dx, dy, ddir, dlevel;     /* 地牢內位置 / 朝向 / 樓層 */
@@ -85,8 +89,26 @@ static U2Mon *amon(Game *g) { return g->in_town ? &g->tmon : &g->mon; }
 
 static void clampi(int *v, int lo, int hi) { if (*v<lo)*v=lo; if (*v>hi)*v=hi; }
 
+/* 世界圖 landmark 判定(forward 宣告於下方 town_map_num) */
+static const char *town_map_num(unsigned char t);
+
 static void find_start(const U2Map *m, U2Player *p)
 {
+    /* 優先:落在某個城鎮 landmark 旁的可通行格,讓玩家一開始就走得進城 */
+    for (int y=0; y<U2_MAP_H; y++)
+        for (int x=0; x<U2_MAP_W; x++){
+            if (!town_map_num(u2_map_tile(m,x,y))) continue;
+            int NX[4]={0,0,1,-1}, NY[4]={1,-1,0,0};
+            for (int k=0;k<4;k++){
+                int ax=x+NX[k], ay=y+NY[k];
+                if (ax<0||ay<0||ax>=U2_MAP_W||ay>=U2_MAP_H) continue;
+                unsigned char at=u2_map_tile(m,ax,ay);
+                if (u2_passable(at) && !town_map_num(at)){
+                    p->x=ax; p->y=ay; p->tile=PLAYER_TILE; return;
+                }
+            }
+        }
+    /* 後備:地圖中心向外找第一個可通行格 */
     int cx = U2_MAP_W/2, cy = U2_MAP_H/2;
     for (int r=0; r<U2_MAP_W; r++)
         for (int dy=-r; dy<=r; dy++)
@@ -176,8 +198,8 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
     SDL_FillRect(cv,&t,col);SDL_FillRect(cv,&b,col);SDL_FillRect(cv,&l,col);SDL_FillRect(cv,&rr,col);
 
     int by=MAP_OY+VIEW_ROWS*TILE_PX+10;
-    u2_text_draw(cv,body, g->in_town ? "方向鍵/WASD 移動 · T 交談 · C 角色表 · X 離開城鎮"
-                                     : "方向鍵/WASD 移動 · B 登船 · G 畫風 · C 角色表 · Q 離開",
+    u2_text_draw(cv,body, g->in_town ? "方向鍵/WASD 移動 · T 交談 · C 角色表 · X 離開 · F1 指令表"
+                                     : "方向鍵/WASD 移動 · B 登船 · G 畫風 · F1 指令表 · Q 離開",
                  MAP_OX,by,150,175,205);
     u2_text_draw(cv,body,g->msg,MAP_OX,by+30,210,225,205);
     char pos[96]; snprintf(pos,sizeof pos,"座標 (%d, %d)  地形 id=%d  圖塊 %s(G 切換)",
@@ -217,6 +239,34 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     u2_text_draw(cv,small,g->msg,24,by+26,210,225,205);
 }
 
+/* F1 指令表疊加面板(置中) */
+static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
+{
+    static const char *ROWS[] = {
+        "方向鍵 / WASD   移動 / 攻擊(朝怪物移動即攻擊)",
+        "B               登船 / 下船(站在船旁)",
+        "走上城堡圖塊     進入城鎮",
+        "走上地牢圖塊     進入地牢",
+        "T               城鎮中與 NPC 交談",
+        "J / K           地牢中 下樓 / 上樓",
+        "X               離開城鎮 / 地牢",
+        "C               角色資料表",
+        "G               切換畫風(EGA / FM Towns…)",
+        "F1              顯示 / 關閉本指令表",
+        "Q / Esc         離開遊戲(自動存檔)",
+    };
+    int nrow = (int)(sizeof ROWS / sizeof ROWS[0]);
+    int pw=560, ph=70+nrow*30, x=(CANVAS_W-pw)/2, y=(CANVAS_H-ph)/2;
+    SDL_Rect bg={x,y,pw,ph}; SDL_FillRect(cv,&bg,SDL_MapRGB(cv->format,18,22,40));
+    SDL_Rect bar={x,y,pw,40}; SDL_FillRect(cv,&bar,SDL_MapRGB(cv->format,40,50,120));
+    Uint32 fr=SDL_MapRGB(cv->format,120,140,200);
+    SDL_Rect e1={x,y,pw,2},e2={x,y+ph-2,pw,2},e3={x,y,2,ph},e4={x+pw-2,y,2,ph};
+    SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
+    u2_text_draw(cv,body,"指令表(F1 關閉)",x+16,y+8,235,235,245);
+    int iy=y+52;
+    for (int i=0;i<nrow;i++){ u2_text_draw(cv,small,ROWS[i],x+24,iy,215,220,230); iy+=30; }
+}
+
 /* 角色表疊加面板(置中) */
 static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text *small)
 {
@@ -252,6 +302,7 @@ static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2
     if (g->mode==MODE_WORLD) render_world(cv,g,title,body);
     else                     render_dungeon(cv,g,title,body,small);
     if (g->show_sheet)       render_sheet_overlay(cv,g,body,small);
+    if (g->show_help)        render_help_overlay(cv,body,small);
 }
 
 /* 進地牢:載入地牢檔,設定入口 */
@@ -305,18 +356,36 @@ static void exit_dungeon(Game *g)
     snprintf(g->msg,sizeof g->msg,"你回到了地面。");
 }
 
-/* 進城:載入城鎮地圖 + 實體 + 對話 */
-static void enter_town(Game *g)
+/* 世界圖 landmark tile → 地點地圖編號(均挑有 NPC + 對話 tlk 的城鎮)。
+ * 註:U2 真實 landmark→map 對照需 oracle 校正;此處為 demo 指派,確保每個
+ * 入口都通往一張有居民、可交談的城鎮。回 NULL = 非城鎮 landmark。 */
+static const char *town_map_num(unsigned char t)
 {
-    if (!g->town_ok){
+    switch (t){
+        case 5:  return "21";
+        case 6:  return "22";
+        case 7:  return "23";
+        case 8:  return "31";
+        case 10: return "32";
+    }
+    return NULL;
+}
+
+/* 進城:依世界圖 landmark tile 載入對應城鎮地圖 + 實體 + 對話 */
+static void enter_town_tile(Game *g, unsigned char wtile)
+{
+    const char *num = town_map_num(wtile);
+    if (!num) num = "21";   /* 後備:'O' 強制進城或未知 landmark */
+    /* 換城(或首次)→ 重載 */
+    if (!g->town_ok || strcmp(g->town_loaded, num) != 0){
+        snprintf(g->town_path,sizeof g->town_path,"%s/mapx%s",g->data_dir,num);
         g->town = u2_map_load(g->town_path);
-        char mp[512]; snprintf(mp,sizeof mp,"%s",g->town_path);
-        char *b=strrchr(mp,'/'); b=b?b+1:mp; char *p=strstr(b,"map"); if(p)memcpy(p,"mon",3);
+        char mp[512]; snprintf(mp,sizeof mp,"%s/monx%s",g->data_dir,num);
         g->tmon = u2_mon_load(mp);
-        char tp[512]; snprintf(tp,sizeof tp,"%s",g->town_path);
-        b=strrchr(tp,'/'); b=b?b+1:tp; p=strstr(b,"map"); if(p)memcpy(p,"tlk",3);
+        char tp[512]; snprintf(tp,sizeof tp,"%s/tlkx%s",g->data_dir,num);
         g->talk = u2_talk_load(tp);
         g->town_ok = g->town.ok;
+        if (g->town_ok) snprintf(g->town_loaded,sizeof g->town_loaded,"%s",num);
     }
     if (!g->town_ok){ snprintf(g->msg,sizeof g->msg,"找不到城鎮資料,無法進入。"); return; }
     g->tret_x=g->player.x; g->tret_y=g->player.y;
@@ -463,25 +532,24 @@ static int attack_mob(Game *g, int nx, int ny)
     return 0;
 }
 
-/* 在玩家附近的水域(相鄰陸地可上下船)放一艘船,供登船示範 */
+/* 在玩家附近的水域放一艘船供登船示範;不移動玩家(保留城旁起點)。
+ * 優先放在玩家相鄰水格(可直接 B 登船),否則放最近的水格(玩家走過去)。 */
 static void place_ship(Game *g)
 {
     int NX[4]={0,1,0,-1}, NY[4]={-1,0,1,0};
+    /* 先試:玩家四鄰有水 → 直接放船 */
+    for (int d=0;d<4;d++){
+        int x=g->player.x+NX[d], y=g->player.y+NY[d];
+        if (x<1||y<1||x>=U2_MAP_W-1||y>=U2_MAP_H-1) continue;
+        if (u2_map_tile(&g->map,x,y)==0){ g->map.tile[y][x]=SHIP_TILE; return; }
+    }
+    /* 否則:向外找最近水格(玩家自行走到船邊) */
     for (int r=1;r<24;r++)
         for (int dy=-r;dy<=r;dy++) for (int dx=-r;dx<=r;dx++){
             if (abs(dx)<r && abs(dy)<r) continue;
             int x=g->player.x+dx, y=g->player.y+dy;
             if (x<1||y<1||x>=U2_MAP_W-1||y>=U2_MAP_H-1) continue;
-            if (u2_map_tile(&g->map,x,y)!=0) continue;        /* 要水 */
-            for (int d=0;d<4;d++){
-                int lx=x+NX[d], ly=y+NY[d];
-                unsigned char at=u2_map_tile(&g->map,lx,ly);
-                if (at!=0 && u2_passable(at)){
-                    g->map.tile[y][x]=SHIP_TILE;
-                    g->player.x=lx; g->player.y=ly;   /* 玩家移到船旁陸地,方便登船 */
-                    return;
-                }
-            }
+            if (u2_map_tile(&g->map,x,y)==0){ g->map.tile[y][x]=SHIP_TILE; return; }
         }
 }
 /* B:登船(腳下/相鄰 ship tile)或下船(在船上→相鄰陸地) */
@@ -562,7 +630,7 @@ static void handle_dir(Game *g, char dir)
             snprintf(g->msg,sizeof g->msg, g->vehicle?"航行 %c。":"往 %c 移動。",dir);
             unsigned char t=u2_map_tile(am,g->player.x,g->player.y);
             if (!g->in_town && t==WORLD_DUNGEON_TILE) { g->nmob=0; enter_dungeon(g); }
-            else if (!g->in_town && t==WORLD_TOWN_TILE) { g->nmob=0; enter_town(g); }
+            else if (!g->in_town && town_map_num(t)) { g->nmob=0; enter_town_tile(g,t); }
             else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); }
         } else snprintf(g->msg,sizeof g->msg,
                         (!g->in_town&&g->vehicle&&tt!=0&&tt!=1)?"船無法駛上陸地(B 下船)。":"%c 方向被擋住。",dir);
@@ -622,10 +690,9 @@ int main(int argc, char **argv)
     snprintf(g.dungeon_path,sizeof g.dungeon_path,"%s",map_path);
     char *db=strrchr(g.dungeon_path,'/'); db=db?db+1:g.dungeon_path;
     snprintf(db,sizeof g.dungeon_path-(db-g.dungeon_path),"mapx15");
-    /* 城鎮檔路徑:同目錄的 mapx21 */
-    snprintf(g.town_path,sizeof g.town_path,"%s",map_path);
-    char *tb=strrchr(g.town_path,'/'); tb=tb?tb+1:g.town_path;
-    snprintf(tb,sizeof g.town_path-(tb-g.town_path),"mapx21");
+    /* 地點檔目錄:取世界圖所在目錄,供動態組各 mapxNN 路徑 */
+    snprintf(g.data_dir,sizeof g.data_dir,"%s",map_path);
+    { char *sl=strrchr(g.data_dir,'/'); if(sl)*sl=0; else snprintf(g.data_dir,sizeof g.data_dir,"."); }
 
     /* tileset:tiles_path 為逗號分隔的多張 strip(可切換) */
     {
@@ -675,6 +742,7 @@ int main(int argc, char **argv)
             char c=*s, d=norm_dir(c);
             if (d) handle_dir(&g,d);
             else if (c=='C'||c=='c') g.show_sheet=!g.show_sheet;
+            else if (c=='H'||c=='h') g.show_help=!g.show_help;   /* F1 指令表(headless) */
             else if (c=='T'||c=='t') do_talk(&g);
             else if (c=='J'||c=='j') dungeon_descend(&g);
             else if (c=='K'||c=='k') dungeon_ascend(&g);
@@ -683,7 +751,7 @@ int main(int argc, char **argv)
             else if (c=='X'||c=='x'){ if (g.mode==MODE_DUNGEON) exit_dungeon(&g); else if (g.in_town) exit_town(&g); }
             else if (c=='B'||c=='b') board_ship(&g);
             else if (c=='D') enter_dungeon(&g);
-            else if (c=='O') enter_town(&g);   /* 強制進城(headless 測試用) */
+            else if (c=='O') enter_town_tile(&g,5);   /* 強制進城(headless 測試用) */
             else continue;
             render_all(cv,&g,&title,&body,&small);
             snprintf(out,sizeof out,"%s%02d.png",out_prefix,step++); IMG_SavePNG(cv,out);
@@ -719,6 +787,7 @@ int main(int argc, char **argv)
                         case SDLK_LEFT:case SDLK_a: d='W'; break;
                         case SDLK_RIGHT:case SDLK_d: d='E'; break;
                         case SDLK_c: g.show_sheet=!g.show_sheet; break;
+                        case SDLK_F1: g.show_help=!g.show_help; break;
                         case SDLK_t: do_talk(&g); break;
                         case SDLK_j: dungeon_descend(&g); break;
                         case SDLK_k: dungeon_ascend(&g); break;
@@ -741,6 +810,15 @@ int main(int argc, char **argv)
             SDL_Delay(16);
         }
         SDL_DestroyRenderer(ren); SDL_DestroyWindow(win);
+    }
+
+    /* 離開時把執行時狀態(HP/EXP/GOLD…)寫回 player 存檔 */
+    if (player_save && g.save.ok && g.save.has_character){
+        g.save.hp = g.php;
+        if (u2_save_store(&g.save, player_save))
+            printf("已存檔:%s\n", player_save);
+        else
+            fprintf(stderr, "存檔失敗:%s(%s)\n", player_save, strerror(errno));
     }
 
     u2_text_close(&title); u2_text_close(&body); u2_text_close(&small);
