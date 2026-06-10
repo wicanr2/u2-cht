@@ -64,7 +64,7 @@ typedef struct {
     /* 可切換 tileset(參考 u3-cht 多平台 tileset 清單) */
     SDL_Surface *tset[8]; char tname[8][24]; int ntset, curset;
     /* 地面隨機遭遇 / 戰鬥(U2 overworld 怪物動態生成) */
-    struct { int x, y, hp; unsigned char tile; } mob[8];
+    struct { int x, y, hp, maxhp, atk; unsigned char tile; const char *name; } mob[8];
     int nmob, php, turn;
     unsigned int rng;             /* 簡易 LCG,determinism 供 headless 驗證 */
     char msg[200];
@@ -368,7 +368,34 @@ static void do_talk(Game *g)
     snprintf(g->msg,sizeof g->msg,"附近沒有人可以交談。");
 }
 
-/* ---- 地面隨機遭遇 / 戰鬥 ---- */
+/* ---- 地面隨機遭遇 / 戰鬥(oracle 公式) ---- */
+/* 怪物型別:tile → 中文名 / HP(bestiary)/ 攻擊力 */
+static void mob_type(unsigned char tile, const char **name, int *hp, int *atk)
+{
+    switch (tile) {
+        case 12: *name="蜥蜴人"; *hp=16;  *atk=4;  break;  /* Orc 級 */
+        case 13: *name="幽靈";   *hp=49;  *atk=6;  break;  /* Ghost */
+        case 14: *name="魔鬼";   *hp=64;  *atk=8;  break;  /* Devil(縮放) */
+        case 15: *name="炎魔";   *hp=80;  *atk=10; break;  /* Balron(縮放) */
+        case 60: *name="哥布林"; *hp=12;  *atk=3;  break;
+        case 61: *name="盜賊";   *hp=32;  *atk=5;  break;
+        case 62: *name="惡魔";   *hp=64;  *atk=7;  break;
+        case 63: *name="海蛇";   *hp=48;  *atk=6;  break;
+        default: *name="怪物";   *hp=20;  *atk=4;  break;
+    }
+}
+/* 玩家命中技能(oracle:rng%0x50 >= skill → MISS;cap 0x50=80)。以 AGI 估。 */
+static int hit_skill(Game *g)
+{
+    int agi = g->save.has_character ? g->save.stats[1] : 20;
+    int s = 44 + agi; if (s>0x50) s=0x50; return s;   /* ~64-71 → 命中率 ~80-89% */
+}
+/* 玩家近戰傷害(oracle 地面:(力量 + 武器*8)>>2;手搏=武器0,加亂數使可玩) */
+static int player_dmg(Game *g)
+{
+    int str = g->save.has_character ? g->save.stats[0] : 20;
+    return ((str + 8*1) >> 2) + (rng_next(g) % 8) + 4;  /* ~13-21 */
+}
 /* 視野邊緣可通行格生成怪物(~28%/回合) */
 static void spawn_mob(Game *g)
 {
@@ -384,20 +411,22 @@ static void spawn_mob(Game *g)
         int occ=0; for(int i=0;i<g->nmob;i++) if(g->mob[i].x==x&&g->mob[i].y==y) occ=1;
         if (occ) continue;
         int m=g->nmob++;
-        g->mob[m].x=x; g->mob[m].y=y; g->mob[m].hp=20+(rng_next(g)%30);
-        g->mob[m].tile=mt[rng_next(g)%8];
-        snprintf(g->msg,sizeof g->msg,"一隻怪物出現了!");
+        unsigned char tile=mt[rng_next(g)%8];
+        const char *nm; int hp,atk; mob_type(tile,&nm,&hp,&atk);
+        g->mob[m].x=x; g->mob[m].y=y; g->mob[m].tile=tile;
+        g->mob[m].hp=g->mob[m].maxhp=hp; g->mob[m].atk=atk; g->mob[m].name=nm;
+        snprintf(g->msg,sizeof g->msg,"%s出現了!",nm);
         return;
     }
 }
-/* 怪物朝玩家移動;貼身則攻擊玩家 */
+/* 怪物朝玩家移動;貼身則以各自攻擊力打玩家 */
 static void step_mobs(Game *g)
 {
     for (int i=0;i<g->nmob;i++){
         int dx=g->player.x-g->mob[i].x, dy=g->player.y-g->mob[i].y;
         if (abs(dx)+abs(dy)==1){
-            int dmg=3+(rng_next(g)%6); g->php-=dmg; if(g->php<0)g->php=0;
-            snprintf(g->msg,sizeof g->msg,"怪物攻擊你!失去 %d 點生命。",dmg);
+            int dmg=g->mob[i].atk + (rng_next(g)%4); g->php-=dmg; if(g->php<0)g->php=0;
+            snprintf(g->msg,sizeof g->msg,"%s攻擊你!失去 %d 點生命。",g->mob[i].name,dmg);
             continue;
         }
         int sx=dx>0?1:dx<0?-1:0, sy=dy>0?1:dy<0?-1:0;
@@ -408,17 +437,24 @@ static void step_mobs(Game *g)
         if (!occ && u2_passable(u2_map_tile(&g->map,nx,ny))){ g->mob[i].x=nx; g->mob[i].y=ny; }
     }
 }
-/* 玩家攻擊 (nx,ny) 上的怪物;回傳 1=有打到(該方向被攻擊取代移動) */
+/* 玩家攻擊 (nx,ny) 的怪物(oracle:命中判定 rng%0x50>=技能→MISS,地面傷害公式)。
+ * 回傳 1=該方向有怪物(取代移動) */
 static int attack_mob(Game *g, int nx, int ny)
 {
     for (int i=0;i<g->nmob;i++){
         if (g->mob[i].x==nx && g->mob[i].y==ny){
-            int dmg=8+(rng_next(g)%12); g->mob[i].hp-=dmg;
+            if ((int)(rng_next(g) % 0x50) >= hit_skill(g)){
+                snprintf(g->msg,sizeof g->msg,"你攻擊%s,但沒打中。",g->mob[i].name);
+                return 1;
+            }
+            int dmg=player_dmg(g); g->mob[i].hp-=dmg;
             if (g->mob[i].hp<=0){
-                snprintf(g->msg,sizeof g->msg,"你擊敗了怪物!");
-                g->save.exp += 2;
+                int xp=(rng_next(g)&3)+1;            /* oracle 地面 EXP +(rng&3)+1 */
+                g->save.exp += xp;
+                snprintf(g->msg,sizeof g->msg,"你擊敗了%s!(+%d 經驗)",g->mob[i].name,xp);
                 g->mob[i]=g->mob[--g->nmob];
-            } else snprintf(g->msg,sizeof g->msg,"你攻擊怪物,造成 %d 傷害。",dmg);
+            } else snprintf(g->msg,sizeof g->msg,"你擊中%s,造成 %d 傷害(剩 %d)。",
+                            g->mob[i].name,dmg,g->mob[i].hp);
             return 1;
         }
     }
