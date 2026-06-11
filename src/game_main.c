@@ -77,6 +77,11 @@ static const TrPair TR_TABLE[] = {
     {"你找到一個寶箱:+%d 黃金。","You find a chest: +%d gold."},
     {"地牢中%s擋路!你擊敗了它(+%d 經驗,+%d 金)。","A %s blocks your way! You defeat it (+%d EXP, +%d gold)."},
     {"%s 在地牢重創了你!","A %s wounds you badly in the dungeon!"},
+    {"米娜克斯只存在於傳說時代。","Minax exists only in the Time of Legends."},
+    {"米娜克斯的力場造成 1000 點傷害!你被消滅了。","Minax's force field deals 1000 damage! You are destroyed."},
+    {"戒指擋下了力場!但唯有迅捷之劍 ENILNO 能殺死她。","The Ring blocks the field! But only Quicksword ENILNO can slay her."},
+    {"你以迅捷之劍 ENILNO 擊穿了米娜克斯!","With Quicksword ENILNO you strike down Minax!"},
+    {"安托斯神父祝福你,賜予了力場之戒。","Father Antos blesses you and grants the Force-Field Ring."},
     {"這架飛機少了黃銅鈕扣,飛不起來。","This plane is missing a brass button; it won't fly."},
     {"你的火箭擦過太陽,船身受損!失去 %d 點生命。","Your rocket grazes the sun! Hull damaged, lose %d HP."},
     {"語系:繁體中文", "Language: English"},
@@ -138,6 +143,7 @@ typedef struct {
     int show_help;                /* F1 指令表疊加 */
     int show_shop;                /* 城鎮商店疊加 */
     int weapon, armour;           /* 裝備等級(0 起;商店升級)*/
+    int won;                      /* 已擊敗 Minax(結局)*/
     U2Map map; U2Mon mon;         /* 地面(overworld) */
     U2Player player;
     /* 城鎮 */
@@ -186,6 +192,8 @@ enum { VEH_WALK=0, VEH_HORSE=1, VEH_SHIP=2, VEH_PLANE=3, VEH_ROCKET=4 };
 #define ITEM_BRASS_BUTTON (1u<<2)  /* 0x150:飛機起飛 */
 #define ITEM_BLUE_TASSLE (1u<<3)   /* 0x154:船登艦 */
 #define ITEM_TRI_LITHIUM (1u<<4)   /* 0x160:火箭發射燃料 */
+#define ITEM_RING        (1u<<5)   /* 戒指:破 Minax 力場(Father Antos 賜)*/
+#define ITEM_QUICKSWORD  (1u<<6)   /* ENILNO 迅捷之劍:唯一能殺 Minax */
 
 /* 簡易 LCG(同 oracle 風格,seed 固定 → headless 可重現) */
 static unsigned int rng_next(Game *g)
@@ -545,8 +553,10 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
 }
 
 static void render_space(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small);
+static void render_ending(SDL_Surface *cv, U2Text *title, U2Text *body);
 static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
 {
+    if (g->won){ render_ending(cv,title,body); return; }   /* 結局蓋過一切 */
     if (g->mode==MODE_SPACE)      render_space(cv,g,title,body,small);
     else if (g->mode==MODE_WORLD) render_world(cv,g,title,body);
     else                          render_dungeon(cv,g,title,body,small);
@@ -711,6 +721,11 @@ static void do_talk(Game *g)
             if (!(e->dlg & 0x80)){ snprintf(g->msg,sizeof g->msg,tr("對方沉默不語。")); return; }
             int k=(e->dlg & 0x7f) - 1;
             if (k<0 || k>=g->talk.count){ snprintf(g->msg,sizeof g->msg,tr("對方欲言又止。")); return; }
+            /* Father Antos(mapx93)賜力場之戒(任務主鏈)*/
+            if (!strcmp(g->town_loaded,"93") && !(g->items & ITEM_RING)){
+                g->items |= ITEM_RING;
+                snprintf(g->msg,sizeof g->msg,tr("安托斯神父祝福你,賜予了力場之戒。")); return;
+            }
             const char *zh=u2_strings_lookup(&g->tr, g->talk.line[k]);
             const char *disp=zh?zh:g->talk.line[k];
             char one[180]; size_t j=0;
@@ -1116,6 +1131,23 @@ static void render_space(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, 
     u2_text_draw(cv,body,g->msg,24,by+30,210,225,205);
 }
 
+/* 勝利結局畫面(oracle FUN_0040eb60) */
+static void render_ending(SDL_Surface *cv, U2Text *title, U2Text *body)
+{
+    int en=(u2_lang==U2_EN);
+    SDL_FillRect(cv,NULL,SDL_MapRGB(cv->format,6,4,18));
+    for (int i=0;i<200;i++){ unsigned int h=(unsigned)(i*2654435761u);
+        SDL_Rect p={(int)(h%CANVAS_W),(int)((h/CANVAS_W)%CANVAS_H),2,2};
+        SDL_FillRect(cv,&p,SDL_MapRGB(cv->format,180,170,90)); }
+    const char *L_ZH[]={"米娜克斯死了!","她的一切邪惡都將消亡。","你拯救了宇宙,",
+        "並完成了《創世紀 II》。","接著去征服邪惡的 EXODUS ──","就在《創世紀 III》之中。","","── 感謝遊玩(試玩版)──"};
+    const char *L_EN[]={"MINAX IS DEAD!","ALL HER WORKS SHALL DIE.","YOU HAVE SAVED THE UNIVERSE,",
+        "AND COMPLETED ULTIMA II.","SEEK NOW TO CONQUER WICKED EXODUS,","FOUND IN ULTIMA III.","","-- Thanks for playing (demo) --"};
+    const char **Lz = en?L_EN:L_ZH;
+    u2_text_draw(cv,title,en?"VICTORY":"勝 利",CANVAS_W/2-60,80,250,240,140);
+    for (int i=0;i<8;i++) u2_text_draw(cv,body,Lz[i],CANVAS_W/2-260,180+i*44,235,230,180);
+}
+
 /* 原版 FM Towns 開場標題畫面(整張等比放大置中 + 提示) */
 static void render_title(SDL_Surface *cv, SDL_Surface *img, U2Text *title, U2Text *body)
 {
@@ -1182,6 +1214,22 @@ static void dungeon_event(Game *g)
             snprintf(g->msg,sizeof g->msg,tr("%s 在地牢重創了你!"),tr(nm));
         }
     }
+}
+
+/* Minax 對決(傳說時代 Legends);oracle:力場 1000 傷、RING 免疫、ENILNO 殺。 */
+static void minax_encounter(Game *g)
+{
+    if (g->world_num[0] != '0' || g->in_town || g->mode!=MODE_WORLD){
+        snprintf(g->msg,sizeof g->msg,tr("米娜克斯只存在於傳說時代。")); return;
+    }
+    if (!(g->items & ITEM_RING)){
+        g->php=0; snprintf(g->msg,sizeof g->msg,tr("米娜克斯的力場造成 1000 點傷害!你被消滅了。")); return;
+    }
+    if (!(g->items & ITEM_QUICKSWORD)){
+        snprintf(g->msg,sizeof g->msg,tr("戒指擋下了力場!但唯有迅捷之劍 ENILNO 能殺死她。")); return;
+    }
+    g->won=1;
+    snprintf(g->msg,sizeof g->msg,tr("你以迅捷之劍 ENILNO 擊穿了米娜克斯!"));
 }
 
 /* 依模式處理一個方向鍵(dir ∈ N/S/E/W) */
@@ -1595,6 +1643,7 @@ int main(int argc, char **argv)
             else if (c=='I'||c=='i'){ g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); }
             else if (c=='Y'||c=='y'){ if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); }
             else if (c=='U'){ g.items=~0u; g.vehicle=VEH_ROCKET; launch_rocket(&g); }  /* 除錯:直接發射 */
+            else if (c=='M') minax_encounter(&g);   /* Minax 對決(傳說時代)*/
             else if (c=='Z'||c=='z'){ if (g.in_town) g.show_shop=!g.show_shop; }
             else if (c>='1'&&c<='9'){ if (g.show_shop) shop_buy(&g,c-'1'); }
             else if (c=='D') enter_dungeon(&g);
@@ -1718,6 +1767,7 @@ int main(int argc, char **argv)
                         case SDLK_b: board_vehicle(&g); break;
                         case SDLK_i: g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); break;
                         case SDLK_y: if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); break;
+                        case SDLK_m: minax_encounter(&g); break;
                         case SDLK_z: if (g.in_town) g.show_shop=!g.show_shop; break;
                         case SDLK_1:case SDLK_2:case SDLK_3:case SDLK_4:
                         case SDLK_5:case SDLK_6:case SDLK_7:case SDLK_8:case SDLK_9:
