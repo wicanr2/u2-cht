@@ -28,6 +28,57 @@
 #include "u2_dungeon.h"
 #include "u2_save.h"
 #include "u2_talk.h"
+#include "u2_i18n.h"
+
+/* 引擎硬編訊息中→英表(EN 時查;%-格式符必須與中文一致)。查無 → 回中文(graceful)。 */
+typedef struct { const char *zh, *en; } TrPair;
+static const TrPair TR_TABLE[] = {
+    {"往 %c 移動。", "Move %c."},
+    {"航行 %c。", "Sail %c."},
+    {"%c 方向被擋住。", "%c is blocked."},
+    {"船無法駛上陸地(B 下船)。", "Ship can't go ashore (B to disembark)."},
+    {"你進入了%s。", "You enter the %s."},
+    {"你踏入了黑暗的地牢…", "You step into the dark dungeon..."},
+    {"你踏入了高聳的塔…", "You step into the towering tower..."},
+    {"你回到了地面。", "You return to the surface."},
+    {"你沿樓梯回到了地面。", "You climb back to the surface."},
+    {"歡迎來到 Sosaria,冒險者。", "Welcome to Sosaria, adventurer."},
+    {"你登上了船,可在水上航行。", "You board the ship and can sail."},
+    {"你上岸了,船停在水邊。", "You go ashore; the ship waits at the water's edge."},
+    {"附近沒有船(船在水邊,走近後按 B)。", "No ship nearby (approach it on the water's edge, press B)."},
+    {"這裡無法登船。", "Cannot board here."},
+    {"時間之門開啟……招牌寫著:ANOS %s", "A time door opens... the sign reads: ANOS %s"},
+    {"時間之門化作藍霧消散了……", "The time door dissipates into blue mist..."},
+    {"一道時間之門如藍霧般在附近升起。", "A time door rises nearby like blue mist."},
+    {"這裡沒有時間之門。", "There is no time door here."},
+    {"%s攻擊你!失去 %d 點生命。", "The %s attacks you! You lose %d HP."},
+    {"你擊敗了%s!(+%d 經驗)", "You defeated the %s! (+%d EXP)"},
+    {"你攻擊%s,但沒打中。", "You attack the %s but miss."},
+    {"你擊中%s,造成 %d 傷害(剩 %d)。", "You hit the %s for %d damage (%d left)."},
+    {"前進。", "Forward."}, {"後退。", "Back."},
+    {"左轉。", "Turn left."}, {"右轉。", "Turn right."},
+    {"語系:繁體中文", "Language: English"},
+    /* chrome:標題列 / 操作提示 */
+    {"Ultima II — %s(T 交談 · X 離開)", "Ultima II — %s (T talk · X exit)"},
+    {"Ultima II:女巫的復仇 — 繁體中文", "Ultima II: Revenge of the Enchantress"},
+    {"方向鍵/WASD 移動 · T 交談 · C 角色表 · X 離開 · F1 指令表",
+     "Arrows/WASD move · T talk · C sheet · X exit · F1 help"},
+    {"方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q",
+     "Arrows/WASD move · B board · P time door · G theme · F1 help · Q"},
+    {"地牢 — 第一人稱線框", "Dungeon — first-person wireframe"},
+    {"塔 — 第一人稱線框", "Tower — first-person wireframe"},
+    {"座標 (%d, %d)  地形 id=%d  圖塊 %s(G 切換)", "Pos (%d, %d)  terrain id=%d  tileset %s (G)"},
+    {"切換圖塊:%s", "Tileset: %s"},
+    {"找不到城鎮資料,無法進入。", "Town data not found; cannot enter."},
+    {"找不到地牢資料,無法進入。", "Dungeon data not found; cannot enter."},
+};
+static const char *tr(const char *zh)
+{
+    if (u2_lang == U2_ZH) return zh;
+    for (size_t i=0;i<sizeof TR_TABLE/sizeof TR_TABLE[0];i++)
+        if (!strcmp(TR_TABLE[i].zh, zh)) return TR_TABLE[i].en;
+    return zh;
+}
 
 #define CANVAS_W   960
 #define CANVAS_H   600
@@ -161,9 +212,9 @@ static void draw_status_panel(SDL_Surface *cv, U2Text *body, const U2Strings *ui
     };
     for (int i=0;i<4;i++){
         const char *zh = ui ? u2_strings_lookup(ui, st[i].orig) : NULL;
-        char label[64];
-        if (zh){ size_t k=0; for(const char*q=zh;*q&&*q!='='&&k<sizeof label-1;q++)label[k++]=*q; label[k]=0; }
-        else snprintf(label,sizeof label,"%s",st[i].orig);
+        const char *src = zh ? zh : st[i].orig;   /* EN 時回 NULL → 用原文 */
+        char label[64]; size_t k=0;
+        for(const char*q=src;*q&&*q!='='&&k<sizeof label-1;q++)label[k++]=*q; label[k]=0;
         char val[16]; if (st[i].val>=0) snprintf(val,sizeof val,"%04d",st[i].val);
         else snprintf(val,sizeof val,"----");
         char line[96]; snprintf(line,sizeof line,"%s  %s",label,val);
@@ -189,8 +240,8 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
     SDL_Rect hdr={0,0,CANVAS_W,HDR_H};
     SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
     char hdr_t[64];
-    if (g->in_town) snprintf(hdr_t,sizeof hdr_t,"Ultima II — %s(T 交談 · X 離開)",kind_name(g->loc_kind));
-    else snprintf(hdr_t,sizeof hdr_t,"Ultima II:女巫的復仇 — 繁體中文");
+    if (g->in_town) snprintf(hdr_t,sizeof hdr_t,tr("Ultima II — %s(T 交談 · X 離開)"),kind_name(g->loc_kind));
+    else snprintf(hdr_t,sizeof hdr_t,tr("Ultima II:女巫的復仇 — 繁體中文"));
     u2_text_draw(cv,title, hdr_t, 10,4,235,235,245);
 
     int wrap = !g->in_town;   /* overworld 環形;城鎮不環繞 */
@@ -246,11 +297,11 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
     SDL_FillRect(cv,&t,col);SDL_FillRect(cv,&b,col);SDL_FillRect(cv,&l,col);SDL_FillRect(cv,&rr,col);
 
     int by=MAP_OY+VIEW_ROWS*TILE_PX+10;
-    u2_text_draw(cv,body, g->in_town ? "方向鍵/WASD 移動 · T 交談 · C 角色表 · X 離開 · F1 指令表"
-                                     : "方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q",
+    u2_text_draw(cv,body, g->in_town ? tr("方向鍵/WASD 移動 · T 交談 · C 角色表 · X 離開 · F1 指令表")
+                                     : tr("方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q"),
                  MAP_OX,by,150,175,205);
     u2_text_draw(cv,body,g->msg,MAP_OX,by+30,210,225,205);
-    char pos[96]; snprintf(pos,sizeof pos,"座標 (%d, %d)  地形 id=%d  圖塊 %s(G 切換)",
+    char pos[96]; snprintf(pos,sizeof pos,tr("座標 (%d, %d)  地形 id=%d  圖塊 %s(G 切換)"),
         g->player.x,g->player.y,u2_map_tile(m,g->player.x,g->player.y),
         g->ntset?g->tname[g->curset]:"-");
     u2_text_draw(cv,body,pos,MAP_OX,by+60,150,165,150);
@@ -265,7 +316,7 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     SDL_FillRect(cv, NULL, SDL_MapRGB(cv->format,10,12,18));
     SDL_Rect hdr={0,0,CANVAS_W,HDR_H};
     SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
-    u2_text_draw(cv,title, g->dg_tower?"塔 — 第一人稱線框":"地牢 — 第一人稱線框",10,4,235,235,245);
+    u2_text_draw(cv,title, g->dg_tower?tr("塔 — 第一人稱線框"):tr("地牢 — 第一人稱線框"),10,4,235,235,245);
 
     int depth=u2_dungeon_render(cv,&g->dg,g->dlevel,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW);
 
@@ -361,13 +412,13 @@ static void enter_dungeon_kind(Game *g, int tower)
         g->dg = u2_dungeon_load(g->dungeon_path);
         g->dg_ok = g->dg.ok;
     }
-    if (!g->dg_ok){ snprintf(g->msg,sizeof g->msg,"找不到地牢資料,無法進入。"); return; }
+    if (!g->dg_ok){ snprintf(g->msg,sizeof g->msg,tr("找不到地牢資料,無法進入。")); return; }
     g->dg_tower=tower;
     g->ret_x=g->player.x; g->ret_y=g->player.y;
     g->dlevel=0;
     dungeon_entry(&g->dg,g->dlevel,&g->dx,&g->dy,&g->ddir);
     g->mode=MODE_DUNGEON;
-    snprintf(g->msg,sizeof g->msg, tower?"你踏入了高聳的塔…":"你踏入了黑暗的地牢…");
+    snprintf(g->msg,sizeof g->msg, tower?tr("你踏入了高聳的塔…"):tr("你踏入了黑暗的地牢…"));
 }
 static void enter_dungeon(Game *g){ enter_dungeon_kind(g,0); }
 
@@ -392,7 +443,7 @@ static void dungeon_ascend(Game *g)
         snprintf(g->msg,sizeof g->msg,"腳下沒有向上的樓梯。"); return; }
     if (g->dlevel==0){
         g->mode=MODE_WORLD; g->player.x=g->ret_x; g->player.y=g->ret_y;
-        snprintf(g->msg,sizeof g->msg,"你沿樓梯回到了地面。"); return;
+        snprintf(g->msg,sizeof g->msg,tr("你沿樓梯回到了地面。")); return;
     }
     g->dlevel--;
     if (u2_dungeon_is_wall(&g->dg,g->dlevel,g->dx,g->dy))
@@ -404,7 +455,7 @@ static void exit_dungeon(Game *g)
 {
     g->mode=MODE_WORLD;
     g->player.x=g->ret_x; g->player.y=g->ret_y;
-    snprintf(g->msg,sizeof g->msg,"你回到了地面。");
+    snprintf(g->msg,sizeof g->msg,tr("你回到了地面。"));
 }
 
 /* 地點登記表(world 編號 + landmark tile → 目的地 + 類型)。
@@ -435,6 +486,9 @@ static const char *loc_dest(const char *world, unsigned char tile)
 }
 static const char *kind_name(char k)
 {
+    if (u2_lang==U2_EN)
+        switch (k){ case 'v':return "Village"; case 't':return "Town"; case 'c':return "Castle";
+                    case 'T':return "Tower"; case 'd':return "Dungeon"; default:return "Place"; }
     switch (k){ case 'v':return "村莊"; case 't':return "城鎮"; case 'c':return "城堡";
                 case 'T':return "塔"; case 'd':return "地牢"; }
     return "地點";
@@ -458,7 +512,7 @@ static void enter_town_tile(Game *g, unsigned char wtile)
         g->town_ok = g->town.ok;
         if (g->town_ok) snprintf(g->town_loaded,sizeof g->town_loaded,"%s",num);
     }
-    if (!g->town_ok){ snprintf(g->msg,sizeof g->msg,"找不到城鎮資料,無法進入。"); return; }
+    if (!g->town_ok){ snprintf(g->msg,sizeof g->msg,tr("找不到城鎮資料,無法進入。")); return; }
     g->tret_x=g->player.x; g->tret_y=g->player.y;
     /* 落點:站在第一個「可交談」NPC 旁的可通行格;否則實體群中心 */
     int sx=U2_MAP_W/2, sy=U2_MAP_H/2, placed=0;
@@ -474,7 +528,7 @@ static void enter_town_tile(Game *g, unsigned char wtile)
     }
     g->player.x=sx; g->player.y=sy;
     g->in_town=1;
-    snprintf(g->msg,sizeof g->msg,"你進入了%s。",kind_name(g->loc_kind));
+    snprintf(g->msg,sizeof g->msg,tr("你進入了%s。"),kind_name(g->loc_kind));
 }
 
 static void exit_town(Game *g)
@@ -568,7 +622,7 @@ static void step_mobs(Game *g)
         int dx=g->player.x-g->mob[i].x, dy=g->player.y-g->mob[i].y;
         if (abs(dx)+abs(dy)==1){
             int dmg=g->mob[i].atk + (rng_next(g)%4); g->php-=dmg; if(g->php<0)g->php=0;
-            snprintf(g->msg,sizeof g->msg,"%s攻擊你!失去 %d 點生命。",g->mob[i].name,dmg);
+            snprintf(g->msg,sizeof g->msg,tr("%s攻擊你!失去 %d 點生命。"),g->mob[i].name,dmg);
             continue;
         }
         int sx=dx>0?1:dx<0?-1:0, sy=dy>0?1:dy<0?-1:0;
@@ -586,16 +640,16 @@ static int attack_mob(Game *g, int nx, int ny)
     for (int i=0;i<g->nmob;i++){
         if (g->mob[i].x==nx && g->mob[i].y==ny){
             if ((int)(rng_next(g) % 0x50) >= hit_skill(g)){
-                snprintf(g->msg,sizeof g->msg,"你攻擊%s,但沒打中。",g->mob[i].name);
+                snprintf(g->msg,sizeof g->msg,tr("你攻擊%s,但沒打中。"),g->mob[i].name);
                 return 1;
             }
             int dmg=player_dmg(g); g->mob[i].hp-=dmg;
             if (g->mob[i].hp<=0){
                 int xp=(rng_next(g)&3)+1;            /* oracle 地面 EXP +(rng&3)+1 */
                 g->save.exp += xp;
-                snprintf(g->msg,sizeof g->msg,"你擊敗了%s!(+%d 經驗)",g->mob[i].name,xp);
+                snprintf(g->msg,sizeof g->msg,tr("你擊敗了%s!(+%d 經驗)"),g->mob[i].name,xp);
                 g->mob[i]=g->mob[--g->nmob];
-            } else snprintf(g->msg,sizeof g->msg,"你擊中%s,造成 %d 傷害(剩 %d)。",
+            } else snprintf(g->msg,sizeof g->msg,tr("你擊中%s,造成 %d 傷害(剩 %d)。"),
                             g->mob[i].name,dmg,g->mob[i].hp);
             return 1;
         }
@@ -626,7 +680,7 @@ static void place_ship(Game *g)
 /* B:登船(腳下/相鄰 ship tile)或下船(在船上→相鄰陸地) */
 static void board_ship(Game *g)
 {
-    if (g->mode!=MODE_WORLD || g->in_town){ snprintf(g->msg,sizeof g->msg,"這裡無法登船。"); return; }
+    if (g->mode!=MODE_WORLD || g->in_town){ snprintf(g->msg,sizeof g->msg,tr("這裡無法登船。")); return; }
     int NX[4]={0,1,0,-1}, NY[4]={-1,0,1,0};
     if (g->vehicle==1){                                       /* 下船 */
         for (int d=0;d<4;d++){
@@ -636,7 +690,7 @@ static void board_ship(Game *g)
             if (t!=0 && t!=1 && u2_passable(t)){
                 g->map.tile[g->player.y][g->player.x]=SHIP_TILE;  /* 留船在水面 */
                 g->player.x=x; g->player.y=y; g->vehicle=0; g->player.tile=PLAYER_TILE;
-                snprintf(g->msg,sizeof g->msg,"你上岸了,船停在水邊。"); return;
+                snprintf(g->msg,sizeof g->msg,tr("你上岸了,船停在水邊。")); return;
             }
         }
         snprintf(g->msg,sizeof g->msg,"附近沒有陸地可上岸。"); return;
@@ -644,7 +698,7 @@ static void board_ship(Game *g)
     /* 登船:腳下是船 */
     if (u2_map_tile(&g->map,g->player.x,g->player.y)==SHIP_TILE){
         g->vehicle=1; g->player.tile=SHIP_TILE;
-        snprintf(g->msg,sizeof g->msg,"你登上了船,可在水上航行。"); return;
+        snprintf(g->msg,sizeof g->msg,tr("你登上了船,可在水上航行。")); return;
     }
     /* 相鄰是船 → 走過去登船 */
     for (int d=0;d<4;d++){
@@ -653,10 +707,10 @@ static void board_ship(Game *g)
         if (u2_map_tile(&g->map,x,y)==SHIP_TILE){
             g->map.tile[y][x]=0; g->player.x=x; g->player.y=y;
             g->vehicle=1; g->player.tile=SHIP_TILE;
-            snprintf(g->msg,sizeof g->msg,"你登上了船,可在水上航行。"); return;
+            snprintf(g->msg,sizeof g->msg,tr("你登上了船,可在水上航行。")); return;
         }
     }
-    snprintf(g->msg,sizeof g->msg,"附近沒有船(船在水邊,走近後按 B)。");
+    snprintf(g->msg,sizeof g->msg,tr("附近沒有船(船在水邊,走近後按 B)。"));
 }
 
 /* ---- 時間之門(時間旅行雛形)---- */
@@ -664,6 +718,12 @@ static void board_ship(Game *g)
  * 0=Legends 1=9,000,000 B.C. 2=1423 B.C. 3=1990 A.D. 4=2112 A.D. */
 static const char *era_name(const char *world)
 {
+    if (u2_lang==U2_EN)
+        switch (world[0]){
+            case '0': return "LEGENDS"; case '1': return "9,000,000 B.C.";
+            case '2': return "1423 B.C."; case '3': return "1990 A.D.";
+            case '4': return "2112 A.D. (Aftermath)"; default: return "UNKNOWN";
+        }
     switch (world[0]){
         case '0': return "傳說時代(Legends)";
         case '1': return "盤古大陸(9,000,000 B.C.)";
@@ -713,17 +773,17 @@ static void tick_time_door(Game *g)
     g->td_timer++;
     if (g->td_x>=0){
         if (g->td_timer>=TD_VIS){ g->td_x=g->td_y=-1; g->td_timer=0;
-            snprintf(g->msg,sizeof g->msg,"時間之門化作藍霧消散了……"); }
+            snprintf(g->msg,sizeof g->msg,tr("時間之門化作藍霧消散了……")); }
     } else {
         if (g->td_timer>=TD_HID){ place_time_door(g);
-            if (g->td_x>=0) snprintf(g->msg,sizeof g->msg,"一道時間之門如藍霧般在附近升起。"); }
+            if (g->td_x>=0) snprintf(g->msg,sizeof g->msg,tr("一道時間之門如藍霧般在附近升起。")); }
     }
 }
 
 /* 穿越時間之門:切到下個時代 overworld,座標保留,重載地圖/實體/門/船 */
 static void time_travel(Game *g)
 {
-    if (g->in_town || g->mode!=MODE_WORLD){ snprintf(g->msg,sizeof g->msg,"這裡沒有時間之門。"); return; }
+    if (g->in_town || g->mode!=MODE_WORLD){ snprintf(g->msg,sizeof g->msg,tr("這裡沒有時間之門。")); return; }
     const char *nw=next_era_world(g->world_num);
     char mp[600];
     snprintf(mp,sizeof mp,"%s/mapx%s",g->data_dir,nw);
@@ -738,7 +798,7 @@ static void time_travel(Game *g)
     g->nmob=0;
     place_ship(g);
     place_time_door(g);
-    snprintf(g->msg,sizeof g->msg,"時間之門開啟……招牌寫著:ANOS %s",era_name(g->world_num));
+    snprintf(g->msg,sizeof g->msg,tr("時間之門開啟……招牌寫著:ANOS %s"),era_name(g->world_num));
 }
 
 /* 原版 FM Towns 開場標題畫面(整張等比放大置中 + 提示) */
@@ -796,7 +856,7 @@ static void handle_dir(Game *g, char dir)
         else pass = inb && u2_passable(tt);                               /* 步行 */
         if (pass){
             g->player.x=tx; g->player.y=ty;
-            snprintf(g->msg,sizeof g->msg, g->vehicle?"航行 %c。":"往 %c 移動。",dir);
+            snprintf(g->msg,sizeof g->msg, g->vehicle?tr("航行 %c。"):tr("往 %c 移動。"),dir);
             unsigned char t=u2_map_tile(am,g->player.x,g->player.y);
             const LocReg *L = (!g->in_town) ? loc_lookup(g->world_num,t) : NULL;
             if (!g->in_town && g->td_x==g->player.x && g->td_y==g->player.y) { time_travel(g); }
@@ -804,10 +864,10 @@ static void handle_dir(Game *g, char dir)
             else if (L) { g->nmob=0; enter_town_tile(g,t); }
             else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); tick_time_door(g); }
         } else snprintf(g->msg,sizeof g->msg,
-                        (!g->in_town&&g->vehicle&&tt!=0&&tt!=1)?"船無法駛上陸地(B 下船)。":"%c 方向被擋住。",dir);
+                        (!g->in_town&&g->vehicle&&tt!=0&&tt!=1)?tr("船無法駛上陸地(B 下船)。"):tr("%c 方向被擋住。"),dir);
     } else { /* DUNGEON: N前進 S後退 W左轉 E右轉 */
-        if (dir=='W'){ g->ddir=(g->ddir+3)&3; snprintf(g->msg,sizeof g->msg,"左轉。"); }
-        else if (dir=='E'){ g->ddir=(g->ddir+1)&3; snprintf(g->msg,sizeof g->msg,"右轉。"); }
+        if (dir=='W'){ g->ddir=(g->ddir+3)&3; snprintf(g->msg,sizeof g->msg,tr("左轉。")); }
+        else if (dir=='E'){ g->ddir=(g->ddir+1)&3; snprintf(g->msg,sizeof g->msg,tr("右轉。")); }
         else {
             int s=(dir=='N')?1:-1;
             int di=g->ddir; int nx=g->dx+FX[di]*s, ny=g->dy+FY[di]*s;
@@ -815,7 +875,7 @@ static void handle_dir(Game *g, char dir)
                 int lad=u2_dungeon_ladder(&g->dg,g->dlevel,nx,ny);
                 if (lad>0) snprintf(g->msg,sizeof g->msg,"腳下有向下的樓梯(J 下樓)。");
                 else if (lad<0) snprintf(g->msg,sizeof g->msg,"腳下有向上的樓梯(K 上樓)。");
-                else snprintf(g->msg,sizeof g->msg, s>0?"前進。":"後退。");
+                else snprintf(g->msg,sizeof g->msg, s>0?tr("前進。"):tr("後退。"));
             }
             else snprintf(g->msg,sizeof g->msg,"前方是牆。");
         }
@@ -1125,7 +1185,7 @@ int main(int argc, char **argv)
     g.php = (g.save.ok && g.save.has_character) ? g.save.hp : 400;
     place_ship(&g);                                     /* 起點附近放一艘可登的船 */
     g.td_x=g.td_y=-1; place_time_door(&g);              /* 起點附近放一個時間之門 */
-    snprintf(g.msg,sizeof g.msg,"歡迎來到 Sosaria,冒險者。");
+    snprintf(g.msg,sizeof g.msg,tr("歡迎來到 Sosaria,冒險者。"));
 
     if (headless){
         int step=0; char out[600];
@@ -1144,12 +1204,14 @@ int main(int argc, char **argv)
             else if (c=='J'||c=='j') dungeon_descend(&g);
             else if (c=='K'||c=='k') dungeon_ascend(&g);
             else if (c=='G'||c=='g'){ if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
-                snprintf(g.msg,sizeof g.msg,"切換圖塊:%s",g.tname[g.curset]); } }
+                snprintf(g.msg,sizeof g.msg,tr("切換圖塊:%s"),g.tname[g.curset]); } }
             else if (c=='X'||c=='x'){ if (g.mode==MODE_DUNGEON) exit_dungeon(&g); else if (g.in_town) exit_town(&g); }
             else if (c=='B'||c=='b') board_ship(&g);
             else if (c=='D') enter_dungeon(&g);
             else if (c=='O') enter_town_tile(&g,5);   /* 強制進城(headless 測試用) */
             else if (c=='P'||c=='p') time_travel(&g); /* 穿越時間之門(快捷/headless) */
+            else if (c=='L'||c=='l'){ u2_lang=(u2_lang==U2_ZH)?U2_EN:U2_ZH;
+                snprintf(g.msg,sizeof g.msg,"%s",tr("語系:繁體中文")); }   /* 切語系(headless) */
             else continue;
             render_all(cv,&g,&title,&body,&small);
             snprintf(out,sizeof out,"%s%02d.png",out_prefix,step++); IMG_SavePNG(cv,out);
@@ -1256,13 +1318,15 @@ int main(int argc, char **argv)
                         case SDLK_RIGHT:case SDLK_d: d='E'; break;
                         case SDLK_c: g.show_sheet=!g.show_sheet; break;
                         case SDLK_F1: g.show_help=!g.show_help; break;
+                        case SDLK_F4: u2_lang=(u2_lang==U2_ZH)?U2_EN:U2_ZH;
+                            snprintf(g.msg,sizeof g.msg,"%s",tr("語系:繁體中文")); break;  /* 切語系 */
                         case SDLK_t: do_talk(&g); break;
                         case SDLK_j: dungeon_descend(&g); break;
                         case SDLK_k: dungeon_ascend(&g); break;
                         case SDLK_b: board_ship(&g); break;
                         case SDLK_p: time_travel(&g); break;   /* 穿越時間之門快捷 */
                         case SDLK_g: if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
-                            snprintf(g.msg,sizeof g.msg,"切換圖塊:%s",g.tname[g.curset]); } break;
+                            snprintf(g.msg,sizeof g.msg,tr("切換圖塊:%s"),g.tname[g.curset]); } break;
                         case SDLK_x:
                             if (g.mode==MODE_DUNGEON) exit_dungeon(&g);
                             else if (g.in_town) exit_town(&g);
