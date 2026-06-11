@@ -1,5 +1,8 @@
 # Ultima II: Revenge of the Enchantress 中文化計畫
 
+> 📍 **本檔為初期「中文化 + 引擎重寫策略」計畫(歷史)。** 試玩版已完成後,邁向
+> **完整重製(可破關到結局)** 的前瞻路線見 [`docs/ROADMAP_REMAKE.md`](docs/ROADMAP_REMAKE.md)。
+
 > 建立日期:2026-06-04
 > 規劃人:Claude(協助 L.CY / anr2)
 > 子專案:`u3-cht/u7-cht/WinUltima2`
