@@ -14,6 +14,11 @@ U2Dungeon u2_dungeon_load(const char *path)
         int allff = 1;
         for (int i = 0; i < 256; i++) if (blk[i] != 0xFF) { allff = 0; break; }
         if (allff) break;
+        /* 偵測非地牢層:有效地牢層頂行為邊界牆(0x80);頂行牆 < 12 = 尾部非地牢資料,停止。
+         * (mapx15 = 15 層 16×16 地牢 + 384B 尾部;避免把尾部當第 16 層乱碼)*/
+        int topwall = 0;
+        for (int x = 0; x < U2_DNG_N; x++) if (blk[x] == 0x80) topwall++;
+        if (topwall < 12) break;
         for (int y = 0; y < U2_DNG_N; y++)
             for (int x = 0; x < U2_DNG_N; x++)
                 d.cell[lv][y][x] = blk[y * U2_DNG_N + x];
