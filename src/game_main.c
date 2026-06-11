@@ -399,7 +399,8 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
 {
     static const char *ROWS_ZH[] = {
         "方向鍵 / WASD   移動 / 攻擊(朝怪物移動即攻擊)",
-        "B               登船 / 下船(站在船旁)",
+        "B               登載 / 下載具(馬/船/飛機/火箭)",
+        "Y               火箭發射 / 太空降落  ·  Z 城鎮商店",
         "P / 踏入青紫門   穿越時間之門(切換時代)",
         "走上城堡圖塊     進入城鎮",
         "走上地牢圖塊     進入地牢",
@@ -413,7 +414,8 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
     };
     static const char *ROWS_EN[] = {
         "Arrows / WASD   Move / attack (move into a monster)",
-        "B               Board / disembark ship (beside it)",
+        "B               Board / disembark (horse/ship/plane/rocket)",
+        "Y               Rocket launch / land in space  ·  Z shop",
         "P / step in door  Enter time door (change era)",
         "Step on castle  Enter town",
         "Step on dungeon Enter dungeon",
