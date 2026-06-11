@@ -204,6 +204,13 @@ Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄 MFC 殼)──�
 | **NPC→對話行對應破解**(monxNN `0xA0+i` 第 6 陣列,`&0x80`+1-based 索引) | [`docs/DATA_FORMATS.md`](docs/DATA_FORMATS.md) |
 | **FM Towns 素材抽取**(模擬器 dump 真 palette/tile + 怪物 sprite 圖鑑) | [`docs/FMTOWNS_TILESET.md`](docs/FMTOWNS_TILESET.md) · [`docs/MONSTERS.md`](docs/MONSTERS.md) |
 | **可切換 tileset**(G 鍵循環 CGA/EGA/EGA-ALT/EGA-C64,參考 u3-cht) | [`src/game_main.c`](src/game_main.c) |
+| **完整重製路線(M1–M8)** + 多世界地圖骨架 | [`docs/ROADMAP_REMAKE.md`](docs/ROADMAP_REMAKE.md) · [`docs/MAP_REGISTRY.md`](docs/MAP_REGISTRY.md) |
+| **時間旅行**(時間之門 + 5 時代 overworld;oracle 時代校正 + toroidal wrap) | [`src/game_main.c`](src/game_main.c) |
+| **場景類型分化** + 登記表驅動進入(村莊/城鎮/城堡/塔/地牢,world-aware) | [`docs/MAP_REGISTRY.md`](docs/MAP_REGISTRY.md) |
+| **載具系統**(馬/船/飛機/火箭 + 門檻道具,oracle 0x7390) | [`src/game_main.c`](src/game_main.c) |
+| **星際旅行**(火箭發射→深空→HYPERWARP 9 行星→降落行星地表) | [`src/game_main.c`](src/game_main.c) |
+| **城鎮經濟**(商店:武防/食物/載具道具/King 獻金;戰鬥用上武防) | [`src/game_main.c`](src/game_main.c) |
+| **F4 語系切換**(繁中 / English:UI/對話/訊息/面板) | [`src/u2_i18n.h`](src/u2_i18n.h) |
 
 ### ⏳ 進行中 / 尚未實作
 
