@@ -376,8 +376,9 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
     u2_text_draw(cv,title, g->dg_tower?tr("塔 — 第一人稱線框"):tr("地牢 — 第一人稱線框"),10,4,235,235,245);
 
-    char ek=0; unsigned char et=0; int edp=dg_front_entity(g,5,&ek,&et);
-    int depth=u2_dungeon_render(cv,&g->dg,g->dlevel,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW,g->curset,edp?edp:-1,ek,et);
+    int vis = (g->spell_light>0) ? 5 : 3;   /* 火把/光明決定視野深度(暗時視野受限)*/
+    char ek=0; unsigned char et=0; int edp=dg_front_entity(g,vis,&ek,&et);
+    int depth=u2_dungeon_render(cv,&g->dg,g->dlevel,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW,g->curset,edp?edp:-1,ek,et,vis);
 
     int en=(u2_lang==U2_EN);
     static const char *DIR_EN[4]={"N","E","S","W"};
@@ -914,6 +915,7 @@ static void gen_dungeon_entities(Game *g)
     g->ndgent = 0;
     if (g->mode != MODE_DUNGEON || !g->dg_ok) return;
     int lv = g->dlevel;
+    g->spell_light = 30;   /* 進層火把光照(每回合燒;LIGHT 法術可補,燒完視野受限)*/
     int nmon = 2 + lv/3;   if (nmon > 6) nmon = 6;
     int nchest = 1 + (lv >= 4 ? 1 : 0);
     /* 先在玩家前方 2..4 格放一隻怪(進地牢即可見/遭遇,即時反饋)*/
@@ -1668,6 +1670,8 @@ static void handle_dir(Game *g, char dir)
                 }
             }
             step_dungeon_mobs(g);   /* 玩家前進/後退後,地牢怪物行動(移動/貼身攻擊)*/
+            if (g->spell_light>0 && --g->spell_light==0)   /* 光照每回合燒 */
+                snprintf(g->msg,sizeof g->msg,tr("火把熄滅了,四周陷入黑暗。"));
         }
     }
 }
