@@ -1617,7 +1617,7 @@ int main(int argc, char **argv)
     snprintf(g.msg,sizeof g.msg,tr("歡迎來到 Sosaria,冒險者。"));
 
     if (headless){
-        int step=0; char out[600];
+        int step=0; char out[600]; int won_announced=0;
         if (titleimg){ render_title(cv,titleimg,&title,&body);
             snprintf(out,sizeof out,"%stitle.png",out_prefix); IMG_SavePNG(cv,out); }
         if (splash){ render_splash(cv,splash,&title,&body);
@@ -1650,8 +1650,13 @@ int main(int argc, char **argv)
             else continue;
             render_all(cv,&g,&title,&body,&small);
             snprintf(out,sizeof out,"%s%02d.png",out_prefix,step++); IMG_SavePNG(cv,out);
+            if (g.won && !won_announced){      /* 破關確定性訊號(回歸測試 grep 用) */
+                won_announced=1;
+                printf("*** GAME WON (Minax defeated) step=%d ***\n",step-1);
+            }
         }
         printf("腳本完成:%d 步,輸出 %s00..%02d.png\n",step-1,out_prefix,step-1);
+        printf("破關狀態:%s\n", g.won ? "WON" : "NOT-WON");
     } else {
         SDL_Window *win=SDL_CreateWindow("Ultima II 繁中",
             SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,CANVAS_W,CANVAS_H,0);
