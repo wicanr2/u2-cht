@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 #include "u2_map.h"
 #include "u2_mon.h"
 #include "u2_play.h"
@@ -65,6 +66,12 @@ static const TrPair TR_TABLE[] = {
     {"無法登載。","Cannot board."},{"你騎上了馬。","You mount the horse."},
     {"你登上了飛機。","You board the plane."},{"你進入了火箭。","You enter the rocket."},
     {"(除錯)取得所有關鍵道具。","(debug) Got all key items."},
+    {"只有火箭能發射升空。","Only a rocket can launch."},
+    {"金屬之聲:火箭無法發射(需三鋰)。","A metallic voice: ship incapable of launch (need Tri-Lithium)."},
+    {"準備發射!你進入了%s 的軌道。","Prepare for launch! You enter orbit of %s."},
+    {"HYPERWARP……你來到了%s 的軌道。","HYPERWARP... you reach orbit of %s."},
+    {"該行星沒有可降落的地表(mapx%s)。","This planet has no surface to land on (mapx%s)."},
+    {"你降落在%s 的地表。","You land on the surface of %s."},
     {"語系:繁體中文", "Language: English"},
     /* chrome:標題列 / 操作提示 */
     {"Ultima II — %s(T 交談 · X 離開)", "Ultima II — %s (T talk · X exit)"},
@@ -116,7 +123,7 @@ static const char *tr(const char *zh)
 #define WORLD_TOWN_TILE 5         /* 地面上的城鎮入口 tile id */
 #define DVIEW 520                 /* 地牢線框視區邊長 */
 
-enum Mode { MODE_WORLD, MODE_DUNGEON };
+enum Mode { MODE_WORLD, MODE_DUNGEON, MODE_SPACE };
 
 typedef struct {
     enum Mode mode;
@@ -153,6 +160,8 @@ typedef struct {
     unsigned int rng;             /* 簡易 LCG,determinism 供 headless 驗證 */
     int vehicle;                  /* oracle 0x7390:0 步行 1 馬 2 船 3 飛機 4 火箭 */
     unsigned int items;           /* 物品旗標 bitset(見 ITEM_*) */
+    int planet;                   /* 太空中目前軌道行星 index(見 PLANETS) */
+    char ret_world[8];            /* 發射前的 overworld 編號(降落回原星用) */
     char msg[200];
 } Game;
 /* 載具(oracle this+0x7390) */
@@ -456,10 +465,12 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
     }
 }
 
+static void render_space(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small);
 static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
 {
-    if (g->mode==MODE_WORLD) render_world(cv,g,title,body);
-    else                     render_dungeon(cv,g,title,body,small);
+    if (g->mode==MODE_SPACE)      render_space(cv,g,title,body,small);
+    else if (g->mode==MODE_WORLD) render_world(cv,g,title,body);
+    else                          render_dungeon(cv,g,title,body,small);
     if (g->show_sheet)       render_sheet_overlay(cv,g,body,small);
     if (g->show_help)        render_help_overlay(cv,body,small);
 }
@@ -928,6 +939,94 @@ static void time_travel(Game *g)
     snprintf(g->msg,sizeof g->msg,tr("時間之門開啟……招牌寫著:ANOS %s"),era_name(g->world_num));
 }
 
+/* ---- 太空飛行(M2 Step 2)---- */
+/* 行星表(手冊 GALACTIC MAP;Xeno/Yako/Zabo 座標)。mapnum 為 provisional 行星表面圖。 */
+static const struct { const char *zh, *en, *mapnum; int xe, ya, za; } PLANETS[] = {
+    {"地球 Earth",  "Earth",   "20", 6,6,6},
+    {"水星 Mercury","Mercury", "50", 5,4,5},
+    {"金星 Venus",  "Venus",   "60", 3,3,4},
+    {"火星 Mars",   "Mars",    "70", 6,2,3},
+    {"木星 Jupiter","Jupiter", "80", 1,3,4},
+    {"土星 Saturn", "Saturn",  "90", 2,8,5},
+    {"天王星 Uranus","Uranus", "85", 9,4,6},
+    {"海王星 Neptune","Neptune","82", 4,0,5},
+    {"冥王星 Pluto","Pluto",   "45", 0,1,4},
+};
+#define NPLANET ((int)(sizeof PLANETS/sizeof PLANETS[0]))
+static const char *planet_name(int i){ return (u2_lang==U2_EN)?PLANETS[i].en:PLANETS[i].zh; }
+
+/* 火箭發射:在火箭上 + 有三鋰燃料 → 進入太空(目前行星軌道) */
+static void launch_rocket(Game *g)
+{
+    if (g->vehicle!=VEH_ROCKET){ snprintf(g->msg,sizeof g->msg,tr("只有火箭能發射升空。")); return; }
+    if (!(g->items & ITEM_TRI_LITHIUM)){ snprintf(g->msg,sizeof g->msg,tr("金屬之聲:火箭無法發射(需三鋰)。")); return; }
+    snprintf(g->ret_world,sizeof g->ret_world,"%s",g->world_num);
+    /* 目前所在 overworld 對應的行星(預設地球);否則由 mapnum 反查 */
+    g->planet=0;
+    for (int i=0;i<NPLANET;i++) if (!strcmp(PLANETS[i].mapnum,g->world_num)){ g->planet=i; break; }
+    g->mode=MODE_SPACE;
+    snprintf(g->msg,sizeof g->msg,tr("準備發射!你進入了%s 的軌道。"),planet_name(g->planet));
+}
+/* HYPERWARP:循環切換目標行星軌道 */
+static void hyperwarp(Game *g)
+{
+    if (g->mode!=MODE_SPACE) return;
+    g->planet=(g->planet+1)%NPLANET;
+    snprintf(g->msg,sizeof g->msg,tr("HYPERWARP……你來到了%s 的軌道。"),planet_name(g->planet));
+}
+/* 降落:載入目前軌道行星的表面圖,回 overworld(火箭仍在身上,可再發射) */
+static void land_planet(Game *g)
+{
+    if (g->mode!=MODE_SPACE) return;
+    const char *num=PLANETS[g->planet].mapnum;
+    char mp[600]; snprintf(mp,sizeof mp,"%s/mapx%s",g->data_dir,num);
+    U2Map nm=u2_map_load(mp);
+    if (!nm.ok){ snprintf(g->msg,sizeof g->msg,tr("該行星沒有可降落的地表(mapx%s)。"),num); return; }
+    g->map=nm;
+    snprintf(mp,sizeof mp,"%s/monx%s",g->data_dir,num); g->mon=u2_mon_load(mp);
+    snprintf(g->world_num,sizeof g->world_num,"%s",num);
+    g->mode=MODE_WORLD; g->nmob=0;
+    find_start(&g->map,&g->player,g->world_num);
+    g->vehicle=VEH_ROCKET; g->player.tile=ROCKET_TILE;   /* 降落時人還在火箭上 */
+    g->td_x=g->td_y=-1; place_time_door(g);
+    snprintf(g->msg,sizeof g->msg,tr("你降落在%s 的地表。"),planet_name(g->planet));
+}
+
+/* 太空畫面:星空 + 目前軌道行星 + 行星清單 + 操作提示 */
+static void render_space(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
+{
+    int en=(u2_lang==U2_EN);
+    SDL_FillRect(cv,NULL,SDL_MapRGB(cv->format,4,4,14));
+    SDL_Rect hdr={0,0,CANVAS_W,HDR_H}; SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,30,30,70));
+    u2_text_draw(cv,title,en?"Deep Space":"深太空",10,4,235,235,245);
+    /* 簡易星空(determinism:依座標雜湊)*/
+    for (int i=0;i<260;i++){
+        unsigned int h=(unsigned)(i*2654435761u); int sx=h%CANVAS_W, sy=HDR_H+(h/CANVAS_W)%(CANVAS_H-HDR_H-120);
+        Uint8 b=120+(h%120); SDL_Rect p={sx,sy,2,2}; SDL_FillRect(cv,&p,SDL_MapRGB(cv->format,b,b,b));
+    }
+    /* 中央行星圓(用顏色塊代表)*/
+    int cx=CANVAS_W/2, cy=240, rad=70;
+    Uint32 pc=SDL_MapRGB(cv->format,80+30*(g->planet%3),120+15*(g->planet%4),200);
+    for (int yy=-rad;yy<=rad;yy++){ int w=(int)(0.999*rad*rad-yy*yy); if(w<0)continue; int hw=(int)(sqrt((double)w));
+        SDL_Rect r={cx-hw,cy+yy,2*hw,1}; SDL_FillRect(cv,&r,pc); }
+    char ln[96];
+    snprintf(ln,sizeof ln,en?"Orbiting: %s":"目前軌道:%s",planet_name(g->planet));
+    u2_text_draw(cv,body,ln,cx-150,cy+rad+16,245,235,160);
+    snprintf(ln,sizeof ln,"Xeno %d  Yako %d  Zabo %d",PLANETS[g->planet].xe,PLANETS[g->planet].ya,PLANETS[g->planet].za);
+    u2_text_draw(cv,small,ln,cx-150,cy+rad+48,170,190,220);
+    /* 行星清單(右側)*/
+    int lx=CANVAS_W-260, ly=HDR_H+20;
+    u2_text_draw(cv,small,en?"Planets (E/W hyperwarp)":"行星(E/W 躍遷)",lx,ly,160,180,210); ly+=28;
+    for (int i=0;i<NPLANET;i++){
+        u2_text_draw(cv,small,planet_name(i),lx,ly,(i==g->planet)?250:180,(i==g->planet)?235:185,(i==g->planet)?150:195);
+        ly+=24;
+    }
+    int by=CANVAS_H-90;
+    u2_text_draw(cv,body,en?"E/W HYPERWARP · Y land · F1 help"
+                           :"E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表",24,by,150,175,205);
+    u2_text_draw(cv,body,g->msg,24,by+30,210,225,205);
+}
+
 /* 原版 FM Towns 開場標題畫面(整張等比放大置中 + 提示) */
 static void render_title(SDL_Surface *cv, SDL_Surface *img, U2Text *title, U2Text *body)
 {
@@ -968,6 +1067,12 @@ static void render_splash(SDL_Surface *cv, SDL_Surface *photo, U2Text *title, U2
 static void handle_dir(Game *g, char dir)
 {
     int FX[4]={0,1,0,-1}, FY[4]={-1,0,1,0};  /* N E S W */
+    if (g->mode==MODE_SPACE){                /* 太空:E/W HYPERWARP 切換行星軌道 */
+        if (dir=='E') hyperwarp(g);
+        else if (dir=='W'){ g->planet=(g->planet+NPLANET-1)%NPLANET;
+            snprintf(g->msg,sizeof g->msg,tr("HYPERWARP……你來到了%s 的軌道。"),planet_name(g->planet)); }
+        return;
+    }
     if (g->mode==MODE_WORLD){
         /* 朝向怪物移動 = 攻擊(不移動);否則正常走 + 觸發怪物回合 */
         int di = (dir=='N')?0:(dir=='E')?1:(dir=='S')?2:3;
@@ -1341,6 +1446,8 @@ int main(int argc, char **argv)
             else if (c=='X'||c=='x'){ if (g.mode==MODE_DUNGEON) exit_dungeon(&g); else if (g.in_town) exit_town(&g); }
             else if (c=='B'||c=='b') board_vehicle(&g);
             else if (c=='I'||c=='i'){ g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); }
+            else if (c=='Y'||c=='y'){ if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); }
+            else if (c=='U'){ g.items=~0u; g.vehicle=VEH_ROCKET; launch_rocket(&g); }  /* 除錯:直接發射 */
             else if (c=='D') enter_dungeon(&g);
             else if (c=='O') enter_town_tile(&g,5);   /* 強制進城(headless 測試用) */
             else if (c=='P'||c=='p') time_travel(&g); /* 穿越時間之門(快捷/headless) */
@@ -1459,6 +1566,7 @@ int main(int argc, char **argv)
                         case SDLK_k: dungeon_ascend(&g); break;
                         case SDLK_b: board_vehicle(&g); break;
                         case SDLK_i: g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); break;
+                        case SDLK_y: if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); break;
                         case SDLK_p: time_travel(&g); break;   /* 穿越時間之門快捷 */
                         case SDLK_g: if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
                             snprintf(g.msg,sizeof g.msg,tr("切換圖塊:%s"),g.tname[g.curset]); } break;
