@@ -57,6 +57,7 @@ typedef struct {
     char town_path[512];
     char data_dir[512];           /* mapxNN 所在目錄(動態組地點檔路徑) */
     char world_num[8];            /* 目前 overworld 編號(如 "20"),供地點登記表查詢 */
+    int td_x, td_y;               /* 時間之門座標(overworld;-1=無) */
     char town_loaded[8];          /* 目前已載入的城鎮編號(偵測換城重載) */
     /* 地牢 */
     U2Dungeon dg; int dg_ok;
@@ -191,6 +192,20 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
                             MAP_OX+mx*TILE_PX, MAP_OY+my*TILE_PX, TILE_PX);
         }
 
+    /* 時間之門標記(青底紫框,踏入即穿越) */
+    if (!g->in_town && g->td_x>=0){
+        int dx=g->td_x-cam_x, dy=g->td_y-cam_y;
+        if (dx>=0&&dy>=0&&dx<VIEW_COLS&&dy<VIEW_ROWS){
+            int gx=MAP_OX+dx*TILE_PX, gy=MAP_OY+dy*TILE_PX;
+            SDL_Rect in={gx+6,gy+6,TILE_PX-12,TILE_PX-12};
+            SDL_FillRect(cv,&in,SDL_MapRGB(cv->format,40,230,230));
+            Uint32 fr=SDL_MapRGB(cv->format,230,60,230);
+            SDL_Rect e1={gx+4,gy+4,TILE_PX-8,3},e2={gx+4,gy+TILE_PX-7,TILE_PX-8,3},
+                     e3={gx+4,gy+4,3,TILE_PX-8},e4={gx+TILE_PX-7,gy+4,3,TILE_PX-8};
+            SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
+        }
+    }
+
     int px=MAP_OX+(g->player.x-cam_x)*TILE_PX, py=MAP_OY+(g->player.y-cam_y)*TILE_PX;
     if (tiles) u2_tileset_blit(cv,tiles,g->player.tile,px,py,TILE_PX);
     Uint32 col=SDL_MapRGB(cv->format,250,240,90);
@@ -200,7 +215,7 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
 
     int by=MAP_OY+VIEW_ROWS*TILE_PX+10;
     u2_text_draw(cv,body, g->in_town ? "方向鍵/WASD 移動 · T 交談 · C 角色表 · X 離開 · F1 指令表"
-                                     : "方向鍵/WASD 移動 · B 登船 · G 畫風 · F1 指令表 · Q 離開",
+                                     : "方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q",
                  MAP_OX,by,150,175,205);
     u2_text_draw(cv,body,g->msg,MAP_OX,by+30,210,225,205);
     char pos[96]; snprintf(pos,sizeof pos,"座標 (%d, %d)  地形 id=%d  圖塊 %s(G 切換)",
@@ -246,6 +261,7 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
     static const char *ROWS[] = {
         "方向鍵 / WASD   移動 / 攻擊(朝怪物移動即攻擊)",
         "B               登船 / 下船(站在船旁)",
+        "P / 踏入青紫門   穿越時間之門(切換時代)",
         "走上城堡圖塊     進入城鎮",
         "走上地牢圖塊     進入地牢",
         "T               城鎮中與 NPC 交談",
@@ -596,6 +612,60 @@ static void board_ship(Game *g)
     snprintf(g->msg,sizeof g->msg,"附近沒有船(船在水邊,走近後按 B)。");
 }
 
+/* ---- 時間之門(時間旅行雛形)---- */
+/* 時代招牌(ANOS …,oracle FUN_0040c270);world 編號 → 時代名(provisional)。 */
+static const char *era_name(const char *world)
+{
+    if (!strcmp(world,"20")) return "1990 A.D.";
+    if (!strcmp(world,"30")) return "1423 B.C.";
+    if (!strcmp(world,"40")) return "9,000,000 B.C.";
+    return "未知時代";
+}
+/* 時間門循環:20 → 30 → 40 → 20(provisional;待對齊 oracle 時代地圖)。 */
+static const char *next_era_world(const char *world)
+{
+    if (!strcmp(world,"20")) return "30";
+    if (!strcmp(world,"30")) return "40";
+    return "20";
+}
+
+/* 在玩家附近的可通行陸地放一個時間之門(非 landmark) */
+static void place_time_door(Game *g)
+{
+    g->td_x=g->td_y=-1;
+    for (int r=1;r<20 && g->td_x<0;r++)
+        for (int dy=-r;dy<=r && g->td_x<0;dy++) for (int dx=-r;dx<=r;dx++){
+            if (abs(dx)<r && abs(dy)<r) continue;
+            int x=g->player.x+dx, y=g->player.y+dy;
+            if (x<0||y<0||x>=U2_MAP_W||y>=U2_MAP_H) continue;
+            unsigned char t=u2_map_tile(&g->map,x,y);
+            if (t!=0 && u2_passable(t) && !loc_dest(g->world_num,t) && t!=WORLD_DUNGEON_TILE){
+                g->td_x=x; g->td_y=y; break;
+            }
+        }
+}
+
+/* 穿越時間之門:切到下個時代 overworld,座標保留,重載地圖/實體/門/船 */
+static void time_travel(Game *g)
+{
+    if (g->in_town || g->mode!=MODE_WORLD){ snprintf(g->msg,sizeof g->msg,"這裡沒有時間之門。"); return; }
+    const char *nw=next_era_world(g->world_num);
+    char mp[600];
+    snprintf(mp,sizeof mp,"%s/mapx%s",g->data_dir,nw);
+    U2Map nm=u2_map_load(mp);
+    if (!nm.ok){ snprintf(g->msg,sizeof g->msg,"時間之門連向虛無(找不到 mapx%s)。",nw); return; }
+    g->map=nm;
+    snprintf(mp,sizeof mp,"%s/monx%s",g->data_dir,nw); g->mon=u2_mon_load(mp);
+    snprintf(g->world_num,sizeof g->world_num,"%s",nw);
+    /* 座標保留;若落在不可通行格則就近找可通行 */
+    if (!u2_passable(u2_map_tile(&g->map,g->player.x,g->player.y)))
+        find_start(&g->map,&g->player,g->world_num);
+    g->nmob=0;
+    place_ship(g);
+    place_time_door(g);
+    snprintf(g->msg,sizeof g->msg,"時間之門開啟……招牌寫著:ANOS %s",era_name(g->world_num));
+}
+
 /* 原版 FM Towns 開場標題畫面(整張等比放大置中 + 提示) */
 static void render_title(SDL_Surface *cv, SDL_Surface *img, U2Text *title, U2Text *body)
 {
@@ -652,7 +722,8 @@ static void handle_dir(Game *g, char dir)
             g->player.x=tx; g->player.y=ty;
             snprintf(g->msg,sizeof g->msg, g->vehicle?"航行 %c。":"往 %c 移動。",dir);
             unsigned char t=u2_map_tile(am,g->player.x,g->player.y);
-            if (!g->in_town && t==WORLD_DUNGEON_TILE) { g->nmob=0; enter_dungeon(g); }
+            if (!g->in_town && g->td_x==g->player.x && g->td_y==g->player.y) { time_travel(g); }
+            else if (!g->in_town && t==WORLD_DUNGEON_TILE) { g->nmob=0; enter_dungeon(g); }
             else if (!g->in_town && loc_dest(g->world_num,t)) { g->nmob=0; enter_town_tile(g,t); }
             else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); }
         } else snprintf(g->msg,sizeof g->msg,
@@ -976,6 +1047,7 @@ int main(int argc, char **argv)
     g.rng = 1;                                          /* 固定 seed → headless 可重現 */
     g.php = (g.save.ok && g.save.has_character) ? g.save.hp : 400;
     place_ship(&g);                                     /* 起點附近放一艘可登的船 */
+    g.td_x=g.td_y=-1; place_time_door(&g);              /* 起點附近放一個時間之門 */
     snprintf(g.msg,sizeof g.msg,"歡迎來到 Sosaria,冒險者。");
 
     if (headless){
@@ -1000,6 +1072,7 @@ int main(int argc, char **argv)
             else if (c=='B'||c=='b') board_ship(&g);
             else if (c=='D') enter_dungeon(&g);
             else if (c=='O') enter_town_tile(&g,5);   /* 強制進城(headless 測試用) */
+            else if (c=='P'||c=='p') time_travel(&g); /* 穿越時間之門(快捷/headless) */
             else continue;
             render_all(cv,&g,&title,&body,&small);
             snprintf(out,sizeof out,"%s%02d.png",out_prefix,step++); IMG_SavePNG(cv,out);
@@ -1110,6 +1183,7 @@ int main(int argc, char **argv)
                         case SDLK_j: dungeon_descend(&g); break;
                         case SDLK_k: dungeon_ascend(&g); break;
                         case SDLK_b: board_ship(&g); break;
+                        case SDLK_p: time_travel(&g); break;   /* 穿越時間之門快捷 */
                         case SDLK_g: if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
                             snprintf(g.msg,sizeof g.msg,"切換圖塊:%s",g.tname[g.curset]); } break;
                         case SDLK_x:
