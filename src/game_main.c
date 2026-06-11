@@ -524,7 +524,13 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
     snprintf(ln,sizeof ln,"%s %s",en?"Race:":"種族:",race_nm(s->race)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
     snprintf(ln,sizeof ln,"%s %s",en?"Class:":"職業:",class_nm(s->klass)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
     snprintf(ln,sizeof ln,en?"Weapon: %s  Armour: %s":"武器:%s  防具:%s",weapon_nm(g->weapon),armour_nm(g->armour));
-    u2_text_draw(cv,small,ln,ix,iy,200,205,165); iy+=lh+2;
+    u2_text_draw(cv,small,ln,ix,iy,200,205,165); iy+=lh-6;
+    { char it[160]=""; struct{unsigned f;const char*z,*e;}IT[]={{ITEM_BLUE_TASSLE,"藍流蘇","Tassle"},
+        {ITEM_SKULL_KEY,"骷髏鑰","SkullKey"},{ITEM_BRASS_BUTTON,"黃銅鈕扣","Brass"},
+        {ITEM_ANKH,"生命符","Ankh"},{ITEM_TRI_LITHIUM,"三鋰","TriLith"}};
+      for(int i=0;i<5;i++) if(g->items&IT[i].f){ if(it[0])strcat(it," ·"); strcat(it," "); strcat(it,en?IT[i].e:IT[i].z); }
+      snprintf(ln,sizeof ln,en?"Items:%s":"道具:%s",it[0]?it:(en?" (none)":" 無"));
+      u2_text_draw(cv,small,ln,ix,iy,180,195,160); iy+=lh+2; }
     u2_text_draw(cv,small,en?"Attributes (BCD)":"屬性(BCD 解碼)",ix,iy,150,170,205); iy+=26;
     for (int i=0;i<U2_NUM_STATS;i++){
         char lab[64]; snprintf(lab,sizeof lab,en?"%s":"%s %s",stat_nm(i),u2_save_stat_name(i));
