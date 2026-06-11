@@ -19,18 +19,23 @@
 
 ---
 
-## 1. 現況(已完成 M1–M3 核心)
+## 1. 現況(已完成 M1–M2 核心 + M5 任務鏈 + M6 法術)
 
 - **世界**:5 時代 overworld(時間之門 + oracle 時代校正 + toroidal wrap)、世界圖環球。
 - **地點**:登記表驅動進入(村莊/城鎮/城堡/塔/地牢,world-aware)、跨時代 enter/exit。
 - **載具**:馬/船/飛機/火箭 + 門檻道具(oracle 0x7390);**星際旅行**(火箭發射→深空→HYPERWARP 9 行星→降落行星地表→往返)。
-- **城鎮經濟**:商店(武防/食物/載具道具)+ King 獻金;戰鬥用上武防;裝備/道具 sidecar 持久化。
+- **城鎮經濟**:商店(武防/食物/載具道具/習得法術)+ King 獻金;戰鬥用上武防;裝備/道具 sidecar 持久化。
+- **法術(M6)**:9 法術(手冊 MAGIC SPELLS),職業限制(雙修/牧師/巫師),限地牢/塔施放,消耗制,地牢 HUD。
+- **任務 / 結局(M5)**:可破關鏈(道具→傳說時代→米娜克斯對決→結局)+ 死亡復活;**破關回歸腳本**鎖端到端。
 - **基礎**:建角(原版流程)/ 開場選單 / 可寫存檔、6 套 tileset(含 FM Towns)、原版標題、
-  UI 369/369 + 對話 108/108 繁中、**F4 繁中↔English**、AppImage + Windows 打包、headless + 互動驗證。
+  UI 369/369 + 對話 108/108 繁中、**F4 繁中↔English↔日本語(字典可擴充)**、AppImage + Windows 打包、headless + 互動驗證。
 
-**評分(更新)**:作為「中文化 + 引擎重寫地基」約 9/10;作為「可破關完整遊戲」約
-**6.5/10**(時間旅行/星際/經濟核心玩法鏈已通,尚缺:戰鬥深化 + 地牢實體化 M4、
-任務鏈/道具旗標/結局 M5、音樂 M7)。
+**評分(更新)**:作為「中文化 + 引擎重寫地基」約 9/10;作為「可破關 demo」約 8/10;作為
+「完整正典重製」約 **5/10**。
+> **誠實揭露(對齊外部審查)**:可破關鏈雖通,但多處為**簡化實作**而非正典玩法 ——
+> 任務鏈以**旗標短路**觸發(Antos 踩格給戒、King 獻金給劍),非靠對話蒐線索;
+> 城鎮互動指令(STEAL/UNLOCK/VIEW/YELL/NEGATE/guards)、戰鬥狀態效果、角色升級系統、
+> 時間門真值表**尚缺**。詳見 §3 Gap 與 §4 M3/M4 待辦。
 
 ---
 
@@ -127,18 +132,24 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 - **驗收**:買賣改變金/裝備/屬性(✅ headless OZ.. 驗證)。
 
 ### M4 — 戰鬥深化 + 地牢實體化
-- 命中/傷害/EXP 對齊 oracle;狀態效果(麻痺/睡眠/偷食/偷物)+ BOOTS/CLOAK/IDOL 防護。
-- 地牢改 tile 實體(取代線框):怪物、寶箱(第 16 層 TRI-LITHIUM)、陷阱、火把、法術(LIGHT/PASSWALL/MAGIC_MISSILE/BLINK)。
-- **驗收**:地牢探索取得三鋰;戰鬥數值對 oracle;法術可用。
+- ✅ **法術系統(原列 M4,已提前實作;commit 標 M6)**:9 法術(手冊 MAGIC SPELLS)、職業限制、
+  限地牢/塔施放、消耗制、地牢 HUD、商店習得/建角起始。LIGHT/PASSWALL/SURFACE/上下梯/MISSILE/BLINK/KILL/PRAYER 全可用。
+- ❌ 命中/傷害/EXP 對齊 oracle;狀態效果(麻痺/睡眠/偷食/偷物)+ BOOTS/CLOAK/IDOL 防護。
+- ❌ 地牢改 tile 實體(取代線框):怪物實體、陷阱、火把(目前線框 + 隨機遭遇 + 法術)。
+- 🟡 攻擊法術(MISSILE/KILL/PRAYER)目前接隨機遭遇模型(無持久怪物實體),待地牢實體化後深化。
+- **驗收**:✅ 法術可用(headless 巫師施法驗證);❌ 戰鬥數值對 oracle、地牢實體化。
 
 ### M5 — 道具 / 任務旗標 / 結局
 - ✅ 道具系統(runtime + sidecar 持久化);RING 破力場(1000 傷)、ENILNO Quicksword。
-- ✅ **正規任務鏈**:Antos(mapx93 交談)→RING;King(獻金,持戒指)→ENILNO;
+- 🟡 **任務鏈(可破關但簡化)**:Antos(mapx93)→RING;King(獻金,持戒指)→ENILNO;
   Legends(mapx00)landmark tile 8 = Minax 巢穴 → 踏入觸發;戒指+ENILNO 殺 Minax → **勝利結局**(`render_ending`,oracle FUN_0040eb60)。
+  ⚠️ **誠實標註**:以**旗標短路**觸發(踩格/獻金),**非正典對話蒐線索**驅動 ——
+  正典的 Santre 給劍、Antos 賜福+老人兩段給戒、酒館/賢者線索引導**尚未實作**(列入完整重製待辦)。
 - ✅ **任務目標引導**(角色表 quest_hint:依持有道具推進)。
+- ✅ **完整破關回歸腳本**(`tests/regression_winnable.sh`):固定 seed 走建角存檔→商店→地牢(含施法)
+  →時空旅行→道具→傳說時代→米娜克斯→結局,grep `GAME WON` 判 pass/fail。
 - 🟡 道具持有旗標**存檔 offset** 對齊(目前 sidecar);怪物實體 Minax(@標記)/Shadowguard 城內戰待深化。
-- **驗收**:headless 已驗 Minax 閘門(無戒指→1000 傷亡)+ 結局畫面;**遊戲概念上可破關**。
-  全自動完整破關腳本(跨多圖導航)待補。
+- **驗收**:✅ headless 完整破關回歸 PASS(GAME WON)+ Minax 閘門 + 結局畫面。
 
 ### M6 — 美術完整化(FM Towns)
 - 船/怪物/城鎮/城堡/地牢 sprite 從 Tsugaru 乾淨截圖 rip(沿用地形/主角流程);避免 raw atlas 雜訊。
@@ -148,7 +159,8 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 - FM Towns 原創配樂(CD 抽取轉 ogg)+ SFX,SDL_mixer。
 
 ### M8 — 平衡 / 打磨 / 完整破關回歸
-- headless 全破關腳本納入 CI 當回歸;平衡、邊界、存檔相容。
+- ✅ headless 全破關腳本(`tests/regression_winnable.sh`,含地牢施法)當回歸 pass/fail loop。
+- ❌ 納入 CI(需自備版權資料,目前本機跑);平衡、邊界、存檔相容。
 
 ---
 
