@@ -178,20 +178,31 @@ static const char *stat_nm(int i);
 
 static void find_start(const U2Map *m, U2Player *p, const char *world)
 {
-    /* 優先:落在某個城鎮 landmark 旁的可通行格,讓玩家一開始就走得進城 */
-    for (int y=0; y<U2_MAP_H; y++)
-        for (int x=0; x<U2_MAP_W; x++){
-            if (!loc_dest(world, u2_map_tile(m,x,y))) continue;
-            int NX[4]={0,0,1,-1}, NY[4]={1,-1,0,0};
-            for (int k=0;k<4;k++){
-                int ax=x+NX[k], ay=y+NY[k];
-                if (ax<0||ay<0||ax>=U2_MAP_W||ay>=U2_MAP_H) continue;
-                unsigned char at=u2_map_tile(m,ax,ay);
-                if (u2_passable(at) && !loc_dest(world, at)){
-                    p->x=ax; p->y=ay; p->tile=PLAYER_TILE; return;
+    /* 優先:落在城鎮 landmark 旁、且周圍最開闊(陸路鄰格最多)的可通行格;
+     * 避免落在水域孤島被困(一開場陸路走不動,只能登船)。*/
+    {
+        int bx=-1, by=-1, bestopen=-1;
+        for (int y=0; y<U2_MAP_H; y++)
+            for (int x=0; x<U2_MAP_W; x++){
+                if (!loc_dest(world, u2_map_tile(m,x,y))) continue;
+                int NX[4]={0,0,1,-1}, NY[4]={1,-1,0,0};
+                for (int k=0;k<4;k++){
+                    int ax=x+NX[k], ay=y+NY[k];
+                    if (ax<0||ay<0||ax>=U2_MAP_W||ay>=U2_MAP_H) continue;
+                    unsigned char at=u2_map_tile(m,ax,ay);
+                    if (!u2_passable(at) || loc_dest(world, at)) continue;
+                    int open=0;                               /* 8 鄰陸路可通行數 = 開闊度 */
+                    for (int oy=-1;oy<=1;oy++) for (int ox=-1;ox<=1;ox++){
+                        if(!ox&&!oy) continue;
+                        int nx=ax+ox, ny=ay+oy;
+                        if(nx<0||ny<0||nx>=U2_MAP_W||ny>=U2_MAP_H) continue;
+                        if(u2_passable(u2_map_tile(m,nx,ny))) open++;
+                    }
+                    if (open>bestopen){ bestopen=open; bx=ax; by=ay; }
                 }
             }
-        }
+        if (bx>=0){ p->x=bx; p->y=by; p->tile=PLAYER_TILE; return; }
+    }
     /* 後備:地圖中心向外找第一個可通行格 */
     int cx = U2_MAP_W/2, cy = U2_MAP_H/2;
     for (int r=0; r<U2_MAP_W; r++)
