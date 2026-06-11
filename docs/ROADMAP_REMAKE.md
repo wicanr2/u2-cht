@@ -91,6 +91,8 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 ### M1 — 多世界地圖骨架 + 場景轉換 + 時間之門 ★地基
 - **mapxNN 角色登記表**:逐一辨識 mapx00–93 = 哪個時代/行星/城鎮/城堡/塔/地牢(oracle + Codex 對齊),寫成 `docs/MAP_REGISTRY.md` + 引擎讀的 JSON/表。
   - ✅ **草稿已產出**:[`docs/MAP_REGISTRY.md`](MAP_REGISTRY.md)(33 圖資料驅動分類 + 高信度推定:`mapx20/30/40`=地球三時代、`mapx93`=Antos 賜戒指處…)。精確時代/行星歸屬待對照。
+- ✅ **地點進入 world-aware 登記表驅動**(`LOC_REG[]`):切換 overworld 時 landmark 對到該世代的城。
+- ✅ **時間之門雛形**:overworld 放青紫門,踏入(或 `P`)→「招牌:ANOS <時代>」→ 切換時代 overworld(20→30→40 循環,座標保留,重載地圖/實體/門/船)。時代名為 provisional,待校正。
 - 統一 ENTER(village/town/tower/castle/dungeon)+ 地圖堆疊(world↔location↔dungeon)。
 - 時間之門:踏入依「時刻」切到對應時代地圖,座標保留。
 - **驗收**:headless 腳本能在 5 時代 + 行星地圖間移動並正確載入。
