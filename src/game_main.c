@@ -57,6 +57,14 @@ static const TrPair TR_TABLE[] = {
     {"你擊中%s,造成 %d 傷害(剩 %d)。", "You hit the %s for %d damage (%d left)."},
     {"前進。", "Forward."}, {"後退。", "Back."},
     {"左轉。", "Turn left."}, {"右轉。", "Turn right."},
+    {"這裡無法登載。","Can't board here."},{"你下了載具。","You disembark."},
+    {"附近沒有可下載具的地方。","Nowhere to disembark nearby."},{"附近沒有載具。","No vehicle nearby."},
+    {"船員不讓你登船(需藍流蘇)。","The crew won't let you board (need Blue Tassle)."},
+    {"奇怪,你進不去(需骷髏鑰)。","Strange, you can't get in (need Skull Key)."},
+    {"金屬之聲喝令:你必須擁有生命符。","A metallic voice commands: you must have an Ankh."},
+    {"無法登載。","Cannot board."},{"你騎上了馬。","You mount the horse."},
+    {"你登上了飛機。","You board the plane."},{"你進入了火箭。","You enter the rocket."},
+    {"(除錯)取得所有關鍵道具。","(debug) Got all key items."},
     {"語系:繁體中文", "Language: English"},
     /* chrome:標題列 / 操作提示 */
     {"Ultima II — %s(T 交談 · X 離開)", "Ultima II — %s (T talk · X exit)"},
@@ -143,10 +151,23 @@ typedef struct {
     struct { int x, y, hp, maxhp, atk; unsigned char tile; const char *name; } mob[8];
     int nmob, php, turn;
     unsigned int rng;             /* 簡易 LCG,determinism 供 headless 驗證 */
-    int vehicle;                  /* 0=步行 1=船(frigate) */
+    int vehicle;                  /* oracle 0x7390:0 步行 1 馬 2 船 3 飛機 4 火箭 */
+    unsigned int items;           /* 物品旗標 bitset(見 ITEM_*) */
     char msg[200];
 } Game;
-#define SHIP_TILE 18              /* 地圖上的船 tile id */
+/* 載具(oracle this+0x7390) */
+enum { VEH_WALK=0, VEH_HORSE=1, VEH_SHIP=2, VEH_PLANE=3, VEH_ROCKET=4 };
+/* 載具地圖 tile id(oracle:HORSE 0x11 / SHIP 0x12 / PLANE 0x13 / ROCKET 0x14) */
+#define HORSE_TILE 17
+#define SHIP_TILE  18
+#define PLANE_TILE 19
+#define ROCKET_TILE 20
+/* 物品旗標(對應 oracle save offset) */
+#define ITEM_ANKH        (1u<<0)   /* 0x140:火箭登艦 */
+#define ITEM_SKULL_KEY   (1u<<1)   /* 0x148:飛機登艦 */
+#define ITEM_BRASS_BUTTON (1u<<2)  /* 0x150:飛機起飛 */
+#define ITEM_BLUE_TASSLE (1u<<3)   /* 0x154:船登艦 */
+#define ITEM_TRI_LITHIUM (1u<<4)   /* 0x160:火箭發射燃料 */
 
 /* 簡易 LCG(同 oracle 風格,seed 固定 → headless 可重現) */
 static unsigned int rng_next(Game *g)
@@ -724,40 +745,99 @@ static void place_ship(Game *g)
             if (u2_map_tile(&g->map,x,y)==0){ g->map.tile[y][x]=SHIP_TILE; return; }
         }
 }
-/* B:登船(腳下/相鄰 ship tile)或下船(在船上→相鄰陸地) */
-static void board_ship(Game *g)
+
+static int veh_for_tile(unsigned char t);   /* forward */
+/* 在玩家附近陸地放馬/飛機/火箭(demo);避開 landmark / 門 / 既有載具 */
+static void place_land_vehicles(Game *g)
 {
-    if (g->mode!=MODE_WORLD || g->in_town){ snprintf(g->msg,sizeof g->msg,tr("這裡無法登船。")); return; }
+    unsigned char want[3]={HORSE_TILE,PLANE_TILE,ROCKET_TILE}; int placed=0;
+    for (int r=1;r<24 && placed<3;r++)
+        for (int dy=-r;dy<=r && placed<3;dy++) for (int dx=-r;dx<=r && placed<3;dx++){
+            if (abs(dx)<r && abs(dy)<r) continue;
+            int x=(g->player.x+dx)&(U2_WORLD_DIM-1), y=(g->player.y+dy)&(U2_WORLD_DIM-1);
+            if (x==g->player.x && y==g->player.y) continue;
+            if (x==g->td_x && y==g->td_y) continue;
+            unsigned char t=u2_map_tile(&g->map,x,y);
+            if (t==2 && !loc_lookup(g->world_num,t) && veh_for_tile(t)<0){   /* 純草地 */
+                g->map.tile[y][x]=want[placed++];
+            }
+        }
+}
+/* 載具 tile → 載具型別(非載具回 -1) */
+static int veh_for_tile(unsigned char t)
+{
+    switch (t){ case HORSE_TILE:return VEH_HORSE; case SHIP_TILE:return VEH_SHIP;
+                case PLANE_TILE:return VEH_PLANE; case ROCKET_TILE:return VEH_ROCKET; }
+    return -1;
+}
+static unsigned char veh_tile(int v)
+{
+    switch (v){ case VEH_HORSE:return HORSE_TILE; case VEH_SHIP:return SHIP_TILE;
+                case VEH_PLANE:return PLANE_TILE; case VEH_ROCKET:return ROCKET_TILE; }
+    return PLAYER_TILE;
+}
+/* 登載門檻物品(oracle):船=藍流蘇、飛機=骷髏鑰、火箭=生命符;馬無 */
+static unsigned int veh_item(int v)
+{
+    switch (v){ case VEH_SHIP:return ITEM_BLUE_TASSLE; case VEH_PLANE:return ITEM_SKULL_KEY;
+                case VEH_ROCKET:return ITEM_ANKH; }
+    return 0;
+}
+static const char *veh_refuse(int v)
+{
+    switch (v){
+        case VEH_SHIP:  return tr("船員不讓你登船(需藍流蘇)。");
+        case VEH_PLANE: return tr("奇怪,你進不去(需骷髏鑰)。");
+        case VEH_ROCKET:return tr("金屬之聲喝令:你必須擁有生命符。");
+    }
+    return tr("無法登載。");
+}
+static const char *veh_board_msg(int v)
+{
+    switch (v){
+        case VEH_HORSE: return tr("你騎上了馬。");
+        case VEH_SHIP:  return tr("你登上了船,可在水上航行。");
+        case VEH_PLANE: return tr("你登上了飛機。");
+        case VEH_ROCKET:return tr("你進入了火箭。");
+    }
+    return "";
+}
+
+/* B:登載(腳下/相鄰載具 tile,檢查門檻)或下載具(→相鄰可站格) */
+static void board_vehicle(Game *g)
+{
+    if (g->mode!=MODE_WORLD || g->in_town){ snprintf(g->msg,sizeof g->msg,tr("這裡無法登載。")); return; }
     int NX[4]={0,1,0,-1}, NY[4]={-1,0,1,0};
-    if (g->vehicle==1){                                       /* 下船 */
+    if (g->vehicle!=VEH_WALK){                                /* 下載具 */
+        int cur=g->vehicle;
         for (int d=0;d<4;d++){
             int x=g->player.x+NX[d], y=g->player.y+NY[d];
             if (x<0||y<0||x>=U2_MAP_W||y>=U2_MAP_H) continue;
             unsigned char t=u2_map_tile(&g->map,x,y);
-            if (t!=0 && t!=1 && u2_passable(t)){
-                g->map.tile[g->player.y][g->player.x]=SHIP_TILE;  /* 留船在水面 */
-                g->player.x=x; g->player.y=y; g->vehicle=0; g->player.tile=PLAYER_TILE;
-                snprintf(g->msg,sizeof g->msg,tr("你上岸了,船停在水邊。")); return;
+            int ok = (cur==VEH_SHIP) ? (t!=0 && t!=1 && u2_passable(t)) : u2_passable(t);
+            if (ok){
+                g->map.tile[g->player.y][g->player.x]=veh_tile(cur); /* 留載具在原地 */
+                g->player.x=x; g->player.y=y; g->vehicle=VEH_WALK; g->player.tile=PLAYER_TILE;
+                snprintf(g->msg,sizeof g->msg,tr("你下了載具。")); return;
             }
         }
-        snprintf(g->msg,sizeof g->msg,tr("附近沒有陸地可上岸。")); return;
+        snprintf(g->msg,sizeof g->msg,tr("附近沒有可下載具的地方。")); return;
     }
-    /* 登船:腳下是船 */
-    if (u2_map_tile(&g->map,g->player.x,g->player.y)==SHIP_TILE){
-        g->vehicle=1; g->player.tile=SHIP_TILE;
-        snprintf(g->msg,sizeof g->msg,tr("你登上了船,可在水上航行。")); return;
-    }
-    /* 相鄰是船 → 走過去登船 */
-    for (int d=0;d<4;d++){
-        int x=g->player.x+NX[d], y=g->player.y+NY[d];
-        if (x<0||y<0||x>=U2_MAP_W||y>=U2_MAP_H) continue;
-        if (u2_map_tile(&g->map,x,y)==SHIP_TILE){
-            g->map.tile[y][x]=0; g->player.x=x; g->player.y=y;
-            g->vehicle=1; g->player.tile=SHIP_TILE;
-            snprintf(g->msg,sizeof g->msg,tr("你登上了船,可在水上航行。")); return;
+    /* 登載:腳下或相鄰是載具 tile */
+    int bx=g->player.x, by=g->player.y, v=veh_for_tile(u2_map_tile(&g->map,bx,by));
+    if (v<0)
+        for (int d=0;d<4;d++){
+            int x=g->player.x+NX[d], y=g->player.y+NY[d];
+            if (x<0||y<0||x>=U2_MAP_W||y>=U2_MAP_H) continue;
+            int vv=veh_for_tile(u2_map_tile(&g->map,x,y));
+            if (vv>=0){ v=vv; bx=x; by=y; break; }
         }
-    }
-    snprintf(g->msg,sizeof g->msg,tr("附近沒有船(船在水邊,走近後按 B)。"));
+    if (v<0){ snprintf(g->msg,sizeof g->msg,tr("附近沒有載具。")); return; }
+    unsigned int need=veh_item(v);
+    if (need && !(g->items & need)){ snprintf(g->msg,sizeof g->msg,"%s",veh_refuse(v)); return; }
+    g->map.tile[by][bx]=(v==VEH_SHIP)?0:8;   /* 移除載具 tile(船下露水,陸上露空地)*/
+    g->player.x=bx; g->player.y=by; g->vehicle=v; g->player.tile=veh_tile(v);
+    snprintf(g->msg,sizeof g->msg,"%s",veh_board_msg(v));
 }
 
 /* ---- 時間之門(時間旅行雛形)---- */
@@ -899,8 +979,12 @@ static void handle_dir(Game *g, char dir)
         int inb = tx>=0&&ty>=0&&tx<U2_MAP_W&&ty<U2_MAP_H;
         unsigned char tt = inb ? u2_map_tile(am,tx,ty) : 0;
         int pass;
-        if (!g->in_town && g->vehicle==1) pass = inb && (tt==0||tt==1);   /* 船:水域 */
-        else pass = inb && u2_passable(tt);                               /* 步行 */
+        if (g->in_town) pass = inb && u2_passable(tt);                    /* 城鎮:步行 */
+        else switch (g->vehicle){
+            case VEH_SHIP:  pass = inb && (tt==0||tt==1); break;          /* 船:水域 */
+            case VEH_PLANE: pass = inb; break;                           /* 飛機:飛越任意地形 */
+            default:        pass = inb && u2_passable(tt); break;         /* 步行/馬/火箭:陸地 */
+        }
         if (pass){
             g->player.x=tx; g->player.y=ty;
             snprintf(g->msg,sizeof g->msg, g->vehicle?tr("航行 %c。"):tr("往 %c 移動。"),dir);
@@ -911,7 +995,7 @@ static void handle_dir(Game *g, char dir)
             else if (L) { g->nmob=0; enter_town_tile(g,t); }
             else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); tick_time_door(g); }
         } else snprintf(g->msg,sizeof g->msg,
-                        (!g->in_town&&g->vehicle&&tt!=0&&tt!=1)?tr("船無法駛上陸地(B 下船)。"):tr("%c 方向被擋住。"),dir);
+                        (!g->in_town&&g->vehicle==VEH_SHIP&&tt!=0&&tt!=1)?tr("船無法駛上陸地(B 下船)。"):tr("%c 方向被擋住。"),dir);
     } else { /* DUNGEON: N前進 S後退 W左轉 E右轉 */
         if (dir=='W'){ g->ddir=(g->ddir+3)&3; snprintf(g->msg,sizeof g->msg,tr("左轉。")); }
         else if (dir=='E'){ g->ddir=(g->ddir+1)&3; snprintf(g->msg,sizeof g->msg,tr("右轉。")); }
@@ -1233,6 +1317,7 @@ int main(int argc, char **argv)
     g.php = (g.save.ok && g.save.has_character) ? g.save.hp : 400;
     place_ship(&g);                                     /* 起點附近放一艘可登的船 */
     g.td_x=g.td_y=-1; place_time_door(&g);              /* 起點附近放一個時間之門 */
+    place_land_vehicles(&g);                            /* 馬 / 飛機 / 火箭(demo)*/
     snprintf(g.msg,sizeof g.msg,tr("歡迎來到 Sosaria,冒險者。"));
 
     if (headless){
@@ -1254,7 +1339,8 @@ int main(int argc, char **argv)
             else if (c=='G'||c=='g'){ if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
                 snprintf(g.msg,sizeof g.msg,tr("切換圖塊:%s"),g.tname[g.curset]); } }
             else if (c=='X'||c=='x'){ if (g.mode==MODE_DUNGEON) exit_dungeon(&g); else if (g.in_town) exit_town(&g); }
-            else if (c=='B'||c=='b') board_ship(&g);
+            else if (c=='B'||c=='b') board_vehicle(&g);
+            else if (c=='I'||c=='i'){ g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); }
             else if (c=='D') enter_dungeon(&g);
             else if (c=='O') enter_town_tile(&g,5);   /* 強制進城(headless 測試用) */
             else if (c=='P'||c=='p') time_travel(&g); /* 穿越時間之門(快捷/headless) */
@@ -1371,7 +1457,8 @@ int main(int argc, char **argv)
                         case SDLK_t: do_talk(&g); break;
                         case SDLK_j: dungeon_descend(&g); break;
                         case SDLK_k: dungeon_ascend(&g); break;
-                        case SDLK_b: board_ship(&g); break;
+                        case SDLK_b: board_vehicle(&g); break;
+                        case SDLK_i: g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); break;
                         case SDLK_p: time_travel(&g); break;   /* 穿越時間之門快捷 */
                         case SDLK_g: if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
                             snprintf(g.msg,sizeof g.msg,tr("切換圖塊:%s"),g.tname[g.curset]); } break;
