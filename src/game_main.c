@@ -431,9 +431,14 @@ static void shop_buy(Game *g, int idx)
         case 1: if(g->armour>=5){snprintf(g->msg,sizeof g->msg,en?"Armour already best.":"防具已是最強。");return;} g->armour++; break;
         case 2: g->save.food += SHOP[idx].arg; if(g->save.food>9999)g->save.food=9999; break;
         case 3: g->items |= (unsigned)SHOP[idx].arg; break;
-        case 4: { int lo=0; for(int i=1;i<U2_NUM_STATS;i++) if(g->save.stats[i]<g->save.stats[lo])lo=i;
+        case 4: { g->save.gold -= SHOP[idx].price;
+                  /* 持有力場之戒者,國王賜予迅捷之劍 ENILNO(任務主鏈)*/
+                  if ((g->items&ITEM_RING) && !(g->items&ITEM_QUICKSWORD)){
+                      g->items|=ITEM_QUICKSWORD;
+                      snprintf(g->msg,sizeof g->msg,tr("國王見你持有力場之戒,賜予迅捷之劍 ENILNO!")); return;
+                  }
+                  int lo=0; for(int i=1;i<U2_NUM_STATS;i++) if(g->save.stats[i]<g->save.stats[lo])lo=i;
                   if(g->save.stats[lo]<99) g->save.stats[lo]++;
-                  g->save.gold -= SHOP[idx].price;
                   snprintf(g->msg,sizeof g->msg,en?"The King raises your %s.":"國王提升了你的%s。",
                            u2_lang==U2_EN?u2_save_stat_name(lo):u2_save_stat_zh(lo)); return; }
     }
@@ -1217,6 +1222,7 @@ static void handle_dir(Game *g, char dir)
             unsigned char t=u2_map_tile(am,g->player.x,g->player.y);
             const LocReg *L = (!g->in_town) ? loc_lookup(g->world_num,t) : NULL;
             if (!g->in_town && g->td_x==g->player.x && g->td_y==g->player.y) { time_travel(g); }
+            else if (!g->in_town && g->world_num[0]=='0' && t==8) { minax_encounter(g); }  /* 傳說時代 Minax 巢穴 */
             else if (L && (L->kind=='d'||L->kind=='T')) { g->nmob=0; enter_dungeon_at(g, L->dest, L->kind=='T'); }
             else if (L) { g->nmob=0; enter_town_tile(g,t); }
             else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); tick_time_door(g);
