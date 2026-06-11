@@ -126,3 +126,58 @@ Ultima II:女巫的復仇 — 繁體中文	Ultima II: Revenge of the Enchantress
 魔法頭盔(鳥瞰)	Magic Helm (bird's-eye view)	魔法の兜(俯瞰)
 魔法飛彈轟向前方,擊潰擋路之敵(+%d 經驗)。	Magic Missile blasts ahead, smashing the foe in your path (+%d EXP).	マジックミサイルが前方を撃ち、行く手の敵を打ち砕いた(+%d 経験値)。
 鳥瞰在地牢/塔中無效。	Bird's-eye view doesn't work in a dungeon/tower.	俯瞰はダンジョン/塔では使えない。
+狀態	Status	ステータス
+座標:	Pos:	座標:
+朝向:	Facing:	方角:
+樓層: %d / 共 %d 層	Level: %d / %d	階層: %d / 全 %d 階
+前方可見深度:	Visible depth:	視界の深さ:
+法術 (1-9)	Spells (1-9)	呪文 (1-9)
+(照明 %d)	(lit %d)	(照明 %d)
+N 前進 · S 後退 · W/E 轉向 · J 下樓 · K 上樓 · 1-9 施法 · X 離開	N/S/W/E move · J down · K up · 1-9 cast · X exit · C sheet	N 前進 · S 後退 · W/E 旋回 · J 下り · K 上り · 1-9 呪文 · X 退出
+指令表(F1 關閉)	Commands (F1 to close)	コマンド表(F1 で閉じる)
+升級!你已達 %d 級(HP 上限 %d)。	Level up! Now level %d (Max HP %d).	レベルアップ!レベル %d に到達(最大HP %d)。
+黃金不足。	Not enough gold.	ゴールドが足りない。
+武器已是最強。	Weapon already best.	武器はすでに最強だ。
+防具已是最強。	Armour already best.	防具はすでに最強だ。
+國王為你療傷,並提升了你的%s。	The King heals you and raises your %s.	王が傷を癒やし、%s を高めてくれた。
+你的職業不會魔法。	Your class cannot use magic.	君の職業では魔法を使えない。
+習得 %d 種法術(各+%d)。	Learned %d spells (+%d each).	呪文を %d 種習得した(各 +%d)。
+買了:%s	Bought: %s	購入:%s
+商店 — 黃金 %d (按 1-9 購買,Z 關閉)	Shop — gold %d  (1-9 buy, Z close)	ショップ — ゴールド %d (1-9 で購入、Z で閉じる)
+武器:%s   防具:%s	Weapon: %s   Armour: %s	武器:%s   防具:%s
+鳥瞰 VIEW(V 關閉)	VIEW — bird's eye (V to close)	俯瞰 VIEW(V で閉じる)
+角色資料(C 關閉)	Character (C to close)	ステータス(C で閉じる)
+(無 player 存檔可顯示)	(no player save to show)	(表示できる player 存檔がない)
+姓名:	Name:	名前:
+性別:	Sex:	性別:
+女	Female	女
+男	Male	男
+種族:	Race:	種族:
+職業:	Class:	職業:
+等級:%d   HP 上限:%d	Level: %d   Max HP: %d	レベル:%d   最大HP:%d
+武器:%s  防具:%s	Weapon: %s  Armour: %s	武器:%s  防具:%s
+道具:%s	Items:%s	アイテム:%s
+ 無	 (none)	 なし
+屬性(BCD 解碼)	Attributes (BCD)	能力値(BCD 解読)
+魔法長靴擋下了腿麻!	Saved by magical boots!	魔法のブーツが脚の痺れを防いだ!
+你的雙腿被麻痺了!	Your legs are paralyzed!	脚が痺れてしまった!
+魔法斗篷擋下了臂麻!	Saved by magical cloak!	魔法のマントが腕の痺れを防いだ!
+你的手臂被麻痺了!	Your arms are paralyzed!	腕が痺れてしまった!
+綠色神像擋下了睡眠!	Saved by the idol!	緑の神像が睡眠を防いだ!
+你陷入了沉睡!	You fall asleep!	眠りに落ちてしまった!
+哥布林偷走了 %d 份食物!	A gremlin steals %d food!	グレムリンが食料を %d 奪った!
+盜賊偷走了 %d 金幣!	A thief steals %d gold!	シーフがゴールドを %d 奪った!
+深太空	Deep Space	深宇宙
+目前軌道:%s	Orbiting: %s	周回軌道:%s
+行星(E/W 躍遷)	Planets (E/W hyperwarp)	惑星(E/W ハイパーワープ)
+E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表	E/W HYPERWARP · Y land · F1 help	E/W ハイパーワープ · Y 着陸 · F1 コマンド
+勝 利	VICTORY	勝 利
+建立角色	Create Character	キャラクター作成
+輸入姓名:	Enter name: 	名前を入力:
+鍵入 A–Z / 0–9,Backspace 刪除,Enter 確認	Type A-Z / 0-9, Backspace, Enter to confirm	A–Z / 0–9 を入力、Backspace で削除、Enter で確定
+←/→ 切換,Enter 確認	Left/Right to switch, Enter to confirm	←/→ で切替、Enter で確定
+←/→ 選擇(人類/精靈/矮人/哈比人),Enter 確認	Left/Right: Human/Elf/Dwarf/Hobbit, Enter	←/→ で選択(人間/エルフ/ドワーフ/ホビット)、Enter
+←/→ 選擇(戰士/牧師/巫師/盜賊),Enter 確認	Left/Right: Fighter/Cleric/Wizard/Thief, Enter	←/→ で選択(戦士/クレリック/ウィザード/シーフ)、Enter
+屬性分配  剩餘點數:	Allocate stats  points left: 	能力値配分  残りポイント:
+↑/↓ 選屬性,←/→ 增減,Enter 完成建角	Up/Down pick, Left/Right adjust, Enter to finish	↑/↓ で選択、←/→ で増減、Enter で作成完了
+↑/↓ 選擇 · Enter 確認	Up/Down select · Enter confirm	↑/↓ で選択 · Enter で確定

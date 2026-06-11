@@ -363,14 +363,14 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     int en=(u2_lang==U2_EN);
     static const char *DIR_EN[4]={"N","E","S","W"};
     int rx=24+DVIEW+24, ry=MAP_OY+6; char ln[96];
-    u2_text_draw(cv,body,en?"Status":"狀態",rx,ry,150,175,205); ry+=34;
-    snprintf(ln,sizeof ln,"%s (%d, %d)",en?"Pos:":"座標:",g->dx,g->dy);
+    u2_text_draw(cv,body,tr("狀態"),rx,ry,150,175,205); ry+=34;
+    snprintf(ln,sizeof ln,"%s (%d, %d)",tr("座標:"),g->dx,g->dy);
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
-    snprintf(ln,sizeof ln,"%s %s",en?"Facing:":"朝向:",en?DIR_EN[g->ddir]:DIR_ZH[g->ddir]);
+    snprintf(ln,sizeof ln,"%s %s",tr("朝向:"),en?DIR_EN[g->ddir]:DIR_ZH[g->ddir]);
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
-    snprintf(ln,sizeof ln,en?"Level: %d / %d":"樓層: %d / 共 %d 層",g->dlevel+1,g->dg.levels);
+    snprintf(ln,sizeof ln,tr("樓層: %d / 共 %d 層"),g->dlevel+1,g->dg.levels);
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
-    snprintf(ln,sizeof ln,"%s %d",en?"Visible depth:":"前方可見深度:",depth);
+    snprintf(ln,sizeof ln,"%s %d",tr("前方可見深度:"),depth);
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=40;
     draw_status_panel(cv,body,&g->ui,&g->save,rx,ry); ry+=4*30+10;
 
@@ -379,21 +379,20 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
         int any=0;
         for(int i=0;i<9;i++) if(spell_class_ok(g,i)){any=1;break;}
         if(any){
-            u2_text_draw(cv,body,en?"Spells (1-9)":"法術 (1-9)",rx,ry,150,175,205); ry+=26;
+            u2_text_draw(cv,body,tr("法術 (1-9)"),rx,ry,150,175,205); ry+=26;
             for(int i=0;i<9;i++){
                 if(!spell_class_ok(g,i)) continue;
                 snprintf(ln,sizeof ln,"%d %s x%d",i+1,spell_name(i),g->spells[i]);
                 int v = g->spells[i]>0 ? 225:110;
                 u2_text_draw(cv,small,ln,rx,ry,v,v,v); ry+=22;
             }
-            if(g->spell_light>0){ snprintf(ln,sizeof ln,en?"(lit %d)":"(照明 %d)",g->spell_light);
+            if(g->spell_light>0){ snprintf(ln,sizeof ln,tr("(照明 %d)"),g->spell_light);
                 u2_text_draw(cv,small,ln,rx,ry,200,200,120); ry+=22; }
         }
     }
 
     int by=MAP_OY+DVIEW+12;
-    u2_text_draw(cv,small,en?"N/S/W/E move · J down · K up · 1-9 cast · X exit · C sheet"
-                            :"N 前進 · S 後退 · W/E 轉向 · J 下樓 · K 上樓 · 1-9 施法 · X 離開",
+    u2_text_draw(cv,small,tr("N 前進 · S 後退 · W/E 轉向 · J 下樓 · K 上樓 · 1-9 施法 · X 離開"),
         24,by,150,170,200);
     u2_text_draw(cv,small,g->msg,24,by+26,210,225,205);
 }
@@ -445,7 +444,7 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
     Uint32 fr=SDL_MapRGB(cv->format,120,140,200);
     SDL_Rect e1={x,y,pw,2},e2={x,y+ph-2,pw,2},e3={x,y,2,ph},e4={x+pw-2,y,2,ph};
     SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
-    u2_text_draw(cv,body,(u2_lang==U2_EN)?"Commands (F1 to close)":"指令表(F1 關閉)",x+16,y+8,235,235,245);
+    u2_text_draw(cv,body,tr("指令表(F1 關閉)"),x+16,y+8,235,235,245);
     int iy=y+52;
     for (int i=0;i<nrow;i++){ u2_text_draw(cv,small,ROWS[i],x+24,iy,215,220,230); iy+=30; }
 }
@@ -502,7 +501,7 @@ static void check_levelup(Game *g){
     if (lv > g->level){
         g->level = lv; g->maxhp = max_hp_for(lv); g->php = g->maxhp;   /* 升級回滿 */
         snprintf(g->msg,sizeof g->msg,
-            (u2_lang==U2_EN)?"Level up! Now level %d (Max HP %d).":"升級!你已達 %d 級(HP 上限 %d)。",
+            tr("升級!你已達 %d 級(HP 上限 %d)。"),
             lv,g->maxhp);
     }
 }
@@ -524,10 +523,10 @@ static void shop_buy(Game *g, int idx)
 {
     if (idx<0||idx>=NSHOP) return;
     int en=(u2_lang==U2_EN);
-    if (g->save.gold < SHOP[idx].price){ snprintf(g->msg,sizeof g->msg,en?"Not enough gold.":"黃金不足。"); return; }
+    if (g->save.gold < SHOP[idx].price){ snprintf(g->msg,sizeof g->msg,tr("黃金不足。")); return; }
     switch (SHOP[idx].kind){
-        case 0: if(g->weapon>=8){snprintf(g->msg,sizeof g->msg,en?"Weapon already best.":"武器已是最強。");return;} g->weapon++; break;
-        case 1: if(g->armour>=5){snprintf(g->msg,sizeof g->msg,en?"Armour already best.":"防具已是最強。");return;} g->armour++; break;
+        case 0: if(g->weapon>=8){snprintf(g->msg,sizeof g->msg,tr("武器已是最強。"));return;} g->weapon++; break;
+        case 1: if(g->armour>=5){snprintf(g->msg,sizeof g->msg,tr("防具已是最強。"));return;} g->armour++; break;
         case 2: g->save.food += SHOP[idx].arg; if(g->save.food>9999)g->save.food=9999; break;
         case 3: g->items |= (unsigned)SHOP[idx].arg; break;
         case 4: { g->save.gold -= SHOP[idx].price;
@@ -539,17 +538,17 @@ static void shop_buy(Game *g, int idx)
                   }
                   int lo=0; for(int i=1;i<U2_NUM_STATS;i++) if(g->save.stats[i]<g->save.stats[lo])lo=i;
                   if(g->save.stats[lo]<99) g->save.stats[lo]++;
-                  snprintf(g->msg,sizeof g->msg,en?"The King heals you and raises your %s.":"國王為你療傷,並提升了你的%s。",
+                  snprintf(g->msg,sizeof g->msg,tr("國王為你療傷,並提升了你的%s。"),
                            u2_lang==U2_EN?u2_save_stat_name(lo):u2_save_stat_zh(lo)); return; }
         case 5: {  /* 習得法術:職業可用法術各 +arg(不會魔法則不扣錢)*/
                   int k=g->save.has_character?g->save.klass:2, got=0;
                   for(int i=0;i<9;i++) if(SPELLBOOK[i].cls&(1u<<k)){ g->spells[i]+=SHOP[idx].arg; got++; }
-                  if(!got){ snprintf(g->msg,sizeof g->msg,en?"Your class cannot use magic.":"你的職業不會魔法。"); return; }
+                  if(!got){ snprintf(g->msg,sizeof g->msg,tr("你的職業不會魔法。")); return; }
                   g->save.gold -= SHOP[idx].price;
-                  snprintf(g->msg,sizeof g->msg,en?"Learned %d spells (+%d each).":"習得 %d 種法術(各+%d)。",got,SHOP[idx].arg); return; }
+                  snprintf(g->msg,sizeof g->msg,tr("習得 %d 種法術(各+%d)。"),got,SHOP[idx].arg); return; }
     }
     g->save.gold -= SHOP[idx].price;
-    snprintf(g->msg,sizeof g->msg,en?"Bought: %s":"買了:%s",en?SHOP[idx].en:SHOP[idx].zh);
+    snprintf(g->msg,sizeof g->msg,tr("買了:%s"),en?SHOP[idx].en:SHOP[idx].zh);
 }
 static void render_shop_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text *small)
 {
@@ -561,14 +560,14 @@ static void render_shop_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text *
     SDL_Rect e1={x,y,pw,2},e2={x,y+ph-2,pw,2},e3={x,y,2,ph},e4={x+pw-2,y,2,ph};
     SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
     char ln[96];
-    snprintf(ln,sizeof ln,en?"Shop — gold %d  (1-9 buy, Z close)":"商店 — 黃金 %d (按 1-9 購買,Z 關閉)",g->save.gold);
+    snprintf(ln,sizeof ln,tr("商店 — 黃金 %d (按 1-9 購買,Z 關閉)"),g->save.gold);
     u2_text_draw(cv,body,ln,x+16,y+8,235,235,245);
     int iy=y+52;
     for (int i=0;i<NSHOP;i++){
         snprintf(ln,sizeof ln,"%d. %s  —  %d G",i+1,en?SHOP[i].en:SHOP[i].zh,SHOP[i].price);
         u2_text_draw(cv,small,ln,x+24,iy,215,220,230); iy+=30;
     }
-    snprintf(ln,sizeof ln,en?"Weapon: %s   Armour: %s":"武器:%s   防具:%s",weapon_nm(g->weapon),armour_nm(g->armour));
+    snprintf(ln,sizeof ln,tr("武器:%s   防具:%s"),weapon_nm(g->weapon),armour_nm(g->armour));
     u2_text_draw(cv,small,ln,x+24,iy+6,180,200,160);
 }
 
@@ -593,19 +592,19 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
     SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
 
     int en=(u2_lang==U2_EN);
-    u2_text_draw(cv,body,en?"Character (C to close)":"角色資料(C 關閉)",x+16,y+8,235,235,245);
+    u2_text_draw(cv,body,tr("角色資料(C 關閉)"),x+16,y+8,235,235,245);
     U2Save *s=&g->save; int ix=x+28, iy=y+56, lh=30; char ln[96];
     if (!s->ok || !s->has_character){
-        u2_text_draw(cv,body,en?"(no player save to show)":"(無 player 存檔可顯示)",ix,iy,200,180,120);
+        u2_text_draw(cv,body,tr("(無 player 存檔可顯示)"),ix,iy,200,180,120);
         return;
     }
-    snprintf(ln,sizeof ln,"%s %s",en?"Name:":"姓名:",s->name); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
-    snprintf(ln,sizeof ln,"%s %s",en?"Sex:":"性別:",s->sex=='F'?(en?"Female":"女"):(en?"Male":"男")); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
-    snprintf(ln,sizeof ln,"%s %s",en?"Race:":"種族:",race_nm(s->race)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
-    snprintf(ln,sizeof ln,"%s %s",en?"Class:":"職業:",class_nm(s->klass)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
-    snprintf(ln,sizeof ln,en?"Level: %d   Max HP: %d":"等級:%d   HP 上限:%d",g->level,g->maxhp);
+    snprintf(ln,sizeof ln,"%s %s",tr("姓名:"),s->name); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
+    snprintf(ln,sizeof ln,"%s %s",tr("性別:"),s->sex=='F'?tr("女"):tr("男")); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
+    snprintf(ln,sizeof ln,"%s %s",tr("種族:"),race_nm(s->race)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
+    snprintf(ln,sizeof ln,"%s %s",tr("職業:"),class_nm(s->klass)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
+    snprintf(ln,sizeof ln,tr("等級:%d   HP 上限:%d"),g->level,g->maxhp);
     u2_text_draw(cv,body,ln,ix,iy,200,225,190); iy+=lh;
-    snprintf(ln,sizeof ln,en?"Weapon: %s  Armour: %s":"武器:%s  防具:%s",weapon_nm(g->weapon),armour_nm(g->armour));
+    snprintf(ln,sizeof ln,tr("武器:%s  防具:%s"),weapon_nm(g->weapon),armour_nm(g->armour));
     u2_text_draw(cv,small,ln,ix,iy,200,205,165); iy+=lh-6;
     { char it[200]=""; struct{unsigned f;const char*z,*e;}IT[]={{ITEM_BLUE_TASSLE,"藍流蘇","Tassle"},
         {ITEM_SKULL_KEY,"骷髏鑰","SkullKey"},{ITEM_BRASS_BUTTON,"黃銅鈕扣","Brass"},
@@ -614,9 +613,9 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
         {ITEM_BOOTS,"魔法長靴","Boots"},{ITEM_CLOAK,"魔法斗篷","Cloak"},{ITEM_IDOL,"綠色神像","Idol"},
         {ITEM_HELM,"魔法頭盔","Helm"}};
       for(int i=0;i<11;i++) if(g->items&IT[i].f){ if(it[0])strcat(it," ·"); strcat(it," "); strcat(it,en?IT[i].e:IT[i].z); }
-      snprintf(ln,sizeof ln,en?"Items:%s":"道具:%s",it[0]?it:(en?" (none)":" 無"));
+      snprintf(ln,sizeof ln,tr("道具:%s"),it[0]?it:tr(" 無"));
       u2_text_draw(cv,small,ln,ix,iy,180,195,160); iy+=lh+2; }
-    u2_text_draw(cv,small,en?"Attributes (BCD)":"屬性(BCD 解碼)",ix,iy,150,170,205); iy+=26;
+    u2_text_draw(cv,small,tr("屬性(BCD 解碼)"),ix,iy,150,170,205); iy+=26;
     for (int i=0;i<U2_NUM_STATS;i++){
         char lab[64]; snprintf(lab,sizeof lab,en?"%s":"%s %s",stat_nm(i),u2_save_stat_name(i));
         u2_text_draw(cv,body,lab,ix,iy,210,215,225);
@@ -651,7 +650,7 @@ static void render_view_overlay(SDL_Surface *cv, Game *g, U2Text *body)
         SDL_Rect pr={ox+px*cell-1, oy+py*cell-1, cell+1, cell+1};
         SDL_FillRect(cv,&pr,SDL_MapRGB(cv->format,240,60,60));
     }
-    u2_text_draw(cv,body,(u2_lang==U2_EN)?"VIEW — bird's eye (V to close)":"鳥瞰 VIEW(V 關閉)",ox,oy-40,235,230,200);
+    u2_text_draw(cv,body,tr("鳥瞰 VIEW(V 關閉)"),ox,oy-40,235,230,200);
 }
 
 static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
@@ -912,24 +911,24 @@ static void spawn_mob(Game *g)
 static void apply_status_attack(Game *g)
 {
     unsigned int sr = rng_next(g) & 0xff;
-    int en=(u2_lang==U2_EN);
+    int en=(u2_lang==U2_EN); (void)en;
     if (sr < 0x20){                            /* 遠程狀態攻擊:腿麻 / 臂麻 / 睡眠 */
         int kind = sr % 3;
         if (kind==0){
-            if(g->items&ITEM_BOOTS) snprintf(g->msg,sizeof g->msg,en?"Saved by magical boots!":"魔法長靴擋下了腿麻!");
-            else { g->legs_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,en?"Your legs are paralyzed!":"你的雙腿被麻痺了!"); }
+            if(g->items&ITEM_BOOTS) snprintf(g->msg,sizeof g->msg,tr("魔法長靴擋下了腿麻!"));
+            else { g->legs_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,tr("你的雙腿被麻痺了!")); }
         } else if (kind==1){
-            if(g->items&ITEM_CLOAK) snprintf(g->msg,sizeof g->msg,en?"Saved by magical cloak!":"魔法斗篷擋下了臂麻!");
-            else { g->arms_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,en?"Your arms are paralyzed!":"你的手臂被麻痺了!"); }
+            if(g->items&ITEM_CLOAK) snprintf(g->msg,sizeof g->msg,tr("魔法斗篷擋下了臂麻!"));
+            else { g->arms_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,tr("你的手臂被麻痺了!")); }
         } else {
-            if(g->items&ITEM_IDOL) snprintf(g->msg,sizeof g->msg,en?"Saved by the idol!":"綠色神像擋下了睡眠!");
-            else { g->sleep_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,en?"You fall asleep!":"你陷入了沉睡!"); }
+            if(g->items&ITEM_IDOL) snprintf(g->msg,sizeof g->msg,tr("綠色神像擋下了睡眠!"));
+            else { g->sleep_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,tr("你陷入了沉睡!")); }
         }
     } else if (sr < 0x40){                      /* 偷竊:哥布林偷食物 / 盜賊偷金 */
         if (sr&1){ int f=50+(rng_next(g)%50); g->save.food-=f; if(g->save.food<0)g->save.food=0;
-                   snprintf(g->msg,sizeof g->msg,en?"A gremlin steals %d food!":"哥布林偷走了 %d 份食物!",f); }
+                   snprintf(g->msg,sizeof g->msg,tr("哥布林偷走了 %d 份食物!"),f); }
         else { int gd=10+(rng_next(g)%40); g->save.gold-=gd; if(g->save.gold<0)g->save.gold=0;
-               snprintf(g->msg,sizeof g->msg,en?"A thief steals %d gold!":"盜賊偷走了 %d 金幣!",gd); }
+               snprintf(g->msg,sizeof g->msg,tr("盜賊偷走了 %d 金幣!"),gd); }
     }
 }
 static void step_mobs(Game *g)
@@ -1237,10 +1236,10 @@ static void land_planet(Game *g)
 /* 太空畫面:星空 + 目前軌道行星 + 行星清單 + 操作提示 */
 static void render_space(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
 {
-    int en=(u2_lang==U2_EN);
+    int en=(u2_lang==U2_EN); (void)en;
     SDL_FillRect(cv,NULL,SDL_MapRGB(cv->format,4,4,14));
     SDL_Rect hdr={0,0,CANVAS_W,HDR_H}; SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,30,30,70));
-    u2_text_draw(cv,title,en?"Deep Space":"深太空",10,4,235,235,245);
+    u2_text_draw(cv,title,tr("深太空"),10,4,235,235,245);
     /* 簡易星空(determinism:依座標雜湊)*/
     for (int i=0;i<260;i++){
         unsigned int h=(unsigned)(i*2654435761u); int sx=h%CANVAS_W, sy=HDR_H+(h/CANVAS_W)%(CANVAS_H-HDR_H-120);
@@ -1252,20 +1251,19 @@ static void render_space(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, 
     for (int yy=-rad;yy<=rad;yy++){ int w=(int)(0.999*rad*rad-yy*yy); if(w<0)continue; int hw=(int)(sqrt((double)w));
         SDL_Rect r={cx-hw,cy+yy,2*hw,1}; SDL_FillRect(cv,&r,pc); }
     char ln[96];
-    snprintf(ln,sizeof ln,en?"Orbiting: %s":"目前軌道:%s",planet_name(g->planet));
+    snprintf(ln,sizeof ln,tr("目前軌道:%s"),planet_name(g->planet));
     u2_text_draw(cv,body,ln,cx-150,cy+rad+16,245,235,160);
     snprintf(ln,sizeof ln,"Xeno %d  Yako %d  Zabo %d",PLANETS[g->planet].xe,PLANETS[g->planet].ya,PLANETS[g->planet].za);
     u2_text_draw(cv,small,ln,cx-150,cy+rad+48,170,190,220);
     /* 行星清單(右側)*/
     int lx=CANVAS_W-260, ly=HDR_H+20;
-    u2_text_draw(cv,small,en?"Planets (E/W hyperwarp)":"行星(E/W 躍遷)",lx,ly,160,180,210); ly+=28;
+    u2_text_draw(cv,small,tr("行星(E/W 躍遷)"),lx,ly,160,180,210); ly+=28;
     for (int i=0;i<NPLANET;i++){
         u2_text_draw(cv,small,planet_name(i),lx,ly,(i==g->planet)?250:180,(i==g->planet)?235:185,(i==g->planet)?150:195);
         ly+=24;
     }
     int by=CANVAS_H-90;
-    u2_text_draw(cv,body,en?"E/W HYPERWARP · Y land · F1 help"
-                           :"E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表",24,by,150,175,205);
+    u2_text_draw(cv,body,tr("E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表"),24,by,150,175,205);
     u2_text_draw(cv,body,g->msg,24,by+30,210,225,205);
 }
 
@@ -1282,7 +1280,7 @@ static void render_ending(SDL_Surface *cv, U2Text *title, U2Text *body)
     const char *L_EN[]={"MINAX IS DEAD!","ALL HER WORKS SHALL DIE.","YOU HAVE SAVED THE UNIVERSE,",
         "AND COMPLETED ULTIMA II.","SEEK NOW TO CONQUER WICKED EXODUS,","FOUND IN ULTIMA III.","","-- Thanks for playing (demo) --"};
     const char **Lz = en?L_EN:L_ZH;
-    u2_text_draw(cv,title,en?"VICTORY":"勝 利",CANVAS_W/2-60,80,250,240,140);
+    u2_text_draw(cv,title,tr("勝 利"),CANVAS_W/2-60,80,250,240,140);
     for (int i=0;i<8;i++) u2_text_draw(cv,body,Lz[i],CANVAS_W/2-260,180+i*44,235,230,180);
 }
 
@@ -1629,8 +1627,8 @@ static void render_create(SDL_Surface *cv, const Create *c, U2Text *title, U2Tex
     SDL_FillRect(cv,NULL,SDL_MapRGB(cv->format,12,14,28));
     SDL_Rect hdr={0,0,CANVAS_W,HDR_H}; SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
     int en=(u2_lang==U2_EN);
-    const char *sexnm = en?(c->sex?"Female":"Male"):(c->sex?"女":"男");
-    u2_text_draw(cv,title,en?"Create Character":"建立角色",16,4,250,240,140);
+    const char *sexnm = c->sex?tr("女"):tr("男");
+    u2_text_draw(cv,title,tr("建立角色"),16,4,250,240,140);
     const char *steps_zh[]={"① 姓名","② 性別","③ 種族","④ 職業","⑤ 屬性分配"};
     const char *steps_en[]={"1.Name","2.Sex","3.Race","4.Class","5.Stats"};
     const char **steps = en?steps_en:steps_zh;
@@ -1640,35 +1638,35 @@ static void render_create(SDL_Surface *cv, const Create *c, U2Text *title, U2Tex
     int x=60, y=110, lh=40;
     char ln[160];
     /* 已決定欄位摘要 */
-    if (c->step>CS_NAME){ snprintf(ln,sizeof ln,"%s %s",en?"Name:":"姓名:",c->name); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
-    if (c->step>CS_SEX){ snprintf(ln,sizeof ln,"%s %s",en?"Sex:":"性別:",sexnm); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
-    if (c->step>CS_RACE){ snprintf(ln,sizeof ln,"%s %s",en?"Race:":"種族:",race_nm(c->race)); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
-    if (c->step>CS_CLASS){ snprintf(ln,sizeof ln,"%s %s",en?"Class:":"職業:",class_nm(c->klass)); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
+    if (c->step>CS_NAME){ snprintf(ln,sizeof ln,"%s %s",tr("姓名:"),c->name); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
+    if (c->step>CS_SEX){ snprintf(ln,sizeof ln,"%s %s",tr("性別:"),sexnm); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
+    if (c->step>CS_RACE){ snprintf(ln,sizeof ln,"%s %s",tr("種族:"),race_nm(c->race)); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
+    if (c->step>CS_CLASS){ snprintf(ln,sizeof ln,"%s %s",tr("職業:"),class_nm(c->klass)); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
 
     int py=320;
     switch (c->step){
     case CS_NAME:
-        snprintf(ln,sizeof ln,"%s%s_",en?"Enter name: ":"輸入姓名:",c->name);
+        snprintf(ln,sizeof ln,"%s%s_",tr("輸入姓名:"),c->name);
         u2_text_draw(cv,body,ln,x,py,245,235,180);
-        u2_text_draw(cv,small,en?"Type A-Z / 0-9, Backspace, Enter to confirm":"鍵入 A–Z / 0–9,Backspace 刪除,Enter 確認",x,py+44,180,195,220);
+        u2_text_draw(cv,small,tr("鍵入 A–Z / 0–9,Backspace 刪除,Enter 確認"),x,py+44,180,195,220);
         break;
     case CS_SEX:
-        snprintf(ln,sizeof ln,"%s ◀ %s ▶",en?"Sex:":"性別:",sexnm);
+        snprintf(ln,sizeof ln,"%s ◀ %s ▶",tr("性別:"),sexnm);
         u2_text_draw(cv,body,ln,x,py,245,235,180);
-        u2_text_draw(cv,small,en?"Left/Right to switch, Enter to confirm":"←/→ 切換,Enter 確認",x,py+44,180,195,220);
+        u2_text_draw(cv,small,tr("←/→ 切換,Enter 確認"),x,py+44,180,195,220);
         break;
     case CS_RACE:
-        snprintf(ln,sizeof ln,"%s ◀ %s ▶",en?"Race:":"種族:",race_nm(c->race));
+        snprintf(ln,sizeof ln,"%s ◀ %s ▶",tr("種族:"),race_nm(c->race));
         u2_text_draw(cv,body,ln,x,py,245,235,180);
-        u2_text_draw(cv,small,en?"Left/Right: Human/Elf/Dwarf/Hobbit, Enter":"←/→ 選擇(人類/精靈/矮人/哈比人),Enter 確認",x,py+44,180,195,220);
+        u2_text_draw(cv,small,tr("←/→ 選擇(人類/精靈/矮人/哈比人),Enter 確認"),x,py+44,180,195,220);
         break;
     case CS_CLASS:
-        snprintf(ln,sizeof ln,"%s ◀ %s ▶",en?"Class:":"職業:",class_nm(c->klass));
+        snprintf(ln,sizeof ln,"%s ◀ %s ▶",tr("職業:"),class_nm(c->klass));
         u2_text_draw(cv,body,ln,x,py,245,235,180);
-        u2_text_draw(cv,small,en?"Left/Right: Fighter/Cleric/Wizard/Thief, Enter":"←/→ 選擇(戰士/牧師/巫師/盜賊),Enter 確認",x,py+44,180,195,220);
+        u2_text_draw(cv,small,tr("←/→ 選擇(戰士/牧師/巫師/盜賊),Enter 確認"),x,py+44,180,195,220);
         break;
     case CS_STATS: {
-        snprintf(ln,sizeof ln,"%s%d",en?"Allocate stats  points left: ":"屬性分配  剩餘點數:",c->pool);
+        snprintf(ln,sizeof ln,"%s%d",tr("屬性分配  剩餘點數:"),c->pool);
         u2_text_draw(cv,body,ln,x,260,245,235,180);
         for (int i=0;i<6;i++){
             int yy=300+i*30;
@@ -1677,7 +1675,7 @@ static void render_create(SDL_Surface *cv, const Create *c, U2Text *title, U2Tex
             char v[8]; snprintf(v,sizeof v,"%d",c->stats[i]);
             u2_text_draw(cv,body,v,x+230,yy,245,225,150);
         }
-        u2_text_draw(cv,small,en?"Up/Down pick, Left/Right adjust, Enter to finish":"↑/↓ 選屬性,←/→ 增減,Enter 完成建角",x,300+6*30+8,180,195,220);
+        u2_text_draw(cv,small,tr("↑/↓ 選屬性,←/→ 增減,Enter 完成建角"),x,300+6*30+8,180,195,220);
         break; }
     default: break;
     }
@@ -1699,7 +1697,7 @@ static void render_menu(SDL_Surface *cv, const char *opts[], int n, int sel,
         if (i==sel){ SDL_Rect r={CANVAS_W/2-160,yy-4,320,40}; SDL_FillRect(cv,&r,SDL_MapRGB(cv->format,40,50,120)); }
         u2_text_draw(cv,body,tr(opts[i]),CANVAS_W/2-120,yy,(i==sel)?250:200,(i==sel)?235:205,(i==sel)?150:215);
     }
-    u2_text_draw(cv,title,(u2_lang==U2_EN)?"Up/Down select · Enter confirm":"↑/↓ 選擇 · Enter 確認",CANVAS_W/2-150,CANVAS_H-28,170,185,215);
+    u2_text_draw(cv,title,tr("↑/↓ 選擇 · Enter 確認"),CANVAS_W/2-150,CANVAS_H-28,170,185,215);
 }
 
 /* 裝備/道具 sidecar 持久化(存檔旁 .meta;不碰原存檔格式,避免損壞)。 */
