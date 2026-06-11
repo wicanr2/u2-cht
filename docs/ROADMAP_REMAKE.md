@@ -132,9 +132,13 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 - **驗收**:地牢探索取得三鋰;戰鬥數值對 oracle;法術可用。
 
 ### M5 — 道具 / 任務旗標 / 結局
-- 道具系統 + 持有旗標 offset 對齊;RING 破力場(1000 傷免疫)、ENILNO Quicksword。
-- 任務鏈:Antos→RING、Quicksword、Minax 戰(9-9-9 Legends,@標記,100 固定傷)→ 勝利結局序列(`FUN_0040eb60`)。
-- **驗收**:headless 腳本化**完整破關**(建角→…→Minax→結局)。← 完整重製 v1.0 達成點
+- ✅ 道具系統(runtime + sidecar 持久化);RING 破力場(1000 傷)、ENILNO Quicksword。
+- ✅ **正規任務鏈**:Antos(mapx93 交談)→RING;King(獻金,持戒指)→ENILNO;
+  Legends(mapx00)landmark tile 8 = Minax 巢穴 → 踏入觸發;戒指+ENILNO 殺 Minax → **勝利結局**(`render_ending`,oracle FUN_0040eb60)。
+- ✅ **任務目標引導**(角色表 quest_hint:依持有道具推進)。
+- 🟡 道具持有旗標**存檔 offset** 對齊(目前 sidecar);怪物實體 Minax(@標記)/Shadowguard 城內戰待深化。
+- **驗收**:headless 已驗 Minax 閘門(無戒指→1000 傷亡)+ 結局畫面;**遊戲概念上可破關**。
+  全自動完整破關腳本(跨多圖導航)待補。
 
 ### M6 — 美術完整化(FM Towns)
 - 船/怪物/城鎮/城堡/地牢 sprite 從 Tsugaru 乾淨截圖 rip(沿用地形/主角流程);避免 raw atlas 雜訊。
