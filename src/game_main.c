@@ -138,6 +138,7 @@ typedef struct {
     int maxhp;                    /* HP 上限(隨等級提升;取代硬編 400) */
     int sleep_t, arms_t, legs_t;  /* 狀態計時器(oracle 0x73a0/0x7398/0x739c):睡眠/臂麻/腿麻 */
     int show_view;                /* VIEW 鳥瞰疊加(需魔法頭盔) */
+    int quest_clue;               /* 任務線索進度(對話蒐線索;0 未知→1 知需戒指/老人→2 知 Antos)*/
     char msg[200];
 } Game;
 /* 載具(oracle this+0x7390) */
@@ -600,8 +601,13 @@ static void render_shop_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text *
 static const char *quest_hint(const Game *g)
 {
     if (g->won) return tr("任務:已完成 ── 你拯救了宇宙!");
-    if (!(g->items & ITEM_RING)) return tr("任務:尋找安托斯神父(盤古大陸的城堡)取得力場之戒。");
-    if (!(g->items & ITEM_QUICKSWORD)) return tr("任務:帶著戒指去見國王,取得迅捷之劍 ENILNO。");
+    if (!(g->items & ITEM_RING)){
+        /* 對話蒐線索漸進(對齊 oracle FUN_00402a90 線索詩)*/
+        if (g->quest_clue < 1) return tr("任務:探索城鎮,向居民打聽擊敗米娜克斯的方法。");
+        if (g->quest_clue < 2) return tr("任務:破米娜克斯需力場之戒;傳聞樹下老人知其下落,繼續打聽。");
+        return tr("任務:尋找安托斯神父(盤古大陸的城堡)取得力場之戒。");
+    }
+    if (!(g->items & ITEM_QUICKSWORD)) return tr("任務:帶著戒指晉見國王,取得迅捷之劍 ENILNO。");
     return tr("任務:前往傳說時代,於巢穴擊敗米娜克斯!");
 }
 
@@ -866,10 +872,20 @@ static void do_talk(Game *g)
             if (!(e->dlg & 0x80)){ snprintf(g->msg,sizeof g->msg,tr("對方沉默不語。")); return; }
             int k=(e->dlg & 0x7f) - 1;
             if (k<0 || k>=g->talk.count){ snprintf(g->msg,sizeof g->msg,tr("對方欲言又止。")); return; }
-            /* Father Antos(mapx93)賜力場之戒(任務主鏈)*/
+            /* Father Antos(mapx93)賜力場之戒(任務主鏈;[正典] EARN_THE_RING/THE_RING_IS_YOURS)*/
             if (!strcmp(g->town_loaded,"93") && !(g->items & ITEM_RING)){
+                g->quest_clue=2;   /* 見到 Antos 即知全貌 */
                 g->items |= ITEM_RING;
                 snprintf(g->msg,sizeof g->msg,tr("安托斯神父祝福你,賜予了力場之戒。")); return;
+            }
+            /* 非 Antos NPC:對話蒐線索(對齊 oracle FUN_00402a90 線索詩)→ 推進任務認知 */
+            if (strcmp(g->town_loaded,"93") && !(g->items & ITEM_RING) && g->quest_clue < 2){
+                g->quest_clue++;
+                if (g->quest_clue==1)
+                    snprintf(g->msg,sizeof g->msg,tr("居民低語:「驅散邪惡,你必須擁有力場之戒。聽聞水流自由的城鎮裡,有住在樹下的老人握著線索。」"));
+                else
+                    snprintf(g->msg,sizeof g->msg,tr("老者說:「力場之戒由安托斯神父守護,他隱居於盤古大陸的城堡。去那裡尋他。」"));
+                return;
             }
             const char *zh=u2_strings_lookup(&g->tr, g->talk.line[k]);
             const char *disp=zh?zh:g->talk.line[k];
