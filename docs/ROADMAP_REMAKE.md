@@ -109,13 +109,17 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 - **驗收**:headless 腳本能在 5 時代 overworld 間移動、進出各類地點並正確載入(✅ 已達成;行星待 M2)。
 
 ### M2 — 載具系統(完整鏈)+ 太空飛行
-- 馬/船/飛機/火箭 + 門檻道具(`0x140/0x150/0x154/0x160`);拒絕訊息對齊 oracle。
-- 太空子系統:深空/行星軌道/LAND/HYPERWARP(`FUN_00409320`/`FUN_0040e370`)。
-- **驗收**:取得道具→登艦→飛抵行星→降落,headless 可重現。
+- ✅ 馬/船/飛機/火箭 + 門檻道具(藍流蘇/骷髏鑰/Ankh;tile 17–20;oracle 拒絕訊息)。
+- ✅ 飛機起飛需黃銅鈕扣;移動規則(船=水/飛機=任意/步行馬火箭=陸地)。
+- ✅ 太空:火箭發射→深空→E/W HYPERWARP 躍遷 9 行星(手冊 Xeno/Yako/Zabo)→Y 降落行星地表;行星往返;太陽擦撞扣血。
+- 🟡 行星↔mapxNN 精確對應仍 provisional(待校正)。
+- **驗收**:取得道具→登艦→飛抵行星→降落,headless 可重現(✅ UEEY/UYYE)。
 
 ### M3 — 城鎮服務 / 經濟 / 互動指令
-- 商店(武器 READY 1-9 / 防具 WEAR / 食物)、TRANSACT / OFFER GOLD、King 獻金升屬、guards(稅/ID/KEY)、STEAL/UNLOCK/VIEW/YELL。
-- **驗收**:買賣改變金/裝備/屬性;解鎖/被攔/獻金升階皆可腳本驗證。
+- ✅ 商店(Z 開):升級武器/防具、食物、**載具關鍵道具**(藍流蘇/骷髏鑰/黃銅鈕扣/Ankh/三鋰)、King 獻金(最低屬性+1)。扣黃金。
+- ✅ 戰鬥用上武器/防具(player_dmg 含武器;受擊減防具)→ 經濟閉環。
+- 🟡 guards(稅/ID/KEY)、STEAL/UNLOCK/VIEW/YELL 尚未。
+- **驗收**:買賣改變金/裝備/屬性(✅ headless OZ.. 驗證)。
 
 ### M4 — 戰鬥深化 + 地牢實體化
 - 命中/傷害/EXP 對齊 oracle;狀態效果(麻痺/睡眠/偷食/偷物)+ BOOTS/CLOAK/IDOL 防護。
