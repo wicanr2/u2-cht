@@ -92,9 +92,26 @@ static const struct { Uint8 bg[3], wall[3], dim[3], back[3], door[3]; } DPAL[] =
 };
 #define U2_NDPAL ((int)(sizeof DPAL / sizeof DPAL[0]))
 
+/* 怪物類型 tile → 身影顏色(對齊 oracle 低 nibble 怪物 index 多樣外觀)。
+ * tile 對應 mob_type:12 蜥蜴/13 幽靈/14 魔鬼/15 炎魔/60 哥布林/61 盜賊/62 惡魔/63 海蛇。 */
+static void mob_tile_color(unsigned char tile, Uint8 *r, Uint8 *g, Uint8 *b)
+{
+    switch (tile) {
+        case 12: *r=110; *g=200; *b=90;  break;  /* 蜥蜴人:綠 */
+        case 13: *r=200; *g=210; *b=230; break;  /* 幽靈:慘白 */
+        case 14: *r=230; *g=70;  *b=70;  break;  /* 魔鬼:紅 */
+        case 15: *r=250; *g=140; *b=40;  break;  /* 炎魔:橙火 */
+        case 60: *r=150; *g=170; *b=80;  break;  /* 哥布林:黃綠 */
+        case 61: *r=120; *g=120; *b=180; break;  /* 盜賊:藍灰 */
+        case 62: *r=200; *g=80;  *b=200; break;  /* 惡魔:紫紅 */
+        case 63: *r=80;  *g=200; *b=200; break;  /* 海蛇:青 */
+        default: *r=230; *g=70;  *b=70;  break;  /* 預設紅 */
+    }
+}
+
 int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
                       int px, int py, int dir, int ox, int oy, int w, int h, int style,
-                      int ent_depth, char ent_kind)
+                      int ent_depth, char ent_kind, unsigned char ent_tile)
 {
     const int s = ((style % U2_NDPAL) + U2_NDPAL) % U2_NDPAL;
     Uint32 bg   = SDL_MapRGB(surf->format, DPAL[s].bg[0],   DPAL[s].bg[1],   DPAL[s].bg[2]);
@@ -167,8 +184,9 @@ int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
             SDL_Rect cr = { cx - es/2, cy - es/3, es, (es*2)/3 };
             SDL_FillRect(surf, &cr, door);
             rectln(surf, cr.x, cr.y, cr.x+cr.w, cr.y+cr.h, wall);
-        } else {                                     /* 怪物:紅色身影 + 眼睛 */
-            Uint32 mc = SDL_MapRGB(surf->format, 230, 70, 70);
+        } else {                                     /* 怪物:依類型上色的身影 + 眼睛 */
+            Uint8 mr_=230,mg_=70,mb_=70; mob_tile_color(ent_tile,&mr_,&mg_,&mb_);
+            Uint32 mc = SDL_MapRGB(surf->format, mr_, mg_, mb_);
             SDL_Rect mr = { cx - es/2, cy - es/2, es, es };
             SDL_FillRect(surf, &mr, mc);
             int e = es/6; if (e < 1) e = 1;

@@ -134,6 +134,17 @@
   - `== 0x40`：特殊地標/梯（畫額外方框，`bVar==0x40` 分支）。
   - `0xC0 / 0xE0`：走廊端景特徵（畫遠端框）。
 
+#### 低 nibble = 怪物類型 index → sprite `[確定]`（本次查證 `FUN_004039e0` @2049 + 掃描 @9558）
+- 地牢掃描每深度 `iVar16`(1..4)取前方格 byte `bVar1`,**低 nibble `bVar1 & 0xf` = 怪物類型 index**(1..15,0=無)。
+- 深度編碼後傳 `FUN_004039e0(this, dc, uVar14)`:深度 2/3/4 各對應 `0xffffffff/0xfffffffe/0xfffffffd`、深度 1 直接傳 index。
+- `FUN_004039e0` 用 index 算 sprite 表偏移 `index*0x100 + 0x5a79`,取怪物 tile/動畫幀 `bVar2`,
+  以 `(bVar2 & 0x1f)*4`、`index*4+0x20` 為 sprite sheet 座標,blit 到該深度透視框(深度越遠 sprite 越小)。`[確定]`
+- ⇒ **怪物存儲**:類型 index 寫在 cell 低 nibble(運行時由生成函式寫入;mapx 靜態檔低 nibble 實測=0);
+  怪物實體屬性(X/Y/HP/type)在 `0x7278` 怪物陣列(32 槽)。低 nibble 只是「該格有此類型怪」的渲染標記。
+- **重製對齊狀態**:重寫引擎用獨立 `dgent` 陣列(= oracle 0x7278 概念)存實體 + 渲染查最近怪物,
+  機制等價;**怪物類型 index → 不同外觀已對齊**(`mob_tile_color` 依 tile 上色,8 種怪各異)。
+  尚未做:把 index 同步寫回 cell 低 nibble(目前 cell 唯讀、渲染走 dgent 查詢,行為等價)。`[簡化]`
+
 ### 3D 線框繪製 `FUN_0040d000` `[確定 演算法輪廓]`
 - 視窗預設 320×200（`0x140 × 0xC8`），`FUN_0040dd90`/`FUN_0040de10` 把邏輯座標依 client rect 等比縮放（`right*px/0x140`）。
 - **first-person raycast 風格**：沿玩家朝向（`this+0x74c0` 的 4 個 case）往前掃 8 格深度（`local_54` 0..7），每格：
