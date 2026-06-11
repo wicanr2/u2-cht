@@ -1,0 +1,8 @@
+# 互動測試環境:在容器內用 Xvfb 開真實視窗,xdotool 驅動,ffmpeg/xwd 擷圖。
+# 用於 headless 無法覆蓋的互動流程(開場選單 → 建角 → 進城)驗證。
+FROM u2cht-build
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        xvfb xdotool ffmpeg x11-utils \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /work
