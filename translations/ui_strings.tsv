@@ -2,104 +2,127 @@ zh	en	ja
 往 %c 移動。	Move %c.	%c へ移動。
 航行 %c。	Sail %c.	%c へ航行。
 %c 方向被擋住。	%c is blocked.	%c 方向は塞がれている。
-船無法駛上陸地(B 下船)。	Ship can't go ashore (B to disembark).	
+船無法駛上陸地(B 下船)。	Ship can't go ashore (B to disembark).	船は陸に上がれない(B で下船)。
 你進入了%s。	You enter the %s.	%s に入った。
-你踏入了黑暗的地牢…	You step into the dark dungeon...	
-你踏入了高聳的塔…	You step into the towering tower...	
-你回到了地面。	You return to the surface.	
-你沿樓梯回到了地面。	You climb back to the surface.	
+你踏入了黑暗的地牢…	You step into the dark dungeon...	暗いダンジョンに足を踏み入れた…
+你踏入了高聳的塔…	You step into the towering tower...	そびえ立つ塔に足を踏み入れた…
+你回到了地面。	You return to the surface.	地上に戻った。
+你沿樓梯回到了地面。	You climb back to the surface.	階段を登って地上に戻った。
 歡迎來到 Sosaria,冒險者。	Welcome to Sosaria, adventurer.	ソレアリアへようこそ、冒険者よ。
 你登上了船,可在水上航行。	You board the ship and can sail.	船に乗った。水上を航行できる。
-你上岸了,船停在水邊。	You go ashore; the ship waits at the water's edge.	
-附近沒有船(船在水邊,走近後按 B)。	No ship nearby (approach it on the water's edge, press B).	
-這裡無法登船。	Cannot board here.	
+你上岸了,船停在水邊。	You go ashore; the ship waits at the water's edge.	上陸した。船は水際で待っている。
+附近沒有船(船在水邊,走近後按 B)。	No ship nearby (approach it on the water's edge, press B).	近くに船がない(水際で近づき B を押す)。
+這裡無法登船。	Cannot board here.	ここでは乗船できない。
 時間之門開啟……招牌寫著:ANOS %s	A time door opens... the sign reads: ANOS %s	時の扉が開く……立て札にはANOS %s と。
-時間之門化作藍霧消散了……	The time door dissipates into blue mist...	
-一道時間之門如藍霧般在附近升起。	A time door rises nearby like blue mist.	
-這裡沒有時間之門。	There is no time door here.	
-%s攻擊你!失去 %d 點生命。	The %s attacks you! You lose %d HP.	
-你擊敗了%s!(+%d 經驗)	You defeated the %s! (+%d EXP)	
-你攻擊%s,但沒打中。	You attack the %s but miss.	
-你擊中%s,造成 %d 傷害(剩 %d)。	You hit the %s for %d damage (%d left).	
-前進。	Forward.	
-後退。	Back.	
-左轉。	Turn left.	
-右轉。	Turn right.	
-這裡無法登載。	Can't board here.	
-你下了載具。	You disembark.	
-附近沒有可下載具的地方。	Nowhere to disembark nearby.	
-附近沒有載具。	No vehicle nearby.	
-船員不讓你登船(需藍流蘇)。	The crew won't let you board (need Blue Tassle).	
-奇怪,你進不去(需骷髏鑰)。	Strange, you can't get in (need Skull Key).	
-金屬之聲喝令:你必須擁有生命符。	A metallic voice commands: you must have an Ankh.	
-無法登載。	Cannot board.	
-你騎上了馬。	You mount the horse.	
-你登上了飛機。	You board the plane.	
-你進入了火箭。	You enter the rocket.	
-(除錯)取得所有關鍵道具。	(debug) Got all key items.	
-只有火箭能發射升空。	Only a rocket can launch.	
-金屬之聲:火箭無法發射(需三鋰)。	A metallic voice: ship incapable of launch (need Tri-Lithium).	
-準備發射!你進入了%s 的軌道。	Prepare for launch! You enter orbit of %s.	
-HYPERWARP……你來到了%s 的軌道。	HYPERWARP... you reach orbit of %s.	
-該行星沒有可降落的地表(mapx%s)。	This planet has no surface to land on (mapx%s).	
-你降落在%s 的地表。	You land on the surface of %s.	
-你飢餓難耐,生命流逝……	You are starving; your life ebbs away...	
-寶箱中閃耀著三鋰!(火箭燃料)	A chest gleams with Tri-Lithium! (rocket fuel)	
+時間之門化作藍霧消散了……	The time door dissipates into blue mist...	時の扉は青い霧となって消えた……
+一道時間之門如藍霧般在附近升起。	A time door rises nearby like blue mist.	時の扉が青い霧のように近くに現れた。
+這裡沒有時間之門。	There is no time door here.	ここに時の扉はない。
+%s攻擊你!失去 %d 點生命。	The %s attacks you! You lose %d HP.	%s の攻撃!ヒットポイントを %d 失った。
+你擊敗了%s!(+%d 經驗)	You defeated the %s! (+%d EXP)	%s を倒した!(+%d 経験値)
+你攻擊%s,但沒打中。	You attack the %s but miss.	%s を攻撃したが外れた。
+你擊中%s,造成 %d 傷害(剩 %d)。	You hit the %s for %d damage (%d left).	%s に命中、%d ダメージ(残り %d)。
+前進。	Forward.	前進。
+後退。	Back.	後退。
+左轉。	Turn left.	左折。
+右轉。	Turn right.	右折。
+這裡無法登載。	Can't board here.	ここでは乗れない。
+你下了載具。	You disembark.	乗り物から降りた。
+附近沒有可下載具的地方。	Nowhere to disembark nearby.	近くに降りられる場所がない。
+附近沒有載具。	No vehicle nearby.	近くに乗り物がない。
+船員不讓你登船(需藍流蘇)。	The crew won't let you board (need Blue Tassle).	船員は乗船を拒んだ(青い房飾りが必要)。
+奇怪,你進不去(需骷髏鑰)。	Strange, you can't get in (need Skull Key).	おかしい、中に入れない(髑髏の鍵が必要)。
+金屬之聲喝令:你必須擁有生命符。	A metallic voice commands: you must have an Ankh.	金属の声が告げる:アンクを持たねばならぬ。
+無法登載。	Cannot board.	乗ることができない。
+你騎上了馬。	You mount the horse.	馬に乗った。
+你登上了飛機。	You board the plane.	飛行機に乗り込んだ。
+你進入了火箭。	You enter the rocket.	ロケットに乗り込んだ。
+(除錯)取得所有關鍵道具。	(debug) Got all key items.	(デバッグ)全ての重要アイテムを取得。
+只有火箭能發射升空。	Only a rocket can launch.	ロケットだけが発射できる。
+金屬之聲:火箭無法發射(需三鋰)。	A metallic voice: ship incapable of launch (need Tri-Lithium).	金属の声:ロケットは発射できない(トライリチウムが必要)。
+準備發射!你進入了%s 的軌道。	Prepare for launch! You enter orbit of %s.	発射準備!%s の軌道に入った。
+HYPERWARP……你來到了%s 的軌道。	HYPERWARP... you reach orbit of %s.	ハイパーワープ……%s の軌道に到達した。
+該行星沒有可降落的地表(mapx%s)。	This planet has no surface to land on (mapx%s).	この惑星には着陸できる地表がない(mapx%s)。
+你降落在%s 的地表。	You land on the surface of %s.	%s の地表に着陸した。
+你飢餓難耐,生命流逝……	You are starving; your life ebbs away...	飢えに苦しみ、命が削られていく……
+寶箱中閃耀著三鋰!(火箭燃料)	A chest gleams with Tri-Lithium! (rocket fuel)	宝箱の中にトライリチウムが輝く!(ロケット燃料)
 你找到一個寶箱:+%d 黃金。	You find a chest: +%d gold.	宝箱を見つけた:+%d ゴールド。
-地牢中%s擋路!你擊敗了它(+%d 經驗,+%d 金)。	A %s blocks your way! You defeat it (+%d EXP, +%d gold).	
-%s 在地牢重創了你!	A %s wounds you badly in the dungeon!	
-米娜克斯只存在於傳說時代。	Minax exists only in the Time of Legends.	
-米娜克斯的力場造成 1000 點傷害!你被消滅了。	Minax's force field deals 1000 damage! You are destroyed.	
-戒指擋下了力場!但唯有迅捷之劍 ENILNO 能殺死她。	The Ring blocks the field! But only Quicksword ENILNO can slay her.	
-你以迅捷之劍 ENILNO 擊穿了米娜克斯!	With Quicksword ENILNO you strike down Minax!	
-安托斯神父祝福你,賜予了力場之戒。	Father Antos blesses you and grants the Force-Field Ring.	
-這架飛機少了黃銅鈕扣,飛不起來。	This plane is missing a brass button; it won't fly.	
-你的火箭擦過太陽,船身受損!失去 %d 點生命。	Your rocket grazes the sun! Hull damaged, lose %d HP.	
-語系:繁體中文	Language: English	
+地牢中%s擋路!你擊敗了它(+%d 經驗,+%d 金)。	A %s blocks your way! You defeat it (+%d EXP, +%d gold).	ダンジョンで %s が立ちはだかる!倒した(+%d 経験値、+%d ゴールド)。
+%s 在地牢重創了你!	A %s wounds you badly in the dungeon!	%s がダンジョンで君に深手を負わせた!
+米娜克斯只存在於傳說時代。	Minax exists only in the Time of Legends.	ミナックスは伝説の時代にしか存在しない。
+米娜克斯的力場造成 1000 點傷害!你被消滅了。	Minax's force field deals 1000 damage! You are destroyed.	ミナックスのフォースフィールドが 1000 ダメージ!君は消滅した。
+戒指擋下了力場!但唯有迅捷之劍 ENILNO 能殺死她。	The Ring blocks the field! But only Quicksword ENILNO can slay her.	指輪がフォースフィールドを防いだ!だがクイックソード・エニルノだけが彼女を倒せる。
+你以迅捷之劍 ENILNO 擊穿了米娜克斯!	With Quicksword ENILNO you strike down Minax!	クイックソード・エニルノでミナックスを討ち倒した!
+安托斯神父祝福你,賜予了力場之戒。	Father Antos blesses you and grants the Force-Field Ring.	アントス神父が君を祝福し、フォースフィールドの指輪を授けた。
+這架飛機少了黃銅鈕扣,飛不起來。	This plane is missing a brass button; it won't fly.	この飛行機は真鍮のボタンが無く、飛べない。
+你的火箭擦過太陽,船身受損!失去 %d 點生命。	Your rocket grazes the sun! Hull damaged, lose %d HP.	ロケットが太陽をかすめ船体が損傷!ヒットポイントを %d 失った。
+語系:繁體中文	Language: English	言語:日本語
 Ultima II — %s(T 交談 · X 離開)	Ultima II — %s (T talk · X exit)	Ultima II — %s(T 会話 · X 退出)
 Ultima II:女巫的復仇 — 繁體中文	Ultima II: Revenge of the Enchantress	Ultima II: 魔女の復讐
 方向鍵/WASD 移動 · T 交談 · Z 商店 · C 角色表 · X 離開 · F1 指令表	Arrows/WASD move · T talk · Z shop · C sheet · X exit · F1 help	方向キー/WASD 移動 · T 会話 · Z 店 · C ステータス · X 退出 · F1 コマンド
 方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q	Arrows/WASD move · B board · P time door · G theme · F1 help · Q	方向キー/WASD 移動 · B 乗船 · P 時の扉 · G 画風 · F1 コマンド · Q
-地牢 — 第一人稱線框	Dungeon — first-person wireframe	
-塔 — 第一人稱線框	Tower — first-person wireframe	
+地牢 — 第一人稱線框	Dungeon — first-person wireframe	ダンジョン — 一人称ワイヤーフレーム
+塔 — 第一人稱線框	Tower — first-person wireframe	塔 — 一人称ワイヤーフレーム
 座標 (%d, %d)  地形 id=%d  圖塊 %s(G 切換)	Pos (%d, %d)  terrain id=%d  tileset %s (G)	座標 (%d, %d)  地形 id=%d  タイル %s(G)
-切換圖塊:%s	Tileset: %s	
-找不到城鎮資料,無法進入。	Town data not found; cannot enter.	
-找不到地牢資料,無法進入。	Dungeon data not found; cannot enter.	
-繼續冒險	Continue	
-新遊戲(建立角色)	New Game (create character)	
-試玩範例角色	Try sample character	
-離開	Quit	
-你離開了城鎮。	You leave.	
-這裡沒有人可以交談。	No one to talk to here.	
-附近沒有人可以交談。	No one nearby to talk to.	
-對方沉默不語。	They say nothing.	
-對方欲言又止。	They hesitate to speak.	
-%s出現了!	A %s appears!	
-附近沒有陸地可上岸。	No land nearby to disembark.	
-蜥蜴人	Lizard Man	
-幽靈	Ghost	
-魔鬼	Devil	
-炎魔	Balron	
-哥布林	Goblin	
-盜賊	Thief	
-惡魔	Daemon	
-海蛇	Sea Serpent	
-怪物	Monster	
-腳下沒有向下的樓梯。	No stairs down here.	
-已是最底層。	Already at the bottom.	
-你沿樓梯往下,來到第 %d 層。	You descend to level %d.	
-腳下沒有向上的樓梯。	No stairs up here.	
-你沿樓梯往上,來到第 %d 層。	You ascend to level %d.	
-腳下有向下的樓梯(J 下樓)。	Stairs down here (J).	
-腳下有向上的樓梯(K 上樓)。	Stairs up here (K).	
-前方是牆。	A wall ahead.	
-時間之門連向虛無(找不到 mapx%s)。	The time door leads to nothing (mapx%s missing).	
-國王見你持有力場之戒,賜予迅捷之劍 ENILNO!	Seeing the Ring, the King grants Quicksword ENILNO!	
-任務:尋找安托斯神父(盤古大陸的城堡)取得力場之戒。	Quest: Find Father Antos (a castle in Pangea) for the Force-Field Ring.	
-任務:帶著戒指去見國王,取得迅捷之劍 ENILNO。	Quest: Bring the Ring to a King to earn Quicksword ENILNO.	
-任務:前往傳說時代,於巢穴擊敗米娜克斯!	Quest: Go to the Time of Legends and defeat Minax in her lair!	
-任務:已完成 ── 你拯救了宇宙!	Quest: Complete -- you have saved the universe!	
-任務	Quest	
-米娜克斯尖叫「去死吧,蠢貨!」你倒下了……(回城補給再來)	Minax cries "DIE FOOL!" You fall... (resupply in town and return)	
-你倒下了……不列顛王將你復活,但失去了半數黃金。	You fell... Lord British revives you, but you lose half your gold.	
+切換圖塊:%s	Tileset: %s	タイル切替:%s
+找不到城鎮資料,無法進入。	Town data not found; cannot enter.	町のデータが見つからず、入れない。
+找不到地牢資料,無法進入。	Dungeon data not found; cannot enter.	ダンジョンのデータが見つからず、入れない。
+繼續冒險	Continue	冒険を続ける
+新遊戲(建立角色)	New Game (create character)	ニューゲーム(キャラ作成)
+試玩範例角色	Try sample character	サンプルキャラで試す
+離開	Quit	終了
+你離開了城鎮。	You leave.	町を出た。
+這裡沒有人可以交談。	No one to talk to here.	ここに話せる相手はいない。
+附近沒有人可以交談。	No one nearby to talk to.	近くに話せる相手はいない。
+對方沉默不語。	They say nothing.	相手は何も言わない。
+對方欲言又止。	They hesitate to speak.	相手は口ごもっている。
+%s出現了!	A %s appears!	%s が現れた!
+附近沒有陸地可上岸。	No land nearby to disembark.	近くに上陸できる陸地がない。
+蜥蜴人	Lizard Man	リザードマン
+幽靈	Ghost	ゴースト
+魔鬼	Devil	デビル
+炎魔	Balron	バルロン
+哥布林	Goblin	ゴブリン
+盜賊	Thief	シーフ
+惡魔	Daemon	デーモン
+海蛇	Sea Serpent	シーサーペント
+怪物	Monster	モンスター
+腳下沒有向下的樓梯。	No stairs down here.	足元に下り階段はない。
+已是最底層。	Already at the bottom.	すでに最下層だ。
+你沿樓梯往下,來到第 %d 層。	You descend to level %d.	階段を下り、第 %d 階に来た。
+腳下沒有向上的樓梯。	No stairs up here.	足元に上り階段はない。
+你沿樓梯往上,來到第 %d 層。	You ascend to level %d.	階段を上り、第 %d 階に来た。
+腳下有向下的樓梯(J 下樓)。	Stairs down here (J).	足元に下り階段がある(J で降りる)。
+腳下有向上的樓梯(K 上樓)。	Stairs up here (K).	足元に上り階段がある(K で登る)。
+前方是牆。	A wall ahead.	前方は壁だ。
+時間之門連向虛無(找不到 mapx%s)。	The time door leads to nothing (mapx%s missing).	時の扉は虚無へと続く(mapx%s が見つからない)。
+國王見你持有力場之戒,賜予迅捷之劍 ENILNO!	Seeing the Ring, the King grants Quicksword ENILNO!	王は指輪を見て、クイックソード・エニルノを授けた!
+任務:尋找安托斯神父(盤古大陸的城堡)取得力場之戒。	Quest: Find Father Antos (a castle in Pangea) for the Force-Field Ring.	任務:アントス神父(パンゲア大陸の城)を探し、フォースフィールドの指輪を得よ。
+任務:帶著戒指去見國王,取得迅捷之劍 ENILNO。	Quest: Bring the Ring to a King to earn Quicksword ENILNO.	任務:指輪を王のもとへ運び、クイックソード・エニルノを得よ。
+任務:前往傳說時代,於巢穴擊敗米娜克斯!	Quest: Go to the Time of Legends and defeat Minax in her lair!	任務:伝説の時代へ行き、巣窟でミナックスを倒せ!
+任務:已完成 ── 你拯救了宇宙!	Quest: Complete -- you have saved the universe!	任務:達成 ── 宇宙を救った!
+任務	Quest	任務
+米娜克斯尖叫「去死吧,蠢貨!」你倒下了……(回城補給再來)	Minax cries "DIE FOOL!" You fall... (resupply in town and return)	ミナックスが叫ぶ「死ね、愚か者!」君は倒れた……(町で補給して出直せ)
+你倒下了……不列顛王將你復活,但失去了半數黃金。	You fell... Lord British revives you, but you lose half your gold.	君は倒れた……ロード・ブリティッシュが蘇生したが、ゴールドの半分を失った。
+你在沉睡中,動彈不得……(剩 %d)	You are fast asleep and cannot move... (%d left)	眠りに落ち、身動きが取れない……(残り %d)
+你戴上魔法頭盔,俯瞰四周。	You don the magic helm and survey your surroundings.	魔法の兜を被り、辺りを見渡す。
+你放聲大喊,發洩了情緒……但什麼也沒改變。	You shout out loud, venting your feelings... but nothing changes.	大声で叫び、気を晴らした……だが何も変わらない。
+你沒有「%s」法術(可在城鎮商店習得)。	You don't know the "%s" spell (learn it at a town shop).	「%s」の呪文を覚えていない(町の店で習得できる)。
+你的職業無法施展「%s」。	Your class cannot cast "%s".	君の職業では「%s」を唱えられない。
+你祈禱,神聖之力湧入,傷勢盡復。	You pray; holy power floods in and heals all wounds.	祈ると神聖な力が満ち、傷が全て癒えた。
+你需要魔法頭盔才能鳥瞰四周。	You need the magic helm to survey from above.	見渡すには魔法の兜が必要だ。
+前方沒有牆可穿。	There is no wall ahead to pass through.	前方に通り抜ける壁はない。
+只能在地牢或塔中施法。	Spells can only be cast in a dungeon or tower.	呪文はダンジョンか塔でのみ唱えられる。
+寶箱中是%s!	The chest holds %s!	宝箱の中身は %s だ!
+手臂麻痺,無法攻擊!(剩 %d)	Your arms are numb; you can't attack! (%d left)	腕が痺れ、攻撃できない!(残り %d)
+擊殺術迸發,前方之敵灰飛煙滅(+%d 經驗,+%d 金)。	Kill bursts forth; the foe ahead is annihilated (+%d EXP, +%d gold).	キルが炸裂、前方の敵は消し飛んだ(+%d 経験値、+%d ゴールド)。
+瞬移!你閃現到地牢另一處。	Blink! You flash to another part of the dungeon.	ブリンク!ダンジョンの別の場所へ瞬間移動した。
+穿牆術轟開前方石壁,你穿了過去。	Passwall blasts the stone wall ahead; you pass through.	パスウォールが前方の石壁を打ち砕き、通り抜けた。
+綠色神像(擋睡眠)	Green Idol (blocks sleep)	緑の神像(睡眠を防ぐ)
+返地表法術將你傳回地面。	Surface teleports you back to the ground.	サーフェスが君を地上へ送り返す。
+雙腿麻痺,無法移動……(剩 %d)	Your legs are numb; you can't move... (%d left)	脚が痺れ、動けない……(残り %d)
+魔法斗篷(擋臂麻)	Magic Cloak (blocks arm numbness)	魔法のマント(腕の痺れを防ぐ)
+魔法照明亮起,地牢豁然開朗。	Magic light blazes; the dungeon brightens.	魔法の光が灯り、ダンジョンが明るくなった。
+魔法長靴(擋腿麻)	Magic Boots (blocks leg numbness)	魔法のブーツ(脚の痺れを防ぐ)
+魔法頭盔(鳥瞰)	Magic Helm (bird's-eye view)	魔法の兜(俯瞰)
+魔法飛彈轟向前方,擊潰擋路之敵(+%d 經驗)。	Magic Missile blasts ahead, smashing the foe in your path (+%d EXP).	マジックミサイルが前方を撃ち、行く手の敵を打ち砕いた(+%d 経験値)。
+鳥瞰在地牢/塔中無效。	Bird's-eye view doesn't work in a dungeon/tower.	俯瞰はダンジョン/塔では使えない。
