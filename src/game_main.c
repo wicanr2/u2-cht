@@ -132,6 +132,7 @@ typedef struct {
     int level;                    /* 等級(自 EXP 結算;不進存檔每次重算) */
     int maxhp;                    /* HP 上限(隨等級提升;取代硬編 400) */
     int sleep_t, arms_t, legs_t;  /* 狀態計時器(oracle 0x73a0/0x7398/0x739c):睡眠/臂麻/腿麻 */
+    int show_view;                /* VIEW 鳥瞰疊加(需魔法頭盔) */
     char msg[200];
 } Game;
 /* 載具(oracle this+0x7390) */
@@ -152,6 +153,7 @@ enum { VEH_WALK=0, VEH_HORSE=1, VEH_SHIP=2, VEH_PLANE=3, VEH_ROCKET=4 };
 #define ITEM_BOOTS       (1u<<7)   /* 0x130 魔法長靴:擋腿麻痺(oracle SAVED BY MAGICAL BOOTS)*/
 #define ITEM_CLOAK       (1u<<8)   /* 0x134 魔法斗篷:擋臂麻痺 */
 #define ITEM_IDOL        (1u<<9)   /* 0x15c 綠色神像:擋睡眠(oracle SAVED BY IDOL)*/
+#define ITEM_HELM        (1u<<10)  /* 0x138 魔法頭盔:VIEW 鳥瞰城鎮/星球(oracle)*/
 
 /* 簡易 LCG(同 oracle 風格,seed 固定 → headless 可重現) */
 static unsigned int rng_next(Game *g)
@@ -407,6 +409,7 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
         "走上城堡圖塊     進入城鎮",
         "走上地牢圖塊     進入地牢",
         "T               城鎮中與 NPC 交談",
+        "V               鳥瞰地圖(需魔法頭盔) · Y 城鎮中發洩",
         "J / K           地牢中 下樓 / 上樓",
         "1-9 (地牢)      施放法術(光明/穿牆/返地表/擊殺…)",
         "X               離開城鎮 / 地牢",
@@ -424,6 +427,7 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
         "Step on castle  Enter town",
         "Step on dungeon Enter dungeon",
         "T               Talk to NPC in town",
+        "V               Bird's-eye view (needs helm) · Y yell in town",
         "J / K           Descend / ascend in dungeon",
         "1-9 (dungeon)   Cast spell (Light/Passwall/Surface/Kill...)",
         "X               Leave town / dungeon",
@@ -607,8 +611,9 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
         {ITEM_SKULL_KEY,"骷髏鑰","SkullKey"},{ITEM_BRASS_BUTTON,"黃銅鈕扣","Brass"},
         {ITEM_ANKH,"生命符","Ankh"},{ITEM_TRI_LITHIUM,"三鋰","TriLith"},
         {ITEM_RING,"力場之戒","Ring"},{ITEM_QUICKSWORD,"迅捷之劍","Enilno"},
-        {ITEM_BOOTS,"魔法長靴","Boots"},{ITEM_CLOAK,"魔法斗篷","Cloak"},{ITEM_IDOL,"綠色神像","Idol"}};
-      for(int i=0;i<10;i++) if(g->items&IT[i].f){ if(it[0])strcat(it," ·"); strcat(it," "); strcat(it,en?IT[i].e:IT[i].z); }
+        {ITEM_BOOTS,"魔法長靴","Boots"},{ITEM_CLOAK,"魔法斗篷","Cloak"},{ITEM_IDOL,"綠色神像","Idol"},
+        {ITEM_HELM,"魔法頭盔","Helm"}};
+      for(int i=0;i<11;i++) if(g->items&IT[i].f){ if(it[0])strcat(it," ·"); strcat(it," "); strcat(it,en?IT[i].e:IT[i].z); }
       snprintf(ln,sizeof ln,en?"Items:%s":"道具:%s",it[0]?it:(en?" (none)":" 無"));
       u2_text_draw(cv,small,ln,ix,iy,180,195,160); iy+=lh+2; }
     u2_text_draw(cv,small,en?"Attributes (BCD)":"屬性(BCD 解碼)",ix,iy,150,170,205); iy+=26;
@@ -624,6 +629,31 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
 static void render_space(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small);
 static void render_ending(SDL_Surface *cv, U2Text *title, U2Text *body);
 static void revive_if_dead(Game *g);
+/* VIEW 鳥瞰(手冊 V)ew):縮略整張當前地圖(城鎮/overworld),玩家位置標紅。需魔法頭盔。*/
+static void render_view_overlay(SDL_Surface *cv, Game *g, U2Text *body)
+{
+    U2Map *m = amap(g);
+    int dim=64, cell=7, gw=dim*cell, gh=dim*cell;
+    int ox=(CANVAS_W-gw)/2, oy=(CANVAS_H-gh)/2 + 10;
+    SDL_Rect bg={ox-10,oy-10,gw+20,gh+20};
+    SDL_FillRect(cv,&bg,SDL_MapRGB(cv->format,12,14,24));
+    Uint32 cwater=SDL_MapRGB(cv->format,40,60,150), cland=SDL_MapRGB(cv->format,40,110,55);
+    Uint32 cmark =SDL_MapRGB(cv->format,230,200,90), cwall=SDL_MapRGB(cv->format,95,72,72);
+    for(int y=0;y<dim;y++) for(int x=0;x<dim;x++){
+        unsigned char t=u2_map_tile(m,x,y);
+        Uint32 col = (!g->in_town && loc_dest(g->world_num,t)) ? cmark
+                   : u2_passable(t) ? cland : (t==0 ? cwater : cwall);
+        SDL_Rect r={ox+x*cell, oy+y*cell, cell-1, cell-1};
+        SDL_FillRect(cv,&r,col);
+    }
+    int px=g->player.x, py=g->player.y;
+    if(px>=0&&px<dim&&py>=0&&py<dim){
+        SDL_Rect pr={ox+px*cell-1, oy+py*cell-1, cell+1, cell+1};
+        SDL_FillRect(cv,&pr,SDL_MapRGB(cv->format,240,60,60));
+    }
+    u2_text_draw(cv,body,(u2_lang==U2_EN)?"VIEW — bird's eye (V to close)":"鳥瞰 VIEW(V 關閉)",ox,oy-40,235,230,200);
+}
+
 static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
 {
     if (g->won){ render_ending(cv,title,body); return; }   /* 結局蓋過一切 */
@@ -632,6 +662,7 @@ static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2
     if (g->mode==MODE_SPACE)      render_space(cv,g,title,body,small);
     else if (g->mode==MODE_WORLD) render_world(cv,g,title,body);
     else                          render_dungeon(cv,g,title,body,small);
+    if (g->show_view)        render_view_overlay(cv,g,body);
     if (g->show_sheet)       render_sheet_overlay(cv,g,body,small);
     if (g->show_help)        render_help_overlay(cv,body,small);
     if (g->show_shop)        render_shop_overlay(cv,g,body,small);
@@ -777,6 +808,20 @@ static void exit_town(Game *g)
     g->in_town=0;
     g->player.x=g->tret_x; g->player.y=g->tret_y;
     snprintf(g->msg,sizeof g->msg,tr("你離開了城鎮。"));
+}
+
+/* VIEW 鳥瞰(手冊 V)ew):需魔法頭盔;地牢/塔中無效。 */
+static void do_view(Game *g)
+{
+    if (g->mode==MODE_DUNGEON){ snprintf(g->msg,sizeof g->msg,tr("鳥瞰在地牢/塔中無效。")); return; }
+    if (!(g->items & ITEM_HELM)){ snprintf(g->msg,sizeof g->msg,tr("你需要魔法頭盔才能鳥瞰四周。")); return; }
+    g->show_view = !g->show_view;
+    if (g->show_view) snprintf(g->msg,sizeof g->msg,tr("你戴上魔法頭盔,俯瞰四周。"));
+}
+/* YELL 發洩(手冊 Y)ell):純情緒宣洩,不影響遊戲(原版梗)。 */
+static void do_yell(Game *g)
+{
+    snprintf(g->msg,sizeof g->msg,tr("你放聲大喊,發洩了情緒……但什麼也沒改變。"));
 }
 
 /* 交談:鄰格若有 NPC 實體,顯示其 tlkx 對話(查翻譯覆蓋層) */
@@ -1282,15 +1327,17 @@ static void dungeon_event(Game *g)
 {
     unsigned int r = rng_next(g) % 100;
     if (r < 22){                                  /* 寶箱 */
-        unsigned want = (~g->items) & (ITEM_BOOTS|ITEM_CLOAK|ITEM_IDOL);  /* 尚缺的防護具 */
+        unsigned want = (~g->items) & (ITEM_BOOTS|ITEM_CLOAK|ITEM_IDOL|ITEM_HELM);  /* 尚缺的魔法道具 */
         if (g->dlevel>=13 && !(g->items & ITEM_TRI_LITHIUM)){
             g->items |= ITEM_TRI_LITHIUM;
             snprintf(g->msg,sizeof g->msg,tr("寶箱中閃耀著三鋰!(火箭燃料)"));
-        } else if (g->dlevel>=4 && want && (rng_next(g)%3==0)){           /* 深層概率給防護具 */
-            unsigned pick = (want&ITEM_BOOTS)?ITEM_BOOTS:(want&ITEM_CLOAK)?ITEM_CLOAK:ITEM_IDOL;
+        } else if (g->dlevel>=4 && want && (rng_next(g)%3==0)){           /* 深層概率給魔法道具 */
+            unsigned pick = (want&ITEM_BOOTS)?ITEM_BOOTS:(want&ITEM_CLOAK)?ITEM_CLOAK
+                          : (want&ITEM_IDOL)?ITEM_IDOL:ITEM_HELM;
             g->items |= pick;
             const char *nm = (pick==ITEM_BOOTS)?tr("魔法長靴(擋腿麻)")
-                           : (pick==ITEM_CLOAK)?tr("魔法斗篷(擋臂麻)"):tr("綠色神像(擋睡眠)");
+                           : (pick==ITEM_CLOAK)?tr("魔法斗篷(擋臂麻)")
+                           : (pick==ITEM_IDOL)?tr("綠色神像(擋睡眠)"):tr("魔法頭盔(鳥瞰)");
             snprintf(g->msg,sizeof g->msg,tr("寶箱中是%s!"),nm);
         } else {
             int gold=10+(rng_next(g)%40); g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
@@ -1827,7 +1874,8 @@ int main(int argc, char **argv)
             else if (c=='X'||c=='x'){ if (g.mode==MODE_DUNGEON) exit_dungeon(&g); else if (g.in_town) exit_town(&g); }
             else if (c=='B'||c=='b') board_vehicle(&g);
             else if (c=='I'||c=='i'){ g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); }
-            else if (c=='Y'||c=='y'){ if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); }
+            else if (c=='Y'||c=='y'){ if (g.in_town) do_yell(&g); else if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); }
+            else if (c=='V'||c=='v') do_view(&g);   /* VIEW 鳥瞰 */
             else if (c=='U'){ g.items=~0u; g.vehicle=VEH_ROCKET; launch_rocket(&g); }  /* 除錯:直接發射 */
             else if (c=='M') minax_encounter(&g);   /* Minax 對決(傳說時代)*/
             else if (c=='Z'||c=='z'){ if (g.in_town) g.show_shop=!g.show_shop; }
@@ -1959,7 +2007,8 @@ int main(int argc, char **argv)
                         case SDLK_k: dungeon_ascend(&g); break;
                         case SDLK_b: board_vehicle(&g); break;
                         case SDLK_i: g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); break;
-                        case SDLK_y: if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); break;
+                        case SDLK_y: if (g.in_town) do_yell(&g); else if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); break;
+                        case SDLK_v: do_view(&g); break;   /* VIEW 鳥瞰 */
                         case SDLK_m: minax_encounter(&g); break;
                         case SDLK_z: if (g.in_town) g.show_shop=!g.show_shop; break;
                         case SDLK_1:case SDLK_2:case SDLK_3:case SDLK_4:
