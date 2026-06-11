@@ -31,95 +31,43 @@
 #include "u2_talk.h"
 #include "u2_i18n.h"
 
-/* 引擎硬編訊息中→英表(EN 時查;%-格式符必須與中文一致)。查無 → 回中文(graceful)。 */
-typedef struct { const char *zh, *en; } TrPair;
-static const TrPair TR_TABLE[] = {
-    {"往 %c 移動。", "Move %c."},
-    {"航行 %c。", "Sail %c."},
-    {"%c 方向被擋住。", "%c is blocked."},
-    {"船無法駛上陸地(B 下船)。", "Ship can't go ashore (B to disembark)."},
-    {"你進入了%s。", "You enter the %s."},
-    {"你踏入了黑暗的地牢…", "You step into the dark dungeon..."},
-    {"你踏入了高聳的塔…", "You step into the towering tower..."},
-    {"你回到了地面。", "You return to the surface."},
-    {"你沿樓梯回到了地面。", "You climb back to the surface."},
-    {"歡迎來到 Sosaria,冒險者。", "Welcome to Sosaria, adventurer."},
-    {"你登上了船,可在水上航行。", "You board the ship and can sail."},
-    {"你上岸了,船停在水邊。", "You go ashore; the ship waits at the water's edge."},
-    {"附近沒有船(船在水邊,走近後按 B)。", "No ship nearby (approach it on the water's edge, press B)."},
-    {"這裡無法登船。", "Cannot board here."},
-    {"時間之門開啟……招牌寫著:ANOS %s", "A time door opens... the sign reads: ANOS %s"},
-    {"時間之門化作藍霧消散了……", "The time door dissipates into blue mist..."},
-    {"一道時間之門如藍霧般在附近升起。", "A time door rises nearby like blue mist."},
-    {"這裡沒有時間之門。", "There is no time door here."},
-    {"%s攻擊你!失去 %d 點生命。", "The %s attacks you! You lose %d HP."},
-    {"你擊敗了%s!(+%d 經驗)", "You defeated the %s! (+%d EXP)"},
-    {"你攻擊%s,但沒打中。", "You attack the %s but miss."},
-    {"你擊中%s,造成 %d 傷害(剩 %d)。", "You hit the %s for %d damage (%d left)."},
-    {"前進。", "Forward."}, {"後退。", "Back."},
-    {"左轉。", "Turn left."}, {"右轉。", "Turn right."},
-    {"這裡無法登載。","Can't board here."},{"你下了載具。","You disembark."},
-    {"附近沒有可下載具的地方。","Nowhere to disembark nearby."},{"附近沒有載具。","No vehicle nearby."},
-    {"船員不讓你登船(需藍流蘇)。","The crew won't let you board (need Blue Tassle)."},
-    {"奇怪,你進不去(需骷髏鑰)。","Strange, you can't get in (need Skull Key)."},
-    {"金屬之聲喝令:你必須擁有生命符。","A metallic voice commands: you must have an Ankh."},
-    {"無法登載。","Cannot board."},{"你騎上了馬。","You mount the horse."},
-    {"你登上了飛機。","You board the plane."},{"你進入了火箭。","You enter the rocket."},
-    {"(除錯)取得所有關鍵道具。","(debug) Got all key items."},
-    {"只有火箭能發射升空。","Only a rocket can launch."},
-    {"金屬之聲:火箭無法發射(需三鋰)。","A metallic voice: ship incapable of launch (need Tri-Lithium)."},
-    {"準備發射!你進入了%s 的軌道。","Prepare for launch! You enter orbit of %s."},
-    {"HYPERWARP……你來到了%s 的軌道。","HYPERWARP... you reach orbit of %s."},
-    {"該行星沒有可降落的地表(mapx%s)。","This planet has no surface to land on (mapx%s)."},
-    {"你降落在%s 的地表。","You land on the surface of %s."},
-    {"你飢餓難耐,生命流逝……","You are starving; your life ebbs away..."},
-    {"寶箱中閃耀著三鋰!(火箭燃料)","A chest gleams with Tri-Lithium! (rocket fuel)"},
-    {"你找到一個寶箱:+%d 黃金。","You find a chest: +%d gold."},
-    {"地牢中%s擋路!你擊敗了它(+%d 經驗,+%d 金)。","A %s blocks your way! You defeat it (+%d EXP, +%d gold)."},
-    {"%s 在地牢重創了你!","A %s wounds you badly in the dungeon!"},
-    {"米娜克斯只存在於傳說時代。","Minax exists only in the Time of Legends."},
-    {"米娜克斯的力場造成 1000 點傷害!你被消滅了。","Minax's force field deals 1000 damage! You are destroyed."},
-    {"戒指擋下了力場!但唯有迅捷之劍 ENILNO 能殺死她。","The Ring blocks the field! But only Quicksword ENILNO can slay her."},
-    {"你以迅捷之劍 ENILNO 擊穿了米娜克斯!","With Quicksword ENILNO you strike down Minax!"},
-    {"安托斯神父祝福你,賜予了力場之戒。","Father Antos blesses you and grants the Force-Field Ring."},
-    {"這架飛機少了黃銅鈕扣,飛不起來。","This plane is missing a brass button; it won't fly."},
-    {"你的火箭擦過太陽,船身受損!失去 %d 點生命。","Your rocket grazes the sun! Hull damaged, lose %d HP."},
-    {"語系:繁體中文", "Language: English"},
-    /* chrome:標題列 / 操作提示 */
-    {"Ultima II — %s(T 交談 · X 離開)", "Ultima II — %s (T talk · X exit)"},
-    {"Ultima II:女巫的復仇 — 繁體中文", "Ultima II: Revenge of the Enchantress"},
-    {"方向鍵/WASD 移動 · T 交談 · Z 商店 · C 角色表 · X 離開 · F1 指令表",
-     "Arrows/WASD move · T talk · Z shop · C sheet · X exit · F1 help"},
-    {"方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q",
-     "Arrows/WASD move · B board · P time door · G theme · F1 help · Q"},
-    {"地牢 — 第一人稱線框", "Dungeon — first-person wireframe"},
-    {"塔 — 第一人稱線框", "Tower — first-person wireframe"},
-    {"座標 (%d, %d)  地形 id=%d  圖塊 %s(G 切換)", "Pos (%d, %d)  terrain id=%d  tileset %s (G)"},
-    {"切換圖塊:%s", "Tileset: %s"},
-    {"找不到城鎮資料,無法進入。", "Town data not found; cannot enter."},
-    {"找不到地牢資料,無法進入。", "Dungeon data not found; cannot enter."},
-    {"繼續冒險", "Continue"}, {"新遊戲(建立角色)", "New Game (create character)"},
-    {"試玩範例角色", "Try sample character"}, {"離開", "Quit"},
-    {"你離開了城鎮。", "You leave."}, {"這裡沒有人可以交談。", "No one to talk to here."},
-    {"附近沒有人可以交談。", "No one nearby to talk to."},
-    {"對方沉默不語。", "They say nothing."}, {"對方欲言又止。", "They hesitate to speak."},
-    {"%s出現了!", "A %s appears!"}, {"附近沒有陸地可上岸。", "No land nearby to disembark."},
-    {"蜥蜴人","Lizard Man"},{"幽靈","Ghost"},{"魔鬼","Devil"},{"炎魔","Balron"},
-    {"哥布林","Goblin"},{"盜賊","Thief"},{"惡魔","Daemon"},{"海蛇","Sea Serpent"},{"怪物","Monster"},
-    {"腳下沒有向下的樓梯。","No stairs down here."},{"已是最底層。","Already at the bottom."},
-    {"你沿樓梯往下,來到第 %d 層。","You descend to level %d."},
-    {"腳下沒有向上的樓梯。","No stairs up here."},
-    {"你沿樓梯往上,來到第 %d 層。","You ascend to level %d."},
-    {"腳下有向下的樓梯(J 下樓)。","Stairs down here (J)."},
-    {"腳下有向上的樓梯(K 上樓)。","Stairs up here (K)."},
-    {"前方是牆。","A wall ahead."},{"時間之門連向虛無(找不到 mapx%s)。","The time door leads to nothing (mapx%s missing)."},
-};
+/* 引擎硬編訊息:外部多語字典(translations/ui_strings.tsv;欄 zh=key, en, ja…)。
+ * tr(zh) 依 u2_lang 回對應語言;空或查無 fallback zh。加語言只需 TSV 加欄,無需改碼。 */
+#define DICT_MAX 512
+#define DICT_LANG 4
+#define DICT_STR 200
+static struct { char t[DICT_LANG][DICT_STR]; } DICT[DICT_MAX];   /* t[0]=zh(key) t[1]=en … */
+static int NDICT = 0;
+/* 載入字典 TSV(首行 header 決定語言欄數 → u2_nlang)。回 1=成功 */
+static int load_ui_dict(const char *path)
+{
+    FILE *f=fopen(path,"rb"); if(!f) return 0;
+    char line[1200]; int row=0, ncol=0;
+    while (fgets(line,sizeof line,f)){
+        size_t L=strlen(line); while(L&&(line[L-1]=='\n'||line[L-1]=='\r')) line[--L]=0;
+        char *cols[DICT_LANG]={0}; int nc=0; char *p=line; cols[nc++]=p;
+        for (; *p && nc<DICT_LANG; p++) if(*p=='\t'){ *p=0; cols[nc++]=p+1; }
+        if (row++==0){ ncol=nc; u2_nlang=ncol; continue; }       /* header:語言欄數 */
+        if (NDICT>=DICT_MAX) break;
+        if (!cols[0] || !cols[0][0]) continue;
+        for (int c=0;c<DICT_LANG;c++) snprintf(DICT[NDICT].t[c],DICT_STR,"%s",(c<ncol&&cols[c])?cols[c]:"");
+        NDICT++;
+    }
+    fclose(f);
+    return NDICT>0;
+}
 static const char *tr(const char *zh)
 {
-    if (u2_lang == U2_ZH) return zh;
-    for (size_t i=0;i<sizeof TR_TABLE/sizeof TR_TABLE[0];i++)
-        if (!strcmp(TR_TABLE[i].zh, zh)) return TR_TABLE[i].en;
+    if (u2_lang==U2_ZH || (int)u2_lang>=u2_nlang) return zh;
+    for (int i=0;i<NDICT;i++) if(!strcmp(DICT[i].t[0],zh))
+        return DICT[i].t[u2_lang][0] ? DICT[i].t[u2_lang] : zh;
     return zh;
+}
+/* 目前語言標籤(切換時顯示)*/
+static const char *lang_label(void)
+{
+    static const char *N[]={"語系:繁體中文","Language: English","言語:日本語","Language"};
+    return N[(u2_lang<3)?u2_lang:3];
 }
 
 #define CANVAS_W   960
@@ -1547,12 +1495,16 @@ int main(int argc, char **argv)
     }
 
     g.ui = ui_tsv ? u2_strings_load(ui_tsv,2,3) : (U2Strings){0};
-    /* 對話譯文:由 ui_tsv 同目錄推 talk_dialogue.tsv */
+    /* 對話譯文 + 引擎多語字典:由 ui_tsv 同目錄推 */
     if (ui_tsv){
         char tt[512]; snprintf(tt,sizeof tt,"%s",ui_tsv);
         char *e=strrchr(tt,'/'); e=e?e+1:tt;
         snprintf(e,sizeof tt-(e-tt),"talk_dialogue.tsv");
         g.tr = u2_strings_load(tt,2,3);
+        char ud[512]; snprintf(ud,sizeof ud,"%s",ui_tsv);
+        char *e2=strrchr(ud,'/'); e2=e2?e2+1:ud;
+        snprintf(e2,sizeof ud-(e2-ud),"ui_strings.tsv");
+        load_ui_dict(ud);   /* 引擎硬編訊息字典(多語)*/
     }
     /* 可寫存檔路徑:--save 覆寫 > headless 用 player_save > SDL_GetPrefPath(跨平台可寫) */
     char save_path[1024];
@@ -1649,8 +1601,8 @@ int main(int argc, char **argv)
             else if (c=='D') enter_dungeon(&g);
             else if (c=='O') enter_town_tile(&g,5);   /* 強制進城(headless 測試用) */
             else if (c=='P'||c=='p') time_travel(&g); /* 穿越時間之門(快捷/headless) */
-            else if (c=='L'||c=='l'){ u2_lang=(u2_lang==U2_ZH)?U2_EN:U2_ZH;
-                snprintf(g.msg,sizeof g.msg,"%s",tr("語系:繁體中文")); }   /* 切語系(headless) */
+            else if (c=='L'||c=='l'){ u2_lang=(U2Lang)((u2_lang+1)%u2_nlang);
+                snprintf(g.msg,sizeof g.msg,"%s",lang_label()); }   /* 循環語系(headless) */
             else continue;
             render_all(cv,&g,&title,&body,&small);
             snprintf(out,sizeof out,"%s%02d.png",out_prefix,step++); IMG_SavePNG(cv,out);
@@ -1759,8 +1711,8 @@ int main(int argc, char **argv)
                         case SDLK_RIGHT:case SDLK_d: d='E'; break;
                         case SDLK_c: g.show_sheet=!g.show_sheet; break;
                         case SDLK_F1: g.show_help=!g.show_help; break;
-                        case SDLK_F4: u2_lang=(u2_lang==U2_ZH)?U2_EN:U2_ZH;
-                            snprintf(g.msg,sizeof g.msg,"%s",tr("語系:繁體中文")); break;  /* 切語系 */
+                        case SDLK_F4: u2_lang=(U2Lang)((u2_lang+1)%u2_nlang);
+                            snprintf(g.msg,sizeof g.msg,"%s",lang_label()); break;  /* 循環語系 */
                         case SDLK_t: do_talk(&g); break;
                         case SDLK_j: dungeon_descend(&g); break;
                         case SDLK_k: dungeon_ascend(&g); break;

@@ -22,9 +22,14 @@
 - **內部 render 解析度** — 320×200 × N(N 決定 CJK glyph 大小);與**視窗解析度**解耦。
 - **CJK-aware 換行** — 全形字 2 倍寬的換行/寬度計算。
 
-## 中文化文字兩來源
+## 中文化文字三來源
 - **exe 字串表** — Alderson exe 內嵌 UI 字串(`translations/exe_translatable_strings.tsv`,vaddr 索引)。
 - **對話表** — tlkx 解碼對話(`translations/talk_dialogue.tsv`,(檔名,index) 索引)。
+- **引擎多語字典** — 引擎硬編訊息(`translations/ui_strings.tsv`,欄 `zh`=key、`en`、…)。
+  `tr("中文")` 依 `u2_lang` 查表;F4 循環 `u2_nlang`(= 字典欄數)。
+  **加新語言(如日文)= 加一欄 `ja` + 填譯文,零改碼**(欄數即語言數)。
+  新增引擎字串:`tr("中文")` 包裝 + 進 `ui_strings.tsv` 加一列。
+  資料字串(exe/對話)非 ZH 時 fallback 原文(英文),待補各語言欄。
 
 ## 專有名詞譯名(對齊 u6-cht / u3-cht 系列一致性)
 > 來源:Ultima Codex wiki + u6-cht 既定譯名。翻譯 `translations/*.tsv` 時以此為準。
