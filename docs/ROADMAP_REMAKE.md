@@ -97,9 +97,16 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 - ✅ **地圖環形(toroidal wrap)**:overworld 64×64 邊緣相接(oracle `& 0x3f`),玩家恆置中、tile/實體/門 wrap 渲染;城鎮/地牢不 wrap。單元測試四邊一致。
 - ✅ **場景類型分化**:`LOC_REG` 每筆帶 kind(村莊/城鎮/城堡/塔/地牢);進入訊息與標題依類型顯示;地牢/塔走 dungeon(塔=倒置,flag 就緒,完整反轉待 M4 實體地牢);村莊/城鎮/城堡走 tile-map。
 - ✅ **依手冊校正翻譯**(光劍/巨劍/Enilno/時代名)+ 擴充 `CONTEXT.md` 術語表。
-- 統一 ENTER(village/town/tower/castle/dungeon)+ 地圖堆疊(world↔location↔dungeon)。
-- 時間之門:踏入依「時刻」切到對應時代地圖,座標保留。
-- **驗收**:headless 腳本能在 5 時代 + 行星地圖間移動並正確載入。
+- ✅ **地牢登記表驅動(per-location)**:`enter_dungeon_at(dest,tower)` 依 LOC_REG 載入對應地牢圖(快取重載)。
+- ✅ **跨時代 enter/exit/dungeon 流程驗證**:headless DXOXPOX 正確回到對應時代 overworld 返回座標。
+- ✅ **F4 語系切換**:UI/對話/訊息/面板繁中↔English(見 commit 3c99aa6 / 901b754)。
+
+**M1 引擎骨架 ≈ 完成。** 殘留(需外部資料,非引擎):
+- 🟡 **landmark→地點精確校正**:`LOC_REG` 哪個門通哪座城/地牢仍 provisional → 需 emulator/oracle 深挖。
+- 🟡 **行星地圖可達**:9 行星(mapx5x–9x?)需 **M2 火箭/太空**才能到 → 併入 M2。
+- 🟡 **時間之門真實位置/目的地表**:現為引擎放置 + 自由循環;真值需 oracle 資料表。
+
+- **驗收**:headless 腳本能在 5 時代 overworld 間移動、進出各類地點並正確載入(✅ 已達成;行星待 M2)。
 
 ### M2 — 載具系統(完整鏈)+ 太空飛行
 - 馬/船/飛機/火箭 + 門檻道具(`0x140/0x150/0x154/0x160`);拒絕訊息對齊 oracle。
