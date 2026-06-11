@@ -113,6 +113,11 @@ typedef struct {
     int ret_x, ret_y;             /* 進地牢前的座標 */
     char dungeon_path[512];
     char dg_loaded[8];            /* 目前已載入的地牢編號(換地牢重載) */
+    /* 地牢實體(怪物/寶箱):進層生成,線框視野顯示最近實體,前進遭遇/拾取。
+     * oracle:怪物由 FUN_0040c440 動態生成(按房間型別)、低 nibble 存實體 index;
+     * 此處先用進層隨機放置(運行時),結構可日後替換為 oracle 真值。[簡化/待對齊 oracle] */
+    struct { int x, y; char kind; int hp, atk; const char *name; } dgent[12];
+    int ndgent;
     /* 翻譯 / 存檔 */
     U2Strings ui; U2Strings tr;   /* ui=狀態標籤;tr=對話譯文 */
     U2Save save;
@@ -175,6 +180,8 @@ static const char *race_nm(int r);
 /* 法術(forward 宣告;render_dungeon HUD 用) */
 static const char *spell_name(int i);
 static int spell_class_ok(const Game *g, int i);
+/* 地牢前方實體(forward;render_dungeon 用) */
+static int dg_front_entity(const Game *g, int maxd, char *kind);
 static const char *class_nm(int k);
 static const char *stat_nm(int i);
 
@@ -358,7 +365,8 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
     u2_text_draw(cv,title, g->dg_tower?tr("塔 — 第一人稱線框"):tr("地牢 — 第一人稱線框"),10,4,235,235,245);
 
-    int depth=u2_dungeon_render(cv,&g->dg,g->dlevel,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW,g->curset);
+    char ek=0; int edp=dg_front_entity(g,5,&ek);
+    int depth=u2_dungeon_render(cv,&g->dg,g->dlevel,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW,g->curset,edp?edp:-1,ek);
 
     int en=(u2_lang==U2_EN);
     static const char *DIR_EN[4]={"N","E","S","W"};
@@ -371,7 +379,10 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     snprintf(ln,sizeof ln,tr("樓層: %d / 共 %d 層"),g->dlevel+1,g->dg.levels);
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
     snprintf(ln,sizeof ln,"%s %d",tr("前方可見深度:"),depth);
-    u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=40;
+    u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
+    { int nm=0,nc=0; for(int i=0;i<g->ndgent;i++){ if(g->dgent[i].kind=='M')nm++; else nc++; }
+      snprintf(ln,sizeof ln,tr("本層敵人 %d · 寶箱 %d"),nm,nc);
+      u2_text_draw(cv,body,ln,rx,ry,215,195,160); ry+=40; }
     draw_status_panel(cv,body,&g->ui,&g->save,rx,ry); ry+=4*30+10;
 
     /* 法術欄(僅顯示職業可用;1-9 施放)*/
@@ -669,6 +680,7 @@ static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2
 
 /* 進地牢:載入地牢檔,設定入口 */
 /* 進地牢/塔:依登記表 dest 載入對應地牢圖(per-location;換地牢重載) */
+static void gen_dungeon_entities(Game *g);   /* 進層生成怪物/寶箱實體(forward) */
 static void enter_dungeon_at(Game *g, const char *num, int tower)
 {
     if (!num) num = "15";
@@ -684,6 +696,7 @@ static void enter_dungeon_at(Game *g, const char *num, int tower)
     g->dlevel=0;
     dungeon_entry(&g->dg,g->dlevel,&g->dx,&g->dy,&g->ddir);
     g->mode=MODE_DUNGEON;
+    gen_dungeon_entities(g);
     snprintf(g->msg,sizeof g->msg, tower?tr("你踏入了高聳的塔…"):tr("你踏入了黑暗的地牢…"));
 }
 static void enter_dungeon(Game *g){ enter_dungeon_at(g,"15",0); }
@@ -698,6 +711,7 @@ static void dungeon_descend(Game *g)
     g->dlevel++;
     if (u2_dungeon_is_wall(&g->dg,g->dlevel,g->dx,g->dy))
         dungeon_entry(&g->dg,g->dlevel,&g->dx,&g->dy,&g->ddir);
+    gen_dungeon_entities(g);
     snprintf(g->msg,sizeof g->msg,tr("你沿樓梯往下,來到第 %d 層。"),g->dlevel+1);
 }
 
@@ -714,6 +728,7 @@ static void dungeon_ascend(Game *g)
     g->dlevel--;
     if (u2_dungeon_is_wall(&g->dg,g->dlevel,g->dx,g->dy))
         dungeon_entry(&g->dg,g->dlevel,&g->dx,&g->dy,&g->ddir);
+    gen_dungeon_entities(g);
     snprintf(g->msg,sizeof g->msg,tr("你沿樓梯往上,來到第 %d 層。"),g->dlevel+1);
 }
 
@@ -870,6 +885,68 @@ static void mob_type(unsigned char tile, const char **name, int *hp, int *atk)
         default: *name="怪物";   *hp=20;  *atk=4;  break;
     }
 }
+
+/* 進層生成地牢實體:怪物(越深越多越強)+ 寶箱(深層機率更高)。
+ * 放在可通行格,避開玩家當前格與樓梯。
+ * [簡化/待對齊 oracle]:oracle 怪物由 FUN_0040c440 按房間型別動態生成、
+ * 低 nibble 存實體 index;此處進層隨機放置,結構(dgent 陣列)可日後換 oracle 真值。 */
+static void gen_dungeon_entities(Game *g)
+{
+    g->ndgent = 0;
+    if (g->mode != MODE_DUNGEON || !g->dg_ok) return;
+    int lv = g->dlevel;
+    int nmon = 2 + lv/3;   if (nmon > 6) nmon = 6;
+    int nchest = 1 + (lv >= 4 ? 1 : 0);
+    /* 先在玩家前方 2..4 格放一隻怪(進地牢即可見/遭遇,即時反饋)*/
+    { int FX[4]={0,1,0,-1}, FY[4]={-1,0,1,0};
+      for (int dp=2; dp<=4; dp++){
+          int fx2=g->dx+FX[g->ddir]*dp, fy2=g->dy+FY[g->ddir]*dp;
+          if (fx2<0||fy2<0||fx2>=16||fy2>=16) break;
+          if (u2_dungeon_is_wall(&g->dg,lv,fx2,fy2)) break;
+          if (u2_dungeon_ladder(&g->dg,lv,fx2,fy2)) continue;
+          unsigned char tile=(unsigned char)(12+(lv%4));
+          const char *nm; int hp,atk; mob_type(tile,&nm,&hp,&atk);
+          int m=g->ndgent++; nmon--;
+          g->dgent[m].x=fx2; g->dgent[m].y=fy2; g->dgent[m].kind='M';
+          g->dgent[m].hp=hp; g->dgent[m].atk=atk; g->dgent[m].name=nm;
+          break;
+      }
+    }
+    int tries = 0;
+    while (g->ndgent < 12 && (nmon > 0 || nchest > 0) && tries++ < 300) {
+        int x = rng_next(g) % 16, y = rng_next(g) % 16;
+        if (u2_dungeon_is_wall(&g->dg, lv, x, y)) continue;
+        if (x == g->dx && y == g->dy) continue;
+        if (u2_dungeon_ladder(&g->dg, lv, x, y)) continue;       /* 不擋樓梯 */
+        int occ = 0;
+        for (int i = 0; i < g->ndgent; i++) if (g->dgent[i].x==x && g->dgent[i].y==y) occ=1;
+        if (occ) continue;
+        int m = g->ndgent++;
+        g->dgent[m].x = x; g->dgent[m].y = y;
+        if (nmon > 0) {
+            nmon--;
+            unsigned char tile = (unsigned char)(12 + (lv % 4));  /* 越深越強 */
+            const char *nm; int hp, atk; mob_type(tile, &nm, &hp, &atk);
+            g->dgent[m].kind='M'; g->dgent[m].hp=hp; g->dgent[m].atk=atk; g->dgent[m].name=nm;
+        } else {
+            nchest--;
+            g->dgent[m].kind='C'; g->dgent[m].hp=0; g->dgent[m].atk=0; g->dgent[m].name=NULL;
+        }
+    }
+}
+/* 沿玩家朝向找正前方最近實體,回傳深度(1..maxd;0=無)+ 寫 kind。 */
+static int dg_front_entity(const Game *g, int maxd, char *kind)
+{
+    int FX[4]={0,1,0,-1}, FY[4]={-1,0,1,0};
+    for (int dpt = 1; dpt <= maxd; dpt++) {
+        int x = g->dx + FX[g->ddir]*dpt, y = g->dy + FY[g->ddir]*dpt;
+        if (u2_dungeon_is_wall(&g->dg, g->dlevel, x, y)) break;   /* 牆擋住視線 */
+        for (int i = 0; i < g->ndgent; i++)
+            if (g->dgent[i].x==x && g->dgent[i].y==y){ if(kind)*kind=g->dgent[i].kind; return dpt; }
+    }
+    return 0;
+}
+
 /* 玩家命中技能(oracle:rng%0x50 >= skill → MISS;cap 0x50=80)。以 AGI 估。 */
 static int hit_skill(Game *g)
 {
@@ -1321,45 +1398,59 @@ static void render_splash(SDL_Surface *cv, SDL_Surface *photo, U2Text *title, U2
 }
 
 /* 地牢遭遇:前進時隨機觸發寶箱或怪物(自動戰鬥)。最深層寶箱給三鋰(火箭燃料);深層寶箱可得防護具。 */
-static void dungeon_event(Game *g)
+/* 寶箱獎勵:最深層三鋰、深層魔法道具、否則黃金。 */
+static void dungeon_chest_reward(Game *g)
 {
-    unsigned int r = rng_next(g) % 100;
-    if (r < 22){                                  /* 寶箱 */
-        unsigned want = (~g->items) & (ITEM_BOOTS|ITEM_CLOAK|ITEM_IDOL|ITEM_HELM);  /* 尚缺的魔法道具 */
-        if (g->dlevel>=13 && !(g->items & ITEM_TRI_LITHIUM)){
-            g->items |= ITEM_TRI_LITHIUM;
-            snprintf(g->msg,sizeof g->msg,tr("寶箱中閃耀著三鋰!(火箭燃料)"));
-        } else if (g->dlevel>=4 && want && (rng_next(g)%3==0)){           /* 深層概率給魔法道具 */
-            unsigned pick = (want&ITEM_BOOTS)?ITEM_BOOTS:(want&ITEM_CLOAK)?ITEM_CLOAK
-                          : (want&ITEM_IDOL)?ITEM_IDOL:ITEM_HELM;
-            g->items |= pick;
-            const char *nm = (pick==ITEM_BOOTS)?tr("魔法長靴(擋腿麻)")
-                           : (pick==ITEM_CLOAK)?tr("魔法斗篷(擋臂麻)")
-                           : (pick==ITEM_IDOL)?tr("綠色神像(擋睡眠)"):tr("魔法頭盔(鳥瞰)");
-            snprintf(g->msg,sizeof g->msg,tr("寶箱中是%s!"),nm);
-        } else {
-            int gold=10+(rng_next(g)%40); g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
-            snprintf(g->msg,sizeof g->msg,tr("你找到一個寶箱:+%d 黃金。"),gold);
-        }
-    } else if (r < 44){                           /* 怪物:自動戰鬥(玩家先攻)*/
-        unsigned char tile = (unsigned char)(12 + (g->dlevel % 4));   /* 越深越強 */
-        const char *nm; int hp,atk; mob_type(tile,&nm,&hp,&atk);
-        int php=g->php, guard=0;
-        while (hp>0 && php>0 && guard++<30){
-            hp -= player_dmg(g);
-            if (hp<=0) break;
-            int d=atk + (rng_next(g)%4) - g->armour*2; if(d<1)d=1; php-=d;
-        }
-        g->php = php<0?0:php;
-        if (hp<=0){
-            int xp=(rng_next(g)&3)+2, gold=5+(rng_next(g)%20);
-            g->save.exp+=xp; g->save.gold+=gold;
-            snprintf(g->msg,sizeof g->msg,tr("地牢中%s擋路!你擊敗了它(+%d 經驗,+%d 金)。"),tr(nm),xp,gold);
-            check_levelup(g);
-        } else {
-            snprintf(g->msg,sizeof g->msg,tr("%s 在地牢重創了你!"),tr(nm));
-        }
+    unsigned want = (~g->items) & (ITEM_BOOTS|ITEM_CLOAK|ITEM_IDOL|ITEM_HELM);
+    if (g->dlevel>=13 && !(g->items & ITEM_TRI_LITHIUM)){
+        g->items |= ITEM_TRI_LITHIUM;
+        snprintf(g->msg,sizeof g->msg,tr("寶箱中閃耀著三鋰!(火箭燃料)"));
+    } else if (g->dlevel>=4 && want && (rng_next(g)%2==0)){
+        unsigned pick = (want&ITEM_BOOTS)?ITEM_BOOTS:(want&ITEM_CLOAK)?ITEM_CLOAK
+                      : (want&ITEM_IDOL)?ITEM_IDOL:ITEM_HELM;
+        g->items |= pick;
+        const char *nm = (pick==ITEM_BOOTS)?tr("魔法長靴(擋腿麻)")
+                       : (pick==ITEM_CLOAK)?tr("魔法斗篷(擋臂麻)")
+                       : (pick==ITEM_IDOL)?tr("綠色神像(擋睡眠)"):tr("魔法頭盔(鳥瞰)");
+        snprintf(g->msg,sizeof g->msg,tr("寶箱中是%s!"),nm);
+    } else {
+        int gold=10+(rng_next(g)%40); g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
+        snprintf(g->msg,sizeof g->msg,tr("你找到一個寶箱:+%d 黃金。"),gold);
     }
+}
+
+/* 與地牢實體 ei(怪物)戰鬥:oracle 地牢為 DIRECT 必中,dmg = rng&0x3f|0x20(32..95)。
+ * 勝→進入該格 + 移除實體 + EXP(rng&7)/金(rng%0x11+1);敗→玩家留原地。 */
+static void dungeon_fight(Game *g, int ei)
+{
+    const char *nm = g->dgent[ei].name ? g->dgent[ei].name : "怪物";
+    int mhp = g->dgent[ei].hp, atk = g->dgent[ei].atk, rounds=0;
+    while (mhp>0 && g->php>0 && rounds++<30){
+        int dmg = (int)((rng_next(g)&0x3f)|0x20);                 /* oracle 地牢必中 32..95 */
+        mhp -= dmg;
+        if (mhp<=0) break;
+        int d = atk + (rng_next(g)%4) - g->armour*2; if(d<1)d=1;  /* 怪物反擊(受防具減)*/
+        g->php -= d; if(g->php<0)g->php=0;
+    }
+    if (mhp<=0){
+        int xp=(rng_next(g)&7)+1, gold=(rng_next(g)%0x11)+1;      /* oracle 地牢 EXP/金 */
+        g->save.exp+=xp; g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
+        snprintf(g->msg,sizeof g->msg,tr("你擊敗了%s!(+%d 經驗,+%d 金)"),tr(nm),xp,gold);
+        g->dx=g->dgent[ei].x; g->dy=g->dgent[ei].y;              /* 進入該格 */
+        g->dgent[ei]=g->dgent[--g->ndgent];                      /* 移除實體 */
+        check_levelup(g);
+    } else {
+        snprintf(g->msg,sizeof g->msg,tr("%s 擋住去路,重創了你!"),tr(nm));   /* 玩家留原地 */
+    }
+}
+
+/* 開啟地牢實體 ei(寶箱):進入該格 + 移除實體 + 給獎勵。 */
+static void dungeon_open_chest(Game *g, int ei)
+{
+    int cx=g->dgent[ei].x, cy=g->dgent[ei].y;
+    g->dgent[ei]=g->dgent[--g->ndgent];                          /* 移除(ei 換成末尾)*/
+    g->dx=cx; g->dy=cy;                                          /* 進入該格 */
+    dungeon_chest_reward(g);
 }
 
 /* 施放法術 idx(僅地牢/塔內;手冊:C)ast only in dungeons and towers)。 */
@@ -1513,14 +1604,21 @@ static void handle_dir(Game *g, char dir)
         else {
             int s=(dir=='N')?1:-1;
             int di=g->ddir; int nx=g->dx+FX[di]*s, ny=g->dy+FY[di]*s;
-            if (!u2_dungeon_is_wall(&g->dg,g->dlevel,nx,ny)){ g->dx=nx; g->dy=ny;
-                int lad=u2_dungeon_ladder(&g->dg,g->dlevel,nx,ny);
-                if (lad>0) snprintf(g->msg,sizeof g->msg,tr("腳下有向下的樓梯(J 下樓)。"));
-                else if (lad<0) snprintf(g->msg,sizeof g->msg,tr("腳下有向上的樓梯(K 上樓)。"));
-                else { snprintf(g->msg,sizeof g->msg, s>0?tr("前進。"):tr("後退。"));
-                       dungeon_event(g); }   /* 前進時隨機遭遇寶箱/怪物 */
+            if (u2_dungeon_is_wall(&g->dg,g->dlevel,nx,ny)){
+                snprintf(g->msg,sizeof g->msg,tr("前方是牆。"));
+            } else {
+                int ei=-1;
+                for(int i=0;i<g->ndgent;i++) if(g->dgent[i].x==nx&&g->dgent[i].y==ny){ei=i;break;}
+                if (ei>=0 && g->dgent[ei].kind=='M') dungeon_fight(g,ei);             /* 怪物擋路:戰鬥 */
+                else if (ei>=0 && g->dgent[ei].kind=='C') dungeon_open_chest(g,ei);   /* 寶箱:拾取 */
+                else {                                                               /* 空格:前進 */
+                    g->dx=nx; g->dy=ny;
+                    int lad=u2_dungeon_ladder(&g->dg,g->dlevel,nx,ny);
+                    if (lad>0) snprintf(g->msg,sizeof g->msg,tr("腳下有向下的樓梯(J 下樓)。"));
+                    else if (lad<0) snprintf(g->msg,sizeof g->msg,tr("腳下有向上的樓梯(K 上樓)。"));
+                    else snprintf(g->msg,sizeof g->msg, s>0?tr("前進。"):tr("後退。"));
+                }
             }
-            else snprintf(g->msg,sizeof g->msg,tr("前方是牆。"));
         }
     }
 }
