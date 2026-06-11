@@ -279,6 +279,16 @@ static int wrap_screen(int wx, int wy, int px, int py, int *sx, int *sy)
     return *sx>=0 && *sx<VIEW_COLS && *sy>=0 && *sy<VIEW_ROWS;
 }
 
+/* 顯示當前狀態效果(睡眠/臂麻/腿麻剩餘回合);回傳用掉的垂直高度。 */
+static int draw_status_fx(SDL_Surface *cv, U2Text *body, const Game *g, int x, int y)
+{
+    int y0=y; char ln[64];
+    if (g->sleep_t>0){ snprintf(ln,sizeof ln,tr("沉睡 %d 回合"),g->sleep_t);   u2_text_draw(cv,body,ln,x,y,205,165,240); y+=28; }
+    if (g->arms_t>0){  snprintf(ln,sizeof ln,tr("手臂麻痺 %d 回合"),g->arms_t); u2_text_draw(cv,body,ln,x,y,240,205,140); y+=28; }
+    if (g->legs_t>0){  snprintf(ln,sizeof ln,tr("雙腿麻痺 %d 回合"),g->legs_t); u2_text_draw(cv,body,ln,x,y,240,165,140); y+=28; }
+    return y-y0;
+}
+
 static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
 {
     U2Map *m=amap(g); U2Mon *mon=amon(g);
@@ -354,6 +364,7 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
     u2_text_draw(cv,body,pos,MAP_OX,by+60,150,165,150);
     if (g->save.has_character) g->save.hp = g->php;   /* 顯示運行時生命 */
     draw_status_panel(cv,body,&g->ui,&g->save,640,by);
+    draw_status_fx(cv,body,g,640,by+4*30+12);         /* 狀態效果(若有)*/
 }
 
 static const char *DIR_ZH[4]={"北 N","東 E","南 S","西 W"};
@@ -382,7 +393,9 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
     { int nm=0,nc=0; for(int i=0;i<g->ndgent;i++){ if(g->dgent[i].kind=='M')nm++; else nc++; }
       snprintf(ln,sizeof ln,tr("本層敵人 %d · 寶箱 %d"),nm,nc);
-      u2_text_draw(cv,body,ln,rx,ry,215,195,160); ry+=40; }
+      u2_text_draw(cv,body,ln,rx,ry,215,195,160); ry+=30; }
+    ry += draw_status_fx(cv,body,g,rx,ry);   /* 狀態效果(若有)*/
+    ry += 10;
     draw_status_panel(cv,body,&g->ui,&g->save,rx,ry); ry+=4*30+10;
 
     /* 法術欄(僅顯示職業可用;1-9 施放)*/
