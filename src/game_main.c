@@ -466,10 +466,19 @@ static void render_shop_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text *
     u2_text_draw(cv,small,ln,x+24,iy+6,180,200,160);
 }
 
+/* 目前任務目標(依持有道具推進) */
+static const char *quest_hint(const Game *g)
+{
+    if (g->won) return tr("任務:已完成 ── 你拯救了宇宙!");
+    if (!(g->items & ITEM_RING)) return tr("任務:尋找安托斯神父(盤古大陸的城堡)取得力場之戒。");
+    if (!(g->items & ITEM_QUICKSWORD)) return tr("任務:帶著戒指去見國王,取得迅捷之劍 ENILNO。");
+    return tr("任務:前往傳說時代,於巢穴擊敗米娜克斯!");
+}
+
 /* 角色表疊加面板(置中) */
 static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text *small)
 {
-    int pw=440, ph=420, x=(CANVAS_W-pw)/2, y=(CANVAS_H-ph)/2;
+    int pw=560, ph=448, x=(CANVAS_W-pw)/2, y=(CANVAS_H-ph)/2;
     SDL_Rect bg={x,y,pw,ph}; SDL_FillRect(cv,&bg,SDL_MapRGB(cv->format,18,22,40));
     SDL_Rect bar={x,y,pw,40}; SDL_FillRect(cv,&bar,SDL_MapRGB(cv->format,40,50,120));
     /* 邊框 */
@@ -490,10 +499,11 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
     snprintf(ln,sizeof ln,"%s %s",en?"Class:":"職業:",class_nm(s->klass)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
     snprintf(ln,sizeof ln,en?"Weapon: %s  Armour: %s":"武器:%s  防具:%s",weapon_nm(g->weapon),armour_nm(g->armour));
     u2_text_draw(cv,small,ln,ix,iy,200,205,165); iy+=lh-6;
-    { char it[160]=""; struct{unsigned f;const char*z,*e;}IT[]={{ITEM_BLUE_TASSLE,"藍流蘇","Tassle"},
+    { char it[200]=""; struct{unsigned f;const char*z,*e;}IT[]={{ITEM_BLUE_TASSLE,"藍流蘇","Tassle"},
         {ITEM_SKULL_KEY,"骷髏鑰","SkullKey"},{ITEM_BRASS_BUTTON,"黃銅鈕扣","Brass"},
-        {ITEM_ANKH,"生命符","Ankh"},{ITEM_TRI_LITHIUM,"三鋰","TriLith"}};
-      for(int i=0;i<5;i++) if(g->items&IT[i].f){ if(it[0])strcat(it," ·"); strcat(it," "); strcat(it,en?IT[i].e:IT[i].z); }
+        {ITEM_ANKH,"生命符","Ankh"},{ITEM_TRI_LITHIUM,"三鋰","TriLith"},
+        {ITEM_RING,"力場之戒","Ring"},{ITEM_QUICKSWORD,"迅捷之劍","Enilno"}};
+      for(int i=0;i<7;i++) if(g->items&IT[i].f){ if(it[0])strcat(it," ·"); strcat(it," "); strcat(it,en?IT[i].e:IT[i].z); }
       snprintf(ln,sizeof ln,en?"Items:%s":"道具:%s",it[0]?it:(en?" (none)":" 無"));
       u2_text_draw(cv,small,ln,ix,iy,180,195,160); iy+=lh+2; }
     u2_text_draw(cv,small,en?"Attributes (BCD)":"屬性(BCD 解碼)",ix,iy,150,170,205); iy+=26;
@@ -503,6 +513,7 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
         char v[8]; snprintf(v,sizeof v,"%2d",s->stats[i]);
         u2_text_draw(cv,body,v,ix+170,iy,245,225,150); iy+=lh;
     }
+    iy+=4; u2_text_draw(cv,small,quest_hint(g),ix,iy,250,220,140);   /* 任務目標 */
 }
 
 static void render_space(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small);
