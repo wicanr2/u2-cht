@@ -176,6 +176,9 @@ Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄 MFC 殼)──�
 
 目前處於 **逆向取得 + 格式破解 + 互動切片** 階段;完整引擎(town/dungeon/space/combat)逐步重寫中。
 
+> 🗺️ 邁向**完整重製(可破關到結局)**的分階段路線圖見 [`docs/ROADMAP_REMAKE.md`](docs/ROADMAP_REMAKE.md)
+> (M1 多世界地圖 → M2 載具/太空 → M3 城鎮經濟 → M4 戰鬥/地牢 → M5 任務/結局 → M6 美術 → M7 音樂 → M8 破關回歸)。
+
 ### ✅ 已完成
 
 | 段落 | 證據 |
