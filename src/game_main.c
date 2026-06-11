@@ -918,7 +918,7 @@ static void board_vehicle(Game *g)
     if (v<0){ snprintf(g->msg,sizeof g->msg,tr("附近沒有載具。")); return; }
     unsigned int need=veh_item(v);
     if (need && !(g->items & need)){ snprintf(g->msg,sizeof g->msg,"%s",veh_refuse(v)); return; }
-    g->map.tile[by][bx]=(v==VEH_SHIP)?0:8;   /* 移除載具 tile(船下露水,陸上露空地)*/
+    g->map.tile[by][bx]=(v==VEH_SHIP)?0:2;   /* 移除載具 tile(船下露水,陸上露草地;避開 landmark 8)*/
     g->player.x=bx; g->player.y=by; g->vehicle=v; g->player.tile=veh_tile(v);
     snprintf(g->msg,sizeof g->msg,"%s",veh_board_msg(v));
 }
