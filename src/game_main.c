@@ -519,7 +519,9 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
     snprintf(ln,sizeof ln,"%s %s",en?"Name:":"姓名:",s->name); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
     snprintf(ln,sizeof ln,"%s %s",en?"Sex:":"性別:",s->sex=='F'?(en?"Female":"女"):(en?"Male":"男")); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
     snprintf(ln,sizeof ln,"%s %s",en?"Race:":"種族:",race_nm(s->race)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
-    snprintf(ln,sizeof ln,"%s %s",en?"Class:":"職業:",class_nm(s->klass)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh+6;
+    snprintf(ln,sizeof ln,"%s %s",en?"Class:":"職業:",class_nm(s->klass)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
+    snprintf(ln,sizeof ln,en?"Weapon: %s  Armour: %s":"武器:%s  防具:%s",weapon_nm(g->weapon),armour_nm(g->armour));
+    u2_text_draw(cv,small,ln,ix,iy,200,205,165); iy+=lh+2;
     u2_text_draw(cv,small,en?"Attributes (BCD)":"屬性(BCD 解碼)",ix,iy,150,170,205); iy+=26;
     for (int i=0;i<U2_NUM_STATS;i++){
         char lab[64]; snprintf(lab,sizeof lab,en?"%s":"%s %s",stat_nm(i),u2_save_stat_name(i));
@@ -734,7 +736,8 @@ static int hit_skill(Game *g)
 static int player_dmg(Game *g)
 {
     int str = g->save.has_character ? g->save.stats[0] : 20;
-    return ((str + 8*1) >> 2) + (rng_next(g) % 8) + 4;  /* ~13-21 */
+    int wpn = g->weapon + 1;   /* 1..9(oracle 武器序號)*/
+    return ((str + 8*wpn) >> 2) + (rng_next(g) % 8) + 4;  /* 武器越高傷害越高 */
 }
 /* 視野邊緣可通行格生成怪物(~28%/回合) */
 static void spawn_mob(Game *g)
@@ -765,7 +768,9 @@ static void step_mobs(Game *g)
     for (int i=0;i<g->nmob;i++){
         int dx=g->player.x-g->mob[i].x, dy=g->player.y-g->mob[i].y;
         if (abs(dx)+abs(dy)==1){
-            int dmg=g->mob[i].atk + (rng_next(g)%4); g->php-=dmg; if(g->php<0)g->php=0;
+            int dmg=g->mob[i].atk + (rng_next(g)%4) - g->armour*2;  /* 防具減傷 */
+            if (dmg<1) dmg=1;
+            g->php-=dmg; if(g->php<0)g->php=0;
             snprintf(g->msg,sizeof g->msg,tr("%s攻擊你!失去 %d 點生命。"),tr(g->mob[i].name),dmg);
             continue;
         }
