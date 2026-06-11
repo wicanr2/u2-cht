@@ -116,7 +116,7 @@ typedef struct {
     /* 地牢實體(怪物/寶箱):進層生成,線框視野顯示最近實體,前進遭遇/拾取。
      * oracle:怪物由 FUN_0040c440 動態生成(按房間型別)、低 nibble 存實體 index;
      * 此處先用進層隨機放置(運行時),結構可日後替換為 oracle 真值。[簡化/待對齊 oracle] */
-    struct { int x, y; char kind; int hp, atk; const char *name; } dgent[12];
+    struct { int x, y; char kind; unsigned char tile; int hp, atk; const char *name; } dgent[12];
     int ndgent;
     /* 翻譯 / 存檔 */
     U2Strings ui; U2Strings tr;   /* ui=狀態標籤;tr=對話譯文 */
@@ -181,7 +181,7 @@ static const char *race_nm(int r);
 static const char *spell_name(int i);
 static int spell_class_ok(const Game *g, int i);
 /* 地牢前方實體(forward;render_dungeon 用) */
-static int dg_front_entity(const Game *g, int maxd, char *kind);
+static int dg_front_entity(const Game *g, int maxd, char *kind, unsigned char *tile);
 static const char *class_nm(int k);
 static const char *stat_nm(int i);
 
@@ -365,8 +365,8 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
     u2_text_draw(cv,title, g->dg_tower?tr("塔 — 第一人稱線框"):tr("地牢 — 第一人稱線框"),10,4,235,235,245);
 
-    char ek=0; int edp=dg_front_entity(g,5,&ek);
-    int depth=u2_dungeon_render(cv,&g->dg,g->dlevel,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW,g->curset,edp?edp:-1,ek);
+    char ek=0; unsigned char et=0; int edp=dg_front_entity(g,5,&ek,&et);
+    int depth=u2_dungeon_render(cv,&g->dg,g->dlevel,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW,g->curset,edp?edp:-1,ek,et);
 
     int en=(u2_lang==U2_EN);
     static const char *DIR_EN[4]={"N","E","S","W"};
@@ -890,6 +890,12 @@ static void mob_type(unsigned char tile, const char **name, int *hp, int *atk)
  * 放在可通行格,避開玩家當前格與樓梯。
  * [簡化/待對齊 oracle]:oracle 怪物由 FUN_0040c440 按房間型別動態生成、
  * 低 nibble 存實體 index;此處進層隨機放置,結構(dgent 陣列)可日後換 oracle 真值。 */
+/* 依層深挑怪物類型 tile(對齊 oracle 低 nibble 怪物 index 多樣性;深層強怪)。*/
+static unsigned char dg_pick_mob_tile(Game *g, int lv)
+{
+    static const unsigned char SHALLOW[]={12,60,61,13}, DEEP[]={14,15,62,63,13};
+    return (lv>=6) ? DEEP[rng_next(g)%5] : SHALLOW[rng_next(g)%4];
+}
 static void gen_dungeon_entities(Game *g)
 {
     g->ndgent = 0;
@@ -904,10 +910,10 @@ static void gen_dungeon_entities(Game *g)
           if (fx2<0||fy2<0||fx2>=16||fy2>=16) break;
           if (u2_dungeon_is_wall(&g->dg,lv,fx2,fy2)) break;
           if (u2_dungeon_ladder(&g->dg,lv,fx2,fy2)) continue;
-          unsigned char tile=(unsigned char)(12+(lv%4));
+          unsigned char tile=dg_pick_mob_tile(g,lv);
           const char *nm; int hp,atk; mob_type(tile,&nm,&hp,&atk);
           int m=g->ndgent++; nmon--;
-          g->dgent[m].x=fx2; g->dgent[m].y=fy2; g->dgent[m].kind='M';
+          g->dgent[m].x=fx2; g->dgent[m].y=fy2; g->dgent[m].kind='M'; g->dgent[m].tile=tile;
           g->dgent[m].hp=hp; g->dgent[m].atk=atk; g->dgent[m].name=nm;
           break;
       }
@@ -925,9 +931,9 @@ static void gen_dungeon_entities(Game *g)
         g->dgent[m].x = x; g->dgent[m].y = y;
         if (nmon > 0) {
             nmon--;
-            unsigned char tile = (unsigned char)(12 + (lv % 4));  /* 越深越強 */
+            unsigned char tile = dg_pick_mob_tile(g, lv);
             const char *nm; int hp, atk; mob_type(tile, &nm, &hp, &atk);
-            g->dgent[m].kind='M'; g->dgent[m].hp=hp; g->dgent[m].atk=atk; g->dgent[m].name=nm;
+            g->dgent[m].kind='M'; g->dgent[m].tile=tile; g->dgent[m].hp=hp; g->dgent[m].atk=atk; g->dgent[m].name=nm;
         } else {
             nchest--;
             g->dgent[m].kind='C'; g->dgent[m].hp=0; g->dgent[m].atk=0; g->dgent[m].name=NULL;
@@ -935,14 +941,18 @@ static void gen_dungeon_entities(Game *g)
     }
 }
 /* 沿玩家朝向找正前方最近實體,回傳深度(1..maxd;0=無)+ 寫 kind。 */
-static int dg_front_entity(const Game *g, int maxd, char *kind)
+static int dg_front_entity(const Game *g, int maxd, char *kind, unsigned char *tile)
 {
     int FX[4]={0,1,0,-1}, FY[4]={-1,0,1,0};
     for (int dpt = 1; dpt <= maxd; dpt++) {
         int x = g->dx + FX[g->ddir]*dpt, y = g->dy + FY[g->ddir]*dpt;
         if (u2_dungeon_is_wall(&g->dg, g->dlevel, x, y)) break;   /* 牆擋住視線 */
         for (int i = 0; i < g->ndgent; i++)
-            if (g->dgent[i].x==x && g->dgent[i].y==y){ if(kind)*kind=g->dgent[i].kind; return dpt; }
+            if (g->dgent[i].x==x && g->dgent[i].y==y){
+                if(kind)*kind=g->dgent[i].kind;
+                if(tile)*tile=g->dgent[i].tile;
+                return dpt;
+            }
     }
     return 0;
 }
