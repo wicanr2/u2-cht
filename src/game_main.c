@@ -76,6 +76,7 @@ static const char *lang_label(void)
 #define TILE_PX    48
 #define VIEW_COLS  19
 #define VIEW_ROWS  8
+#define MOB_MAX    16   /* 同場怪物上限(oracle 原版 32;受視野 19×8 與可玩性折中取 16)*/
 #define MAP_OX     24
 #define MAP_OY     (HDR_H + 8)
 #define PLAYER_TILE 16
@@ -118,7 +119,7 @@ typedef struct {
     /* 可切換 tileset(參考 u3-cht 多平台 tileset 清單) */
     SDL_Surface *tset[8]; char tname[8][24]; int ntset, curset;
     /* 地面隨機遭遇 / 戰鬥(U2 overworld 怪物動態生成) */
-    struct { int x, y, hp, maxhp, atk; unsigned char tile; const char *name; } mob[8];
+    struct { int x, y, hp, maxhp, atk; unsigned char tile; const char *name; } mob[MOB_MAX];
     int nmob, php, turn;
     unsigned int rng;             /* 簡易 LCG,determinism 供 headless 驗證 */
     int vehicle;                  /* oracle 0x7390:0 步行 1 馬 2 船 3 飛機 4 火箭 */
@@ -830,8 +831,8 @@ static int player_dmg(Game *g)
 /* 視野邊緣可通行格生成怪物(~28%/回合) */
 static void spawn_mob(Game *g)
 {
-    if (g->nmob >= 8 || g->in_town || g->mode != MODE_WORLD) return;
-    if (rng_next(g) % 100 >= 28) return;
+    if (g->nmob >= MOB_MAX || g->in_town || g->mode != MODE_WORLD) return;
+    if (rng_next(g) % 8 >= 7) return;   /* oracle FUN_0040c350:每次移動 7/8≈87.5% 嘗試 spawn */
     static const unsigned char mt[8] = {12,13,14,15,60,61,62,63};
     for (int t = 0; t < 8; t++) {
         int dx = (rng_next(g)%VIEW_COLS) - VIEW_COLS/2;
