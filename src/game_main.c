@@ -370,6 +370,7 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
         "X               離開城鎮 / 地牢",
         "C               角色資料表",
         "G               切換畫風(EGA / FM Towns…)",
+        "F4              切換語系(繁中 / English / 日本語)",
         "F1              顯示 / 關閉本指令表",
         "Q / Esc         離開遊戲(自動存檔)",
     };
@@ -385,6 +386,7 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
         "X               Leave town / dungeon",
         "C               Character sheet",
         "G               Switch theme (EGA / FM Towns...)",
+        "F4              Switch language (中 / EN / 日)",
         "F1              Show / hide this list",
         "Q / Esc         Quit game (autosave)",
     };

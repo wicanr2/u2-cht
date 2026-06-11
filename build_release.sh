@@ -7,6 +7,16 @@ WORK=/work; DATA=/data; OUT=/out
 FONT=/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc
 cd "$WORK"
 
+# 工具路徑:優先用環境變數,否則在 image 內自動尋找(容忍有無 .AppImage 副檔名)。
+find_tool(){  # $1=env值 $2,$3...=候選路徑
+  local v="$1"; shift
+  [ -n "$v" ] && [ -x "$v" ] && { echo "$v"; return; }
+  for c in "$@"; do [ -x "$c" ] && { echo "$c"; return; }; done
+  echo ""   # 找不到 → 空字串,呼叫端自行處理
+}
+LINUXDEPLOY="$(find_tool "${LINUXDEPLOY:-}" /opt/linuxdeploy /opt/linuxdeploy-x86_64.AppImage)"
+APPIMAGETOOL="$(find_tool "${APPIMAGETOOL:-}" /opt/appimagetool /opt/appimagetool-x86_64.AppImage)"
+
 # ---------- 0) 產生 tileset strips ----------
 mkdir -p /tmp/ts
 gen(){ python3 tools/decode_u2upgrade_tiles.py "$1" "$2" "$3" strip >/dev/null 2>&1; }
@@ -33,6 +43,10 @@ stage_data(){  # $1 = 目標 share 目錄
 
 # ---------- 2) Linux AppImage ----------
 build_appimage(){
+  if [ -z "$LINUXDEPLOY" ] || [ -z "$APPIMAGETOOL" ]; then
+    echo "錯誤:找不到 linuxdeploy / appimagetool(請設 LINUXDEPLOY / APPIMAGETOOL 或放到 /opt/)" >&2
+    exit 1
+  fi
   rm -rf /tmp/AppDir; mkdir -p /tmp/AppDir/usr/bin /tmp/AppDir/usr/share/u2cht
   cmake -S "$WORK" -B /tmp/lbuild -DCMAKE_BUILD_TYPE=Release >/dev/null
   cmake --build /tmp/lbuild --target u2_game -j >/dev/null
@@ -120,8 +134,19 @@ Ultima II: 女巫的復仇 — 繁體中文化(C/SDL2 重寫引擎)【試玩版 
   繼續:載入上次存檔(離開遊戲時自動存檔)。
   存檔位置:%APPDATA%\LairWare-cht\Ultima2\player
 
-操作:方向鍵 / WASD 移動 · B 登船/下船 · 走上城堡進城 · T 城鎮交談 ·
-      C 角色表 · G 切換畫風 · F1 指令表 · Q 離開(自動存檔)
+操作:
+  移動/攻擊  方向鍵 / WASD(朝怪物移動即攻擊)
+  載具       B 登載/下載(馬/船/飛機/火箭) · Y 火箭發射 / 太空降落
+  時空旅行   P 或踏入青紫時間之門 → 切換五大時代
+  進入地點   走上城堡圖塊進城 · 走上地牢圖塊入地牢 · X 離開
+  城鎮       T 與 NPC 交談 · Z 商店(補給/升級裝備/買關鍵道具)
+  介面       C 角色表(含任務提示) · G 切換畫風 · F4 切換語系(繁中/EN/日)
+  系統       F1 指令表 · Q 離開(自動存檔)
+
+遊戲目標(試玩版可走通的主線):
+  建角 → 商店補給/取得載具 → 時空旅行各時代 → 行星拜訪 Father Antos 取得力場之戒
+  → 晉見不列顛王取得迅捷之劍 Enilno → 前往「傳說時代」巢穴擊敗女巫米娜克斯 → 結局。
+  (角色表 C 會依進度顯示下一步任務提示;陣亡會被不列顛王復活,失去半數黃金。)
 EOF
   cd "$M/pkg" && zip -qr "$OUT/Ultima2-繁中試玩版-windows.zip" . && cd "$WORK"
 }
