@@ -71,3 +71,4 @@ u2prefs.txt
 .idea/
 *.swp
 .DS_Store
+*.meta
