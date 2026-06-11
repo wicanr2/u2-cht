@@ -32,6 +32,11 @@
 
 ## 截圖 / Screenshots
 
+### Demo 影片:新建角色 → 進城(完整流程)
+![demo](docs/demo/u2cht_demo.gif)
+> 原版標題 → 開場選單 → 建立新角色(姓名/性別/種族/職業/屬性)→ 走進城鎮 → NPC 交談 → 切換 FM Towns 畫風 → F1 指令表。
+> 容器內 Xvfb + xdotool 驅動、ffmpeg 連續錄製;測試細節見 [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md)。
+
 ### 整合主迴圈(地面 ↔ 地牢 ↔ 角色表)
 ![整合主迴圈](docs/screenshots/integrated.gif)
 > 單一 `u2_game` 狀態機:地面行走 → 進地牢切第一人稱線框 → 任意模式按 `C` 疊加繁中角色資料表。
