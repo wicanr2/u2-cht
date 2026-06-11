@@ -40,6 +40,8 @@
 #define U2_OFF_FOOD    0x1D
 #define U2_OFF_EXP     0x1F
 #define U2_OFF_GOLD    0x22
+/* 註:道具旗標(oracle this+0x140…)是執行時物件 offset,非存檔 rec offset;
+ * 存檔檔案是否在對應位置存 inventory 尚未驗證 → 暫不持久化 g.items(避免損壞存檔)。 */
 
 typedef struct {
     int ok;                       /* 檔案讀取成功且大小正確 */
