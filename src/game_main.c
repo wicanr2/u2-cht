@@ -73,6 +73,10 @@ static const TrPair TR_TABLE[] = {
     {"該行星沒有可降落的地表(mapx%s)。","This planet has no surface to land on (mapx%s)."},
     {"你降落在%s 的地表。","You land on the surface of %s."},
     {"你飢餓難耐,生命流逝……","You are starving; your life ebbs away..."},
+    {"寶箱中閃耀著三鋰!(火箭燃料)","A chest gleams with Tri-Lithium! (rocket fuel)"},
+    {"你找到一個寶箱:+%d 黃金。","You find a chest: +%d gold."},
+    {"地牢中%s擋路!你擊敗了它(+%d 經驗,+%d 金)。","A %s blocks your way! You defeat it (+%d EXP, +%d gold)."},
+    {"%s 在地牢重創了你!","A %s wounds you badly in the dungeon!"},
     {"這架飛機少了黃銅鈕扣,飛不起來。","This plane is missing a brass button; it won't fly."},
     {"你的火箭擦過太陽,船身受損!失去 %d 點生命。","Your rocket grazes the sun! Hull damaged, lose %d HP."},
     {"語系:繁體中文", "Language: English"},
@@ -1148,6 +1152,38 @@ static void render_splash(SDL_Surface *cv, SDL_Surface *photo, U2Text *title, U2
     u2_text_draw(cv,body,"感謝遊玩 ── 獻給我的家人。  按任意鍵開始。",60,CANVAS_H-52,180,205,235);
 }
 
+/* 地牢遭遇:前進時隨機觸發寶箱或怪物(自動戰鬥)。第 16 層寶箱給三鋰(火箭燃料)。 */
+static void dungeon_event(Game *g)
+{
+    unsigned int r = rng_next(g) % 100;
+    if (r < 22){                                  /* 寶箱 */
+        if (g->dlevel>=15 && !(g->items & ITEM_TRI_LITHIUM)){
+            g->items |= ITEM_TRI_LITHIUM;
+            snprintf(g->msg,sizeof g->msg,tr("寶箱中閃耀著三鋰!(火箭燃料)"));
+        } else {
+            int gold=10+(rng_next(g)%40); g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
+            snprintf(g->msg,sizeof g->msg,tr("你找到一個寶箱:+%d 黃金。"),gold);
+        }
+    } else if (r < 44){                           /* 怪物:自動戰鬥(玩家先攻)*/
+        unsigned char tile = (unsigned char)(12 + (g->dlevel % 4));   /* 越深越強 */
+        const char *nm; int hp,atk; mob_type(tile,&nm,&hp,&atk);
+        int php=g->php, guard=0;
+        while (hp>0 && php>0 && guard++<30){
+            hp -= player_dmg(g);
+            if (hp<=0) break;
+            int d=atk + (rng_next(g)%4) - g->armour*2; if(d<1)d=1; php-=d;
+        }
+        g->php = php<0?0:php;
+        if (hp<=0){
+            int xp=(rng_next(g)&3)+2, gold=5+(rng_next(g)%20);
+            g->save.exp+=xp; g->save.gold+=gold;
+            snprintf(g->msg,sizeof g->msg,tr("地牢中%s擋路!你擊敗了它(+%d 經驗,+%d 金)。"),tr(nm),xp,gold);
+        } else {
+            snprintf(g->msg,sizeof g->msg,tr("%s 在地牢重創了你!"),tr(nm));
+        }
+    }
+}
+
 /* 依模式處理一個方向鍵(dir ∈ N/S/E/W) */
 static void handle_dir(Game *g, char dir)
 {
@@ -1206,7 +1242,8 @@ static void handle_dir(Game *g, char dir)
                 int lad=u2_dungeon_ladder(&g->dg,g->dlevel,nx,ny);
                 if (lad>0) snprintf(g->msg,sizeof g->msg,tr("腳下有向下的樓梯(J 下樓)。"));
                 else if (lad<0) snprintf(g->msg,sizeof g->msg,tr("腳下有向上的樓梯(K 上樓)。"));
-                else snprintf(g->msg,sizeof g->msg, s>0?tr("前進。"):tr("後退。"));
+                else { snprintf(g->msg,sizeof g->msg, s>0?tr("前進。"):tr("後退。"));
+                       dungeon_event(g); }   /* 前進時隨機遭遇寶箱/怪物 */
             }
             else snprintf(g->msg,sizeof g->msg,tr("前方是牆。"));
         }
