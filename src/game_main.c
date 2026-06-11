@@ -1192,8 +1192,20 @@ static void minax_encounter(Game *g)
     if (!(g->items & ITEM_QUICKSWORD)){
         snprintf(g->msg,sizeof g->msg,tr("戒指擋下了力場!但唯有迅捷之劍 ENILNO 能殺死她。")); return;
     }
-    g->won=1;
-    snprintf(g->msg,sizeof g->msg,tr("你以迅捷之劍 ENILNO 擊穿了米娜克斯!"));
+    /* 真實對決:Minax 高血 + DIE FOOL 反擊(oracle);戒指免力場,仍需撐過近身戰 */
+    int mhp=200, php=g->php, rounds=0;
+    while (mhp>0 && php>0 && rounds++<20){
+        mhp -= player_dmg(g) + 50;          /* 迅捷之劍 ENILNO 重擊 */
+        if (mhp<=0) break;
+        int d=90 - g->armour*3; if(d<40)d=40; php-=d;   /* MINAX CRIES: DIE FOOL! */
+    }
+    g->php = php<0?0:php;
+    if (mhp<=0){
+        g->won=1;
+        snprintf(g->msg,sizeof g->msg,tr("你以迅捷之劍 ENILNO 擊穿了米娜克斯!"));
+    } else {
+        snprintf(g->msg,sizeof g->msg,tr("米娜克斯尖叫「去死吧,蠢貨!」你倒下了……(回城補給再來)"));
+    }
 }
 
 /* 依模式處理一個方向鍵(dir ∈ N/S/E/W) */
