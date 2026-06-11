@@ -9,6 +9,7 @@
 
 #define U2_MAP_W 64
 #define U2_MAP_H 66
+#define U2_WORLD_DIM 64    /* overworld 環形維度(64×64,& 0x3f wrap;尾 2 列為 trailer) */
 
 typedef struct {
     unsigned char tile[U2_MAP_H][U2_MAP_W]; /* 已 ÷4 還原的 tile_id */
@@ -20,5 +21,8 @@ U2Map u2_map_load(const char *path);
 
 /* 取得 (x,y) 的 tile_id;越界回傳 0。 */
 unsigned char u2_map_tile(const U2Map *m, int x, int y);
+
+/* 環形存取(overworld 64×64,& 0x3f wrap)。 */
+unsigned char u2_map_tile_wrap(const U2Map *m, int x, int y);
 
 #endif

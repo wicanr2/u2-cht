@@ -94,6 +94,7 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 - ✅ **地點進入 world-aware 登記表驅動**(`LOC_REG[]`):切換 overworld 時 landmark 對到該世代的城。
 - ✅ **時間之門雛形**:overworld 放青紫門,踏入(或 `P`)→「招牌:ANOS <時代>」→ 切換時代 overworld(00→10→20→30→40 循環,座標保留,重載地圖/實體/門/船)。
 - ✅ **時代↔overworld oracle 校正**(map 首位數字;`era_name` 對齊手冊正名)。
+- ✅ **地圖環形(toroidal wrap)**:overworld 64×64 邊緣相接(oracle `& 0x3f`),玩家恆置中、tile/實體/門 wrap 渲染;城鎮/地牢不 wrap。單元測試四邊一致。
 - ✅ **場景類型分化**:`LOC_REG` 每筆帶 kind(村莊/城鎮/城堡/塔/地牢);進入訊息與標題依類型顯示;地牢/塔走 dungeon(塔=倒置,flag 就緒,完整反轉待 M4 實體地牢);村莊/城鎮/城堡走 tile-map。
 - ✅ **依手冊校正翻譯**(光劍/巨劍/Enilno/時代名)+ 擴充 `CONTEXT.md` 術語表。
 - 統一 ENTER(village/town/tower/castle/dungeon)+ 地圖堆疊(world↔location↔dungeon)。

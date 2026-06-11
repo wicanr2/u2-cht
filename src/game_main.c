@@ -170,6 +170,16 @@ static void draw_status_panel(SDL_Surface *cv, U2Text *body, const U2Strings *ui
     }
 }
 
+/* 環形世界:把世界座標 (wx,wy) 轉成以玩家為中心的螢幕格 (sx,sy);
+ * 回 1 = 在視窗內。delta 以 & 0x3f 環繞取最近距離(-32..31)。 */
+static int wrap_screen(int wx, int wy, int px, int py, int *sx, int *sy)
+{
+    int dx=((wx-px+32)&(U2_WORLD_DIM-1))-32;
+    int dy=((wy-py+32)&(U2_WORLD_DIM-1))-32;
+    *sx=VIEW_COLS/2+dx; *sy=VIEW_ROWS/2+dy;
+    return *sx>=0 && *sx<VIEW_COLS && *sy>=0 && *sy<VIEW_ROWS;
+}
+
 static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
 {
     U2Map *m=amap(g); U2Mon *mon=amon(g);
@@ -182,25 +192,40 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
     else snprintf(hdr_t,sizeof hdr_t,"Ultima II:女巫的復仇 — 繁體中文");
     u2_text_draw(cv,title, hdr_t, 10,4,235,235,245);
 
+    int wrap = !g->in_town;   /* overworld 環形;城鎮不環繞 */
     int cam_x=g->player.x-VIEW_COLS/2, cam_y=g->player.y-VIEW_ROWS/2;
-    clampi(&cam_x,0,U2_MAP_W-VIEW_COLS); clampi(&cam_y,0,U2_MAP_H-VIEW_ROWS);
-    u2_render_viewport(cv,m,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
-    u2_render_entities(cv,mon,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
+    if (wrap){
+        /* 玩家恆置中,tile 以 64×64 環繞 */
+        for (int ty=0;ty<VIEW_ROWS;ty++) for (int tx=0;tx<VIEW_COLS;tx++){
+            unsigned char id=u2_map_tile_wrap(m,cam_x+tx,cam_y+ty);
+            int dx=MAP_OX+tx*TILE_PX, dy=MAP_OY+ty*TILE_PX;
+            if (tiles) u2_tileset_blit(cv,tiles,id,dx,dy,TILE_PX);
+        }
+        /* 地面靜態實體(monxNN)*/
+        for (int i=0;i<mon->count;i++){
+            int sx,sy; if (!mon->ent[i].tile) continue;
+            if (wrap_screen(mon->ent[i].x,mon->ent[i].y,g->player.x,g->player.y,&sx,&sy) && tiles)
+                u2_tileset_blit(cv,tiles,mon->ent[i].tile,MAP_OX+sx*TILE_PX,MAP_OY+sy*TILE_PX,TILE_PX);
+        }
+    } else {
+        clampi(&cam_x,0,U2_MAP_W-VIEW_COLS); clampi(&cam_y,0,U2_MAP_H-VIEW_ROWS);
+        u2_render_viewport(cv,m,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
+        u2_render_entities(cv,mon,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
+    }
 
-    /* 動態怪物(地面遭遇) */
-    if (!g->in_town && tiles)
+    /* 動態怪物(地面遭遇,環繞)*/
+    if (wrap && tiles)
         for (int i=0;i<g->nmob;i++){
-            int mx=g->mob[i].x-cam_x, my=g->mob[i].y-cam_y;
-            if (mx<0||my<0||mx>=VIEW_COLS||my>=VIEW_ROWS) continue;
-            u2_tileset_blit(cv,tiles,g->mob[i].tile,
-                            MAP_OX+mx*TILE_PX, MAP_OY+my*TILE_PX, TILE_PX);
+            int sx,sy;
+            if (wrap_screen(g->mob[i].x,g->mob[i].y,g->player.x,g->player.y,&sx,&sy))
+                u2_tileset_blit(cv,tiles,g->mob[i].tile,MAP_OX+sx*TILE_PX,MAP_OY+sy*TILE_PX,TILE_PX);
         }
 
-    /* 時間之門標記(青底紫框,踏入即穿越) */
-    if (!g->in_town && g->td_x>=0){
-        int dx=g->td_x-cam_x, dy=g->td_y-cam_y;
-        if (dx>=0&&dy>=0&&dx<VIEW_COLS&&dy<VIEW_ROWS){
-            int gx=MAP_OX+dx*TILE_PX, gy=MAP_OY+dy*TILE_PX;
+    /* 時間之門標記(青底紫框,踏入即穿越)*/
+    if (wrap && g->td_x>=0){
+        int sx,sy;
+        if (wrap_screen(g->td_x,g->td_y,g->player.x,g->player.y,&sx,&sy)){
+            int gx=MAP_OX+sx*TILE_PX, gy=MAP_OY+sy*TILE_PX;
             SDL_Rect in={gx+6,gy+6,TILE_PX-12,TILE_PX-12};
             SDL_FillRect(cv,&in,SDL_MapRGB(cv->format,40,230,230));
             Uint32 fr=SDL_MapRGB(cv->format,230,60,230);
@@ -210,7 +235,9 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
         }
     }
 
-    int px=MAP_OX+(g->player.x-cam_x)*TILE_PX, py=MAP_OY+(g->player.y-cam_y)*TILE_PX;
+    int px,py;
+    if (wrap){ px=MAP_OX+(VIEW_COLS/2)*TILE_PX; py=MAP_OY+(VIEW_ROWS/2)*TILE_PX; }
+    else { px=MAP_OX+(g->player.x-cam_x)*TILE_PX; py=MAP_OY+(g->player.y-cam_y)*TILE_PX; }
     if (tiles) u2_tileset_blit(cv,tiles,g->player.tile,px,py,TILE_PX);
     Uint32 col=SDL_MapRGB(cv->format,250,240,90);
     SDL_Rect t={px,py,TILE_PX,2},b={px,py+TILE_PX-2,TILE_PX,2},
@@ -739,6 +766,7 @@ static void handle_dir(Game *g, char dir)
         /* 朝向怪物移動 = 攻擊(不移動);否則正常走 + 觸發怪物回合 */
         int di = (dir=='N')?0:(dir=='E')?1:(dir=='S')?2:3;
         int tx=g->player.x+FX[di], ty=g->player.y+FY[di];
+        if (!g->in_town){ tx&=(U2_WORLD_DIM-1); ty&=(U2_WORLD_DIM-1); }  /* overworld 環形 */
         if (!g->in_town && attack_mob(g,tx,ty)){ step_mobs(g); return; }
         /* 載具感知移動:船=水域可走,步行=陸地;城鎮一律步行 */
         U2Map *am=amap(g);
