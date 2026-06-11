@@ -261,6 +261,20 @@ NPC 對話每 byte `OR 0x80`(ModdingWiki 誤稱 encrypted,實為 high-bit);
 
 原則:**不寫回原始檔**,以外部 UTF-8 覆蓋層、`(來源, key)` 為索引,載入時覆蓋原文(查無譯文則 fallback 原文)。
 
+### 劇情對話節錄(完整對照見 [`docs/DIALOGUE.md`](docs/DIALOGUE.md))
+
+> 女巫米娜克斯的嘲諷:
+>
+> **MINAX CRIES: A COWARD DIES A THOUSAND DEATHS, A HERO ONLY ONE. EITHER WAY, YOU LOSE!!!**
+> 米娜克斯尖叫:懦夫死千次,英雄只死一次。無論如何,你都輸定了!!!
+
+> 城鎮裡的推銷員:
+>
+> **HOMER THE SALESMAN ASKS: YA WANT SOME LIFE INSURANCE?**
+> 推銷員荷馬問:想買點壽險嗎?
+
+完整 108 段 NPC 對話 + 開場敘事的英文/繁中對照,見 [`docs/DIALOGUE.md`](docs/DIALOGUE.md)。
+
 ### 雙層渲染 + 內外解析度解耦(見 [ADR 0001](docs/adr/0001-rendering-resolution-cjk.md))
 
 - **像素圖層**:原版 16×16 tile 整數倍放大(nearest 預設)。
