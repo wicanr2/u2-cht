@@ -131,6 +131,8 @@ typedef struct {
     enum Mode mode;
     int show_sheet;
     int show_help;                /* F1 指令表疊加 */
+    int show_shop;                /* 城鎮商店疊加 */
+    int weapon, armour;           /* 裝備等級(0 起;商店升級)*/
     U2Map map; U2Mon mon;         /* 地面(overworld) */
     U2Player player;
     /* 城鎮 */
@@ -436,6 +438,60 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
     for (int i=0;i<nrow;i++){ u2_text_draw(cv,small,ROWS[i],x+24,iy,215,220,230); iy+=30; }
 }
 
+/* ---- 城鎮商店(M3)---- */
+static const char *WEAPON_ZH[9]={"匕首","錘矛","斧","弓","劍","巨劍","光劍","相位槍","迅捷之劍"};
+static const char *WEAPON_EN[9]={"Dagger","Mace","Ax","Bow","Sword","Greatsword","Light Sword","Phaser","Quicksword"};
+static const char *ARMOUR_ZH[6]={"布甲","皮甲","鎖甲","板甲","反射甲","動力甲"};
+static const char *ARMOUR_EN[6]={"Cloth","Leather","Chain","Plate","Reflect","Power"};
+static const char *weapon_nm(int w){ if(w<0||w>8)return"-"; return (u2_lang==U2_EN)?WEAPON_EN[w]:WEAPON_ZH[w]; }
+static const char *armour_nm(int a){ if(a<0||a>5)return"-"; return (u2_lang==U2_EN)?ARMOUR_EN[a]:ARMOUR_ZH[a]; }
+/* 商店品項:kind 0=武器升級 1=防具升級 2=食物 3=道具旗標 */
+static const struct { const char *zh,*en; int price,kind,arg; } SHOP[] = {
+    {"升級武器","Upgrade weapon",   100,0,0},
+    {"升級防具","Upgrade armour",    80,1,0},
+    {"食物 +200","Food +200",        50,2,200},
+    {"藍流蘇(船)","Blue Tassle (ship)", 60,3,ITEM_BLUE_TASSLE},
+    {"骷髏鑰(飛機)","Skull Key (plane)", 80,3,ITEM_SKULL_KEY},
+    {"黃銅鈕扣(起飛)","Brass Button",     80,3,ITEM_BRASS_BUTTON},
+    {"生命符(火箭)","Ankh (rocket)",   120,3,ITEM_ANKH},
+    {"三鋰(燃料)","Tri-Lithium",      200,3,ITEM_TRI_LITHIUM},
+};
+#define NSHOP ((int)(sizeof SHOP/sizeof SHOP[0]))
+static void shop_buy(Game *g, int idx)
+{
+    if (idx<0||idx>=NSHOP) return;
+    int en=(u2_lang==U2_EN);
+    if (g->save.gold < SHOP[idx].price){ snprintf(g->msg,sizeof g->msg,en?"Not enough gold.":"黃金不足。"); return; }
+    switch (SHOP[idx].kind){
+        case 0: if(g->weapon>=8){snprintf(g->msg,sizeof g->msg,en?"Weapon already best.":"武器已是最強。");return;} g->weapon++; break;
+        case 1: if(g->armour>=5){snprintf(g->msg,sizeof g->msg,en?"Armour already best.":"防具已是最強。");return;} g->armour++; break;
+        case 2: g->save.food += SHOP[idx].arg; if(g->save.food>9999)g->save.food=9999; break;
+        case 3: g->items |= (unsigned)SHOP[idx].arg; break;
+    }
+    g->save.gold -= SHOP[idx].price;
+    snprintf(g->msg,sizeof g->msg,en?"Bought: %s":"買了:%s",en?SHOP[idx].en:SHOP[idx].zh);
+}
+static void render_shop_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text *small)
+{
+    int en=(u2_lang==U2_EN);
+    int pw=520, ph=120+NSHOP*30, x=(CANVAS_W-pw)/2, y=(CANVAS_H-ph)/2;
+    SDL_Rect bg={x,y,pw,ph}; SDL_FillRect(cv,&bg,SDL_MapRGB(cv->format,18,22,40));
+    SDL_Rect bar={x,y,pw,40}; SDL_FillRect(cv,&bar,SDL_MapRGB(cv->format,40,50,120));
+    Uint32 fr=SDL_MapRGB(cv->format,120,140,200);
+    SDL_Rect e1={x,y,pw,2},e2={x,y+ph-2,pw,2},e3={x,y,2,ph},e4={x+pw-2,y,2,ph};
+    SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
+    char ln[96];
+    snprintf(ln,sizeof ln,en?"Shop — gold %d  (1-8 buy, Z close)":"商店 — 黃金 %d (按 1-8 購買,Z 關閉)",g->save.gold);
+    u2_text_draw(cv,body,ln,x+16,y+8,235,235,245);
+    int iy=y+52;
+    for (int i=0;i<NSHOP;i++){
+        snprintf(ln,sizeof ln,"%d. %s  —  %d G",i+1,en?SHOP[i].en:SHOP[i].zh,SHOP[i].price);
+        u2_text_draw(cv,small,ln,x+24,iy,215,220,230); iy+=30;
+    }
+    snprintf(ln,sizeof ln,en?"Weapon: %s   Armour: %s":"武器:%s   防具:%s",weapon_nm(g->weapon),armour_nm(g->armour));
+    u2_text_draw(cv,small,ln,x+24,iy+6,180,200,160);
+}
+
 /* 角色表疊加面板(置中) */
 static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text *small)
 {
@@ -475,6 +531,7 @@ static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2
     else                          render_dungeon(cv,g,title,body,small);
     if (g->show_sheet)       render_sheet_overlay(cv,g,body,small);
     if (g->show_help)        render_help_overlay(cv,body,small);
+    if (g->show_shop)        render_shop_overlay(cv,g,body,small);
 }
 
 /* 進地牢:載入地牢檔,設定入口 */
@@ -1460,6 +1517,8 @@ int main(int argc, char **argv)
             else if (c=='I'||c=='i'){ g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); }
             else if (c=='Y'||c=='y'){ if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); }
             else if (c=='U'){ g.items=~0u; g.vehicle=VEH_ROCKET; launch_rocket(&g); }  /* 除錯:直接發射 */
+            else if (c=='Z'||c=='z'){ if (g.in_town) g.show_shop=!g.show_shop; }
+            else if (c>='1'&&c<='8'){ if (g.show_shop) shop_buy(&g,c-'1'); }
             else if (c=='D') enter_dungeon(&g);
             else if (c=='O') enter_town_tile(&g,5);   /* 強制進城(headless 測試用) */
             else if (c=='P'||c=='p') time_travel(&g); /* 穿越時間之門(快捷/headless) */
@@ -1579,6 +1638,10 @@ int main(int argc, char **argv)
                         case SDLK_b: board_vehicle(&g); break;
                         case SDLK_i: g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); break;
                         case SDLK_y: if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); break;
+                        case SDLK_z: if (g.in_town) g.show_shop=!g.show_shop; break;
+                        case SDLK_1:case SDLK_2:case SDLK_3:case SDLK_4:
+                        case SDLK_5:case SDLK_6:case SDLK_7:case SDLK_8:
+                            if (g.show_shop) shop_buy(&g,k-SDLK_1); break;
                         case SDLK_p: time_travel(&g); break;   /* 穿越時間之門快捷 */
                         case SDLK_g: if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
                             snprintf(g.msg,sizeof g.msg,tr("切換圖塊:%s"),g.tname[g.curset]); } break;
