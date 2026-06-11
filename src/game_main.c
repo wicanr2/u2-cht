@@ -874,7 +874,10 @@ static void do_talk(Game *g)
             if (k<0 || k>=g->talk.count){ snprintf(g->msg,sizeof g->msg,tr("對方欲言又止。")); return; }
             /* Father Antos(mapx93)賜力場之戒(任務主鏈;[正典] EARN_THE_RING/THE_RING_IS_YOURS)*/
             if (!strcmp(g->town_loaded,"93") && !(g->items & ITEM_RING)){
-                g->quest_clue=2;   /* 見到 Antos 即知全貌 */
+                if (g->quest_clue < 1){   /* [正典] EARN_THE_RING:需先打聽線索才有資格取戒 */
+                    snprintf(g->msg,sizeof g->msg,tr("安托斯神父說:「你尚未準備好。先在城鎮間打聽,明白你的使命再來。」")); return;
+                }
+                g->quest_clue=2;
                 g->items |= ITEM_RING;
                 snprintf(g->msg,sizeof g->msg,tr("安托斯神父祝福你,賜予了力場之戒。")); return;
             }
