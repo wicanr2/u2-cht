@@ -56,6 +56,7 @@ typedef struct {
     int tret_x, tret_y;           /* 進城前的地面座標 */
     char town_path[512];
     char data_dir[512];           /* mapxNN 所在目錄(動態組地點檔路徑) */
+    char world_num[8];            /* 目前 overworld 編號(如 "20"),供地點登記表查詢 */
     char town_loaded[8];          /* 目前已載入的城鎮編號(偵測換城重載) */
     /* 地牢 */
     U2Dungeon dg; int dg_ok;
@@ -89,21 +90,21 @@ static U2Mon *amon(Game *g) { return g->in_town ? &g->tmon : &g->mon; }
 
 static void clampi(int *v, int lo, int hi) { if (*v<lo)*v=lo; if (*v>hi)*v=hi; }
 
-/* 世界圖 landmark 判定(forward 宣告於下方 town_map_num) */
-static const char *town_map_num(unsigned char t);
+/* 地點登記表查詢(world 編號 + landmark tile → 目的地 map 編號;forward 宣告) */
+static const char *loc_dest(const char *world, unsigned char tile);
 
-static void find_start(const U2Map *m, U2Player *p)
+static void find_start(const U2Map *m, U2Player *p, const char *world)
 {
     /* 優先:落在某個城鎮 landmark 旁的可通行格,讓玩家一開始就走得進城 */
     for (int y=0; y<U2_MAP_H; y++)
         for (int x=0; x<U2_MAP_W; x++){
-            if (!town_map_num(u2_map_tile(m,x,y))) continue;
+            if (!loc_dest(world, u2_map_tile(m,x,y))) continue;
             int NX[4]={0,0,1,-1}, NY[4]={1,-1,0,0};
             for (int k=0;k<4;k++){
                 int ax=x+NX[k], ay=y+NY[k];
                 if (ax<0||ay<0||ax>=U2_MAP_W||ay>=U2_MAP_H) continue;
                 unsigned char at=u2_map_tile(m,ax,ay);
-                if (u2_passable(at) && !town_map_num(at)){
+                if (u2_passable(at) && !loc_dest(world, at)){
                     p->x=ax; p->y=ay; p->tile=PLAYER_TILE; return;
                 }
             }
@@ -357,24 +358,31 @@ static void exit_dungeon(Game *g)
 }
 
 /* 世界圖 landmark tile → 地點地圖編號(均挑有 NPC + 對話 tlk 的城鎮)。
- * 註:U2 真實 landmark→map 對照需 oracle 校正;此處為 demo 指派,確保每個
- * 入口都通往一張有居民、可交談的城鎮。回 NULL = 非城鎮 landmark。 */
-static const char *town_map_num(unsigned char t)
+ * 地點登記表(world 編號 + landmark tile → 目的地 map 編號)。
+ * world-aware:不同世代 overworld(mapx20/30/40)的 landmark 對到該世代的城。
+ * provisional:精確對應待 oracle/Codex 校正(見 docs/MAP_REGISTRY.md)。
+ * tile 9 = 地牢,不在此表(走 enter_dungeon)。回 NULL = 非地點 landmark。 */
+typedef struct { const char *world; unsigned char tile; const char *dest; } LocReg;
+static const LocReg LOC_REG[] = {
+    /* mapx20(地球時代之一)— 6 landmark 全覆蓋(9 為地牢) */
+    {"20",5,"21"},{"20",6,"22"},{"20",7,"23"},{"20",8,"31"},{"20",10,"32"},
+    /* mapx30(地球另一時代)*/
+    {"30",5,"33"},{"30",6,"41"},{"30",7,"61"},{"30",8,"71"},{"30",10,"81"},
+    /* mapx40(地球另一時代)*/
+    {"40",5,"82"},{"40",10,"92"},
+};
+static const char *loc_dest(const char *world, unsigned char tile)
 {
-    switch (t){
-        case 5:  return "21";
-        case 6:  return "22";
-        case 7:  return "23";
-        case 8:  return "31";
-        case 10: return "32";
-    }
+    for (size_t i=0;i<sizeof LOC_REG/sizeof LOC_REG[0];i++)
+        if (!strcmp(LOC_REG[i].world,world) && LOC_REG[i].tile==tile)
+            return LOC_REG[i].dest;
     return NULL;
 }
 
 /* 進城:依世界圖 landmark tile 載入對應城鎮地圖 + 實體 + 對話 */
 static void enter_town_tile(Game *g, unsigned char wtile)
 {
-    const char *num = town_map_num(wtile);
+    const char *num = loc_dest(g->world_num, wtile);
     if (!num) num = "21";   /* 後備:'O' 強制進城或未知 landmark */
     /* 換城(或首次)→ 重載 */
     if (!g->town_ok || strcmp(g->town_loaded, num) != 0){
@@ -645,7 +653,7 @@ static void handle_dir(Game *g, char dir)
             snprintf(g->msg,sizeof g->msg, g->vehicle?"航行 %c。":"往 %c 移動。",dir);
             unsigned char t=u2_map_tile(am,g->player.x,g->player.y);
             if (!g->in_town && t==WORLD_DUNGEON_TILE) { g->nmob=0; enter_dungeon(g); }
-            else if (!g->in_town && town_map_num(t)) { g->nmob=0; enter_town_tile(g,t); }
+            else if (!g->in_town && loc_dest(g->world_num,t)) { g->nmob=0; enter_town_tile(g,t); }
             else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); }
         } else snprintf(g->msg,sizeof g->msg,
                         (!g->in_town&&g->vehicle&&tt!=0&&tt!=1)?"船無法駛上陸地(B 下船)。":"%c 方向被擋住。",dir);
@@ -879,6 +887,9 @@ int main(int argc, char **argv)
     /* 地點檔目錄:取世界圖所在目錄,供動態組各 mapxNN 路徑 */
     snprintf(g.data_dir,sizeof g.data_dir,"%s",map_path);
     { char *sl=strrchr(g.data_dir,'/'); if(sl)*sl=0; else snprintf(g.data_dir,sizeof g.data_dir,"."); }
+    /* 目前 overworld 編號:由 map_path basename "mapxNN" 取 "NN" */
+    { const char *b=strrchr(map_path,'/'); b=b?b+1:map_path;
+      const char *p=strstr(b,"mapx"); snprintf(g.world_num,sizeof g.world_num,"%s",p?p+4:"20"); }
 
     /* tileset:tiles_path 為逗號分隔的多張 strip(可切換) */
     {
@@ -961,7 +972,7 @@ int main(int argc, char **argv)
     }
 
     g.mode=MODE_WORLD;
-    find_start(&g.map,&g.player);
+    find_start(&g.map,&g.player,g.world_num);
     g.rng = 1;                                          /* 固定 seed → headless 可重現 */
     g.php = (g.save.ok && g.save.has_character) ? g.save.hp : 400;
     place_ship(&g);                                     /* 起點附近放一艘可登的船 */
