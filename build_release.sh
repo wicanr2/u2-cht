@@ -26,7 +26,7 @@ stage_data(){  # $1 = 目標 share 目錄
   cp tests/fixtures/player_sample_abcd "$S/data/player" || true
   cp "$FONT" "$S/font/wqy-zenhei.ttc"
   cp /tmp/ts/*.png "$S/tileset/"
-  cp translations/exe_translatable_strings.tsv translations/talk_dialogue.tsv "$S/translations/"
+  cp translations/exe_translatable_strings.tsv translations/talk_dialogue.tsv translations/ui_strings.tsv "$S/translations/"
   [ -f /work/build/splash.png ] && cp /work/build/splash.png "$S/splash.png" || true   # 開場全家福
   [ -f docs/screenshots/fmtowns_title_decoded.png ] && cp docs/screenshots/fmtowns_title_decoded.png "$S/title.png" || true  # 原版開場標題
 }

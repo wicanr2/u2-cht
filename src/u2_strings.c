@@ -4,6 +4,7 @@
 #include <string.h>
 
 U2Lang u2_lang = U2_ZH;   /* 全域語系(F4 切換) */
+int u2_nlang = 2;         /* 已載入字典語言欄數(zh/en;載入 TSV 後更新) */
 
 /* 把字面 "\r" (反斜線+r) 還原為 0x0d,就地改寫。 */
 static void unescape_cr(char *s)
@@ -71,7 +72,7 @@ U2Strings u2_strings_load(const char *tsv_path, int orig_col, int zh_col)
 
 const char *u2_strings_lookup(const U2Strings *s, const char *orig)
 {
-    if (u2_lang == U2_EN) return NULL;   /* 英文:回 NULL → 呼叫端用原文 */
+    if (u2_lang != U2_ZH) return NULL;   /* 非中文:回 NULL → 呼叫端用原文(英文)*/
     for (int i = 0; i < s->count; i++)
         if (strcmp(s->orig[i], orig) == 0)
             return s->zh[i];
