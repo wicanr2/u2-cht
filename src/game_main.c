@@ -78,8 +78,8 @@ static const TrPair TR_TABLE[] = {
     /* chrome:標題列 / 操作提示 */
     {"Ultima II — %s(T 交談 · X 離開)", "Ultima II — %s (T talk · X exit)"},
     {"Ultima II:女巫的復仇 — 繁體中文", "Ultima II: Revenge of the Enchantress"},
-    {"方向鍵/WASD 移動 · T 交談 · C 角色表 · X 離開 · F1 指令表",
-     "Arrows/WASD move · T talk · C sheet · X exit · F1 help"},
+    {"方向鍵/WASD 移動 · T 交談 · Z 商店 · C 角色表 · X 離開 · F1 指令表",
+     "Arrows/WASD move · T talk · Z shop · C sheet · X exit · F1 help"},
     {"方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q",
      "Arrows/WASD move · B board · P time door · G theme · F1 help · Q"},
     {"地牢 — 第一人稱線框", "Dungeon — first-person wireframe"},
@@ -350,7 +350,7 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
     SDL_FillRect(cv,&t,col);SDL_FillRect(cv,&b,col);SDL_FillRect(cv,&l,col);SDL_FillRect(cv,&rr,col);
 
     int by=MAP_OY+VIEW_ROWS*TILE_PX+10;
-    u2_text_draw(cv,body, g->in_town ? tr("方向鍵/WASD 移動 · T 交談 · C 角色表 · X 離開 · F1 指令表")
+    u2_text_draw(cv,body, g->in_town ? tr("方向鍵/WASD 移動 · T 交談 · Z 商店 · C 角色表 · X 離開 · F1 指令表")
                                      : tr("方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q"),
                  MAP_OX,by,150,175,205);
     u2_text_draw(cv,body,g->msg,MAP_OX,by+30,210,225,205);
@@ -455,6 +455,7 @@ static const struct { const char *zh,*en; int price,kind,arg; } SHOP[] = {
     {"黃銅鈕扣(起飛)","Brass Button",     80,3,ITEM_BRASS_BUTTON},
     {"生命符(火箭)","Ankh (rocket)",   120,3,ITEM_ANKH},
     {"三鋰(燃料)","Tri-Lithium",      200,3,ITEM_TRI_LITHIUM},
+    {"獻金給國王(屬性+1)","Tribute to King (stat +1)",150,4,0},
 };
 #define NSHOP ((int)(sizeof SHOP/sizeof SHOP[0]))
 static void shop_buy(Game *g, int idx)
@@ -467,6 +468,11 @@ static void shop_buy(Game *g, int idx)
         case 1: if(g->armour>=5){snprintf(g->msg,sizeof g->msg,en?"Armour already best.":"防具已是最強。");return;} g->armour++; break;
         case 2: g->save.food += SHOP[idx].arg; if(g->save.food>9999)g->save.food=9999; break;
         case 3: g->items |= (unsigned)SHOP[idx].arg; break;
+        case 4: { int lo=0; for(int i=1;i<U2_NUM_STATS;i++) if(g->save.stats[i]<g->save.stats[lo])lo=i;
+                  if(g->save.stats[lo]<99) g->save.stats[lo]++;
+                  g->save.gold -= SHOP[idx].price;
+                  snprintf(g->msg,sizeof g->msg,en?"The King raises your %s.":"國王提升了你的%s。",
+                           u2_lang==U2_EN?u2_save_stat_name(lo):u2_save_stat_zh(lo)); return; }
     }
     g->save.gold -= SHOP[idx].price;
     snprintf(g->msg,sizeof g->msg,en?"Bought: %s":"買了:%s",en?SHOP[idx].en:SHOP[idx].zh);
@@ -481,7 +487,7 @@ static void render_shop_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text *
     SDL_Rect e1={x,y,pw,2},e2={x,y+ph-2,pw,2},e3={x,y,2,ph},e4={x+pw-2,y,2,ph};
     SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
     char ln[96];
-    snprintf(ln,sizeof ln,en?"Shop — gold %d  (1-8 buy, Z close)":"商店 — 黃金 %d (按 1-8 購買,Z 關閉)",g->save.gold);
+    snprintf(ln,sizeof ln,en?"Shop — gold %d  (1-9 buy, Z close)":"商店 — 黃金 %d (按 1-9 購買,Z 關閉)",g->save.gold);
     u2_text_draw(cv,body,ln,x+16,y+8,235,235,245);
     int iy=y+52;
     for (int i=0;i<NSHOP;i++){
@@ -1518,7 +1524,7 @@ int main(int argc, char **argv)
             else if (c=='Y'||c=='y'){ if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); }
             else if (c=='U'){ g.items=~0u; g.vehicle=VEH_ROCKET; launch_rocket(&g); }  /* 除錯:直接發射 */
             else if (c=='Z'||c=='z'){ if (g.in_town) g.show_shop=!g.show_shop; }
-            else if (c>='1'&&c<='8'){ if (g.show_shop) shop_buy(&g,c-'1'); }
+            else if (c>='1'&&c<='9'){ if (g.show_shop) shop_buy(&g,c-'1'); }
             else if (c=='D') enter_dungeon(&g);
             else if (c=='O') enter_town_tile(&g,5);   /* 強制進城(headless 測試用) */
             else if (c=='P'||c=='p') time_travel(&g); /* 穿越時間之門(快捷/headless) */
@@ -1640,7 +1646,7 @@ int main(int argc, char **argv)
                         case SDLK_y: if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); break;
                         case SDLK_z: if (g.in_town) g.show_shop=!g.show_shop; break;
                         case SDLK_1:case SDLK_2:case SDLK_3:case SDLK_4:
-                        case SDLK_5:case SDLK_6:case SDLK_7:case SDLK_8:
+                        case SDLK_5:case SDLK_6:case SDLK_7:case SDLK_8:case SDLK_9:
                             if (g.show_shop) shop_buy(&g,k-SDLK_1); break;
                         case SDLK_p: time_travel(&g); break;   /* 穿越時間之門快捷 */
                         case SDLK_g: if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
