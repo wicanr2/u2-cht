@@ -125,6 +125,9 @@ typedef struct {
     unsigned int items;           /* 物品旗標 bitset(見 ITEM_*) */
     int planet;                   /* 太空中目前軌道行星 index(見 PLANETS) */
     char ret_world[8];            /* 發射前的 overworld 編號(降落回原星用) */
+    int spells[9];                /* 各法術持有數(SPELLBOOK 索引;消耗制) */
+    int spell_light;              /* 魔法照明剩餘回合(地牢 HUD) */
+    int spells_given;             /* 起始法術已依職業發放(一次性) */
     char msg[200];
 } Game;
 /* 載具(oracle this+0x7390) */
@@ -160,6 +163,9 @@ static void clampi(int *v, int lo, int hi) { if (*v<lo)*v=lo; if (*v>hi)*v=hi; }
 static const char *loc_dest(const char *world, unsigned char tile);
 static const char *kind_name(char k);
 static const char *race_nm(int r);
+/* 法術(forward 宣告;render_dungeon HUD 用) */
+static const char *spell_name(int i);
+static int spell_class_ok(const Game *g, int i);
 static const char *class_nm(int k);
 static const char *stat_nm(int i);
 
@@ -348,9 +354,26 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=40;
     draw_status_panel(cv,body,&g->ui,&g->save,rx,ry); ry+=4*30+10;
 
+    /* 法術欄(僅顯示職業可用;1-9 施放)*/
+    {
+        int any=0;
+        for(int i=0;i<9;i++) if(spell_class_ok(g,i)){any=1;break;}
+        if(any){
+            u2_text_draw(cv,body,en?"Spells (1-9)":"法術 (1-9)",rx,ry,150,175,205); ry+=26;
+            for(int i=0;i<9;i++){
+                if(!spell_class_ok(g,i)) continue;
+                snprintf(ln,sizeof ln,"%d %s x%d",i+1,spell_name(i),g->spells[i]);
+                int v = g->spells[i]>0 ? 225:110;
+                u2_text_draw(cv,small,ln,rx,ry,v,v,v); ry+=22;
+            }
+            if(g->spell_light>0){ snprintf(ln,sizeof ln,en?"(lit %d)":"(照明 %d)",g->spell_light);
+                u2_text_draw(cv,small,ln,rx,ry,200,200,120); ry+=22; }
+        }
+    }
+
     int by=MAP_OY+DVIEW+12;
-    u2_text_draw(cv,small,en?"N fwd · S back · W left · E right · J down · K up · X exit · C sheet"
-                            :"N 前進 · S 後退 · W 左轉 · E 右轉 · J 下樓 · K 上樓 · X 離開 · C 角色表",
+    u2_text_draw(cv,small,en?"N/S/W/E move · J down · K up · 1-9 cast · X exit · C sheet"
+                            :"N 前進 · S 後退 · W/E 轉向 · J 下樓 · K 上樓 · 1-9 施法 · X 離開",
         24,by,150,170,200);
     u2_text_draw(cv,small,g->msg,24,by+26,210,225,205);
 }
@@ -367,6 +390,7 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
         "走上地牢圖塊     進入地牢",
         "T               城鎮中與 NPC 交談",
         "J / K           地牢中 下樓 / 上樓",
+        "1-9 (地牢)      施放法術(光明/穿牆/返地表/擊殺…)",
         "X               離開城鎮 / 地牢",
         "C               角色資料表",
         "G               切換畫風(EGA / FM Towns…)",
@@ -383,6 +407,7 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
         "Step on dungeon Enter dungeon",
         "T               Talk to NPC in town",
         "J / K           Descend / ascend in dungeon",
+        "1-9 (dungeon)   Cast spell (Light/Passwall/Surface/Kill...)",
         "X               Leave town / dungeon",
         "C               Character sheet",
         "G               Switch theme (EGA / FM Towns...)",
@@ -411,6 +436,32 @@ static const char *ARMOUR_EN[6]={"Cloth","Leather","Chain","Plate","Reflect","Po
 static const char *weapon_nm(int w){ if(w<0||w>8)return"-"; return (u2_lang==U2_EN)?WEAPON_EN[w]:WEAPON_ZH[w]; }
 static const char *armour_nm(int a){ if(a<0||a>5)return"-"; return (u2_lang==U2_EN)?ARMOUR_EN[a]:ARMOUR_ZH[a]; }
 /* 商店品項:kind 0=武器升級 1=防具升級 2=食物 3=道具旗標 */
+/* ---- 法術書(手冊 MAGIC SPELLS;9 法術,限地牢/塔施放)----
+ * 索引對齊手冊清單;cls=可用職業 bitmask(1<<klass):牧師 bit1(0x2)、巫師 bit2(0x4)。
+ * 光明/上下梯雙修(0x6);穿牆/返地表/祈禱牧師(0x2);飛彈/瞬移/擊殺巫師(0x4)。
+ * 施法消耗一張(手冊:即使失敗也消耗);建角依職業給起始量、商店補充。 */
+enum { SP_LIGHT, SP_DDOWN, SP_DUP, SP_PASS, SP_SURF, SP_PRAY, SP_MISSILE, SP_BLINK, SP_KILL };
+static const struct { const char *zh, *en; unsigned char cls; } SPELLBOOK[9] = {
+    {"光明",     "Light",         0x6},
+    {"下梯",     "Ladder Down",   0x6},
+    {"上梯",     "Ladder Up",     0x6},
+    {"穿牆",     "Passwall",      0x2},
+    {"返地表",   "Surface",       0x2},
+    {"祈禱",     "Prayer",        0x2},
+    {"魔法飛彈", "Magic Missile", 0x4},
+    {"瞬移",     "Blink",         0x4},
+    {"擊殺",     "Kill",          0x4},
+};
+static const char *spell_name(int i){ return (u2_lang==U2_EN)?SPELLBOOK[i].en:SPELLBOOK[i].zh; }
+static int spell_class_ok(const Game *g, int i){
+    int k = g->save.has_character ? g->save.klass : 2;   /* 無角色預設巫師(headless 測試)*/
+    return (SPELLBOOK[i].cls & (1u<<k)) != 0;
+}
+/* 起始法術:依職業給可用法術各 n 張(法術不進存檔,每次啟動重給)。 */
+static void grant_starting_spells(Game *g, int n){
+    for(int i=0;i<9;i++) if(spell_class_ok(g,i) && g->spells[i]<n) g->spells[i]=n;
+}
+
 static const struct { const char *zh,*en; int price,kind,arg; } SHOP[] = {
     {"升級武器","Upgrade weapon",   100,0,0},
     {"升級防具","Upgrade armour",    80,1,0},
@@ -421,6 +472,7 @@ static const struct { const char *zh,*en; int price,kind,arg; } SHOP[] = {
     {"生命符(火箭)","Ankh (rocket)",   120,3,ITEM_ANKH},
     {"三鋰(燃料)","Tri-Lithium",      200,3,ITEM_TRI_LITHIUM},
     {"獻金給國王(屬性+1)","Tribute to King (stat +1)",150,4,0},
+    {"習得法術(可用各+5)","Learn spells (+5 each)",120,5,5},
 };
 #define NSHOP ((int)(sizeof SHOP/sizeof SHOP[0]))
 static void shop_buy(Game *g, int idx)
@@ -444,6 +496,12 @@ static void shop_buy(Game *g, int idx)
                   if(g->save.stats[lo]<99) g->save.stats[lo]++;
                   snprintf(g->msg,sizeof g->msg,en?"The King heals you and raises your %s.":"國王為你療傷,並提升了你的%s。",
                            u2_lang==U2_EN?u2_save_stat_name(lo):u2_save_stat_zh(lo)); return; }
+        case 5: {  /* 習得法術:職業可用法術各 +arg(不會魔法則不扣錢)*/
+                  int k=g->save.has_character?g->save.klass:2, got=0;
+                  for(int i=0;i<9;i++) if(SPELLBOOK[i].cls&(1u<<k)){ g->spells[i]+=SHOP[idx].arg; got++; }
+                  if(!got){ snprintf(g->msg,sizeof g->msg,en?"Your class cannot use magic.":"你的職業不會魔法。"); return; }
+                  g->save.gold -= SHOP[idx].price;
+                  snprintf(g->msg,sizeof g->msg,en?"Learned %d spells (+%d each).":"習得 %d 種法術(各+%d)。",got,SHOP[idx].arg); return; }
     }
     g->save.gold -= SHOP[idx].price;
     snprintf(g->msg,sizeof g->msg,en?"Bought: %s":"買了:%s",en?SHOP[idx].en:SHOP[idx].zh);
@@ -526,6 +584,7 @@ static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2
 {
     if (g->won){ render_ending(cv,title,body); return; }   /* 結局蓋過一切 */
     revive_if_dead(g);                                     /* HP 歸零 → 復活 */
+    if (!g->spells_given){ g->spells_given=1; grant_starting_spells(g,8); }  /* 起始法術(依職業)*/
     if (g->mode==MODE_SPACE)      render_space(cv,g,title,body,small);
     else if (g->mode==MODE_WORLD) render_world(cv,g,title,body);
     else                          render_dungeon(cv,g,title,body,small);
@@ -1185,6 +1244,60 @@ static void dungeon_event(Game *g)
     }
 }
 
+/* 施放法術 idx(僅地牢/塔內;手冊:C)ast only in dungeons and towers)。 */
+static void cast_spell(Game *g, int idx)
+{
+    if (idx<0 || idx>=9) return;
+    if (g->mode != MODE_DUNGEON){
+        snprintf(g->msg,sizeof g->msg,tr("只能在地牢或塔中施法。")); return;
+    }
+    if (!spell_class_ok(g,idx)){
+        snprintf(g->msg,sizeof g->msg,tr("你的職業無法施展「%s」。"),spell_name(idx)); return;
+    }
+    if (g->spells[idx] <= 0){
+        snprintf(g->msg,sizeof g->msg,tr("你沒有「%s」法術(可在城鎮商店習得)。"),spell_name(idx)); return;
+    }
+    g->spells[idx]--;                                    /* 消耗(成敗皆扣)*/
+    int FX[4]={0,1,0,-1}, FY[4]={-1,0,1,0};              /* N E S W */
+    int fx=g->dx+FX[g->ddir], fy=g->dy+FY[g->ddir];      /* 前方格 */
+    switch (idx){
+        case SP_LIGHT:
+            g->spell_light = 40;
+            snprintf(g->msg,sizeof g->msg,tr("魔法照明亮起,地牢豁然開朗。")); break;
+        case SP_DDOWN:  dungeon_descend(g); break;
+        case SP_DUP:    dungeon_ascend(g);  break;
+        case SP_PASS:
+            if (u2_dungeon_is_wall(&g->dg,g->dlevel,fx,fy)){
+                g->dx=fx; g->dy=fy;                      /* 打通並穿過前方牆 */
+                snprintf(g->msg,sizeof g->msg,tr("穿牆術轟開前方石壁,你穿了過去。"));
+            } else snprintf(g->msg,sizeof g->msg,tr("前方沒有牆可穿。"));
+            break;
+        case SP_SURF:
+            snprintf(g->msg,sizeof g->msg,tr("返地表法術將你傳回地面。")); exit_dungeon(g); break;
+        case SP_PRAY:
+            g->php = 400;                                /* 神聖干預:治癒(results simulate reality)*/
+            snprintf(g->msg,sizeof g->msg,tr("你祈禱,神聖之力湧入,傷勢盡復。")); break;
+        case SP_MISSILE: {
+            int xp=(rng_next(g)&3)+2, gold=4+(rng_next(g)%16);
+            g->save.exp+=xp; g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
+            snprintf(g->msg,sizeof g->msg,tr("魔法飛彈轟向前方,擊潰擋路之敵(+%d 經驗)。"),xp); break;
+        }
+        case SP_BLINK: {
+            for (int t=0;t<16;t++){
+                int rx=(rng_next(g)%17)-8, ry=(rng_next(g)%17)-8;
+                int nx=g->dx+rx, ny=g->dy+ry;
+                if (!u2_dungeon_is_wall(&g->dg,g->dlevel,nx,ny)){ g->dx=nx; g->dy=ny; break; }
+            }
+            snprintf(g->msg,sizeof g->msg,tr("瞬移!你閃現到地牢另一處。")); break;
+        }
+        case SP_KILL: {
+            int xp=(rng_next(g)&7)+4, gold=8+(rng_next(g)%24);
+            g->save.exp+=xp; g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
+            snprintf(g->msg,sizeof g->msg,tr("擊殺術迸發,前方之敵灰飛煙滅(+%d 經驗,+%d 金)。"),xp,gold); break;
+        }
+    }
+}
+
 /* Minax 對決(傳說時代 Legends);oracle:力場 1000 傷、RING 免疫、ENILNO 殺。 */
 static void minax_encounter(Game *g)
 {
@@ -1641,7 +1754,9 @@ int main(int argc, char **argv)
             else if (c=='U'){ g.items=~0u; g.vehicle=VEH_ROCKET; launch_rocket(&g); }  /* 除錯:直接發射 */
             else if (c=='M') minax_encounter(&g);   /* Minax 對決(傳說時代)*/
             else if (c=='Z'||c=='z'){ if (g.in_town) g.show_shop=!g.show_shop; }
-            else if (c>='1'&&c<='9'){ if (g.show_shop) shop_buy(&g,c-'1'); }
+            else if (c>='1'&&c<='9'){ if (g.show_shop) shop_buy(&g,c-'1');
+                                      else if (g.mode==MODE_DUNGEON) cast_spell(&g,c-'1'); }   /* 地牢:1-9 施放法術 */
+            else if (c=='0'){ if (g.show_shop) shop_buy(&g,9); }   /* 商店第 10 項:習得法術 */
             else if (c=='D') enter_dungeon(&g);
             else if (c=='O') enter_town_tile(&g,5);   /* 強制進城(headless 測試用) */
             else if (c=='P'||c=='p') time_travel(&g); /* 穿越時間之門(快捷/headless) */
@@ -1772,7 +1887,10 @@ int main(int argc, char **argv)
                         case SDLK_z: if (g.in_town) g.show_shop=!g.show_shop; break;
                         case SDLK_1:case SDLK_2:case SDLK_3:case SDLK_4:
                         case SDLK_5:case SDLK_6:case SDLK_7:case SDLK_8:case SDLK_9:
-                            if (g.show_shop) shop_buy(&g,k-SDLK_1); break;
+                            if (g.show_shop) shop_buy(&g,k-SDLK_1);
+                            else if (g.mode==MODE_DUNGEON) cast_spell(&g,k-SDLK_1);   /* 地牢:1-9 施放法術 */
+                            break;
+                        case SDLK_0: if (g.show_shop) shop_buy(&g,9); break;          /* 商店第 10 項:習得法術 */
                         case SDLK_p: time_travel(&g); break;   /* 穿越時間之門快捷 */
                         case SDLK_g: if(g.ntset){ g.curset=(g.curset+1)%g.ntset;
                             snprintf(g.msg,sizeof g.msg,tr("切換圖塊:%s"),g.tname[g.curset]); } break;
