@@ -52,6 +52,8 @@ typedef struct {
     U2Player player;
     /* 城鎮 */
     int in_town;
+    char loc_kind;                /* 目前 tile-map 地點類型('v'/'t'/'c'),供標題顯示 */
+    int dg_tower;                 /* 地牢場景為「塔」(倒置:KLIMB 上=深入) */
     U2Map town; U2Mon tmon; U2Talk talk; int town_ok;
     int tret_x, tret_y;           /* 進城前的地面座標 */
     char town_path[512];
@@ -91,8 +93,9 @@ static U2Mon *amon(Game *g) { return g->in_town ? &g->tmon : &g->mon; }
 
 static void clampi(int *v, int lo, int hi) { if (*v<lo)*v=lo; if (*v>hi)*v=hi; }
 
-/* 地點登記表查詢(world 編號 + landmark tile → 目的地 map 編號;forward 宣告) */
+/* 地點登記表查詢(forward 宣告) */
 static const char *loc_dest(const char *world, unsigned char tile);
+static const char *kind_name(char k);
 
 static void find_start(const U2Map *m, U2Player *p, const char *world)
 {
@@ -174,9 +177,10 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
     SDL_FillRect(cv, NULL, SDL_MapRGB(cv->format,0,0,0));
     SDL_Rect hdr={0,0,CANVAS_W,HDR_H};
     SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
-    u2_text_draw(cv,title, g->in_town ? "Ultima II — 城鎮(T 交談 · X 離開)"
-                                      : "Ultima II:女巫的復仇 — 繁體中文",
-                 10,4,235,235,245);
+    char hdr_t[64];
+    if (g->in_town) snprintf(hdr_t,sizeof hdr_t,"Ultima II — %s(T 交談 · X 離開)",kind_name(g->loc_kind));
+    else snprintf(hdr_t,sizeof hdr_t,"Ultima II:女巫的復仇 — 繁體中文");
+    u2_text_draw(cv,title, hdr_t, 10,4,235,235,245);
 
     int cam_x=g->player.x-VIEW_COLS/2, cam_y=g->player.y-VIEW_ROWS/2;
     clampi(&cam_x,0,U2_MAP_W-VIEW_COLS); clampi(&cam_y,0,U2_MAP_H-VIEW_ROWS);
@@ -233,7 +237,7 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     SDL_FillRect(cv, NULL, SDL_MapRGB(cv->format,10,12,18));
     SDL_Rect hdr={0,0,CANVAS_W,HDR_H};
     SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
-    u2_text_draw(cv,title,"地牢 — 第一人稱線框",10,4,235,235,245);
+    u2_text_draw(cv,title, g->dg_tower?"塔 — 第一人稱線框":"地牢 — 第一人稱線框",10,4,235,235,245);
 
     int depth=u2_dungeon_render(cv,&g->dg,g->dlevel,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW);
 
@@ -323,19 +327,21 @@ static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2
 }
 
 /* 進地牢:載入地牢檔,設定入口 */
-static void enter_dungeon(Game *g)
+static void enter_dungeon_kind(Game *g, int tower)
 {
     if (!g->dg_ok){
         g->dg = u2_dungeon_load(g->dungeon_path);
         g->dg_ok = g->dg.ok;
     }
     if (!g->dg_ok){ snprintf(g->msg,sizeof g->msg,"找不到地牢資料,無法進入。"); return; }
+    g->dg_tower=tower;
     g->ret_x=g->player.x; g->ret_y=g->player.y;
     g->dlevel=0;
     dungeon_entry(&g->dg,g->dlevel,&g->dx,&g->dy,&g->ddir);
     g->mode=MODE_DUNGEON;
-    snprintf(g->msg,sizeof g->msg,"你踏入了黑暗的地牢…");
+    snprintf(g->msg,sizeof g->msg, tower?"你踏入了高聳的塔…":"你踏入了黑暗的地牢…");
 }
+static void enter_dungeon(Game *g){ enter_dungeon_kind(g,0); }
 
 /* 下樓:站在下梯(&0x20)才生效 */
 static void dungeon_descend(Game *g)
@@ -373,31 +379,44 @@ static void exit_dungeon(Game *g)
     snprintf(g->msg,sizeof g->msg,"你回到了地面。");
 }
 
-/* 世界圖 landmark tile → 地點地圖編號(均挑有 NPC + 對話 tlk 的城鎮)。
- * 地點登記表(world 編號 + landmark tile → 目的地 map 編號)。
- * world-aware:不同世代 overworld(mapx20/30/40)的 landmark 對到該世代的城。
- * provisional:精確對應待 oracle/Codex 校正(見 docs/MAP_REGISTRY.md)。
- * tile 9 = 地牢,不在此表(走 enter_dungeon)。回 NULL = 非地點 landmark。 */
-typedef struct { const char *world; unsigned char tile; const char *dest; } LocReg;
+/* 地點登記表(world 編號 + landmark tile → 目的地 + 類型)。
+ * world-aware:不同世代 overworld 的 landmark 對到該世代的地點。
+ * provisional:精確對應/類型待 oracle/Codex 校正(見 docs/MAP_REGISTRY.md)。
+ * kind(oracle ENTER 類型):'v'村莊 't'城鎮 'c'城堡 'T'塔(倒置地牢)'d'地牢。 */
+typedef struct { const char *world; unsigned char tile; const char *dest; char kind; } LocReg;
 static const LocReg LOC_REG[] = {
-    /* 5 個地球時代 overworld(oracle 首位數字定);landmark → 城鎮(provisional,9=地牢) */
-    {"00",8,"03"},{"00",10,"92"},                                  /* Legends */
-    {"10",5,"11"},{"10",10,"93"},                                  /* 9,000,000 B.C. */
-    {"20",5,"21"},{"20",6,"22"},{"20",7,"23"},{"20",8,"31"},{"20",10,"32"}, /* 1423 B.C. */
-    {"30",5,"33"},{"30",6,"41"},{"30",7,"61"},{"30",8,"71"},{"30",10,"81"}, /* 1990 A.D. */
-    {"40",5,"82"},{"40",10,"61"},                                  /* 2112 A.D. */
+    /* 5 個地球時代 overworld(oracle 首位數字定);landmark → 地點(kind/dest 為 provisional)*/
+    {"00",8,"03",'t'},{"00",10,"92",'c'},{"00",9,"15",'d'},                 /* Legends */
+    {"10",5,"11",'v'},{"10",10,"93",'c'},{"10",9,"15",'d'},                 /* 9,000,000 B.C. */
+    {"20",5,"21",'t'},{"20",6,"22",'v'},{"20",7,"23",'c'},{"20",8,"31",'t'},{"20",10,"32",'t'},{"20",9,"15",'d'}, /* 1423 B.C. */
+    {"30",5,"33",'t'},{"30",6,"41",'v'},{"30",7,"61",'c'},{"30",8,"71",'T'},{"30",10,"81",'t'},{"30",9,"15",'d'}, /* 1990 A.D.(8=塔示範)*/
+    {"40",5,"82",'t'},{"40",10,"61",'c'},{"40",9,"15",'d'},                 /* 2112 A.D. */
 };
-static const char *loc_dest(const char *world, unsigned char tile)
+static const LocReg *loc_lookup(const char *world, unsigned char tile)
 {
     for (size_t i=0;i<sizeof LOC_REG/sizeof LOC_REG[0];i++)
         if (!strcmp(LOC_REG[i].world,world) && LOC_REG[i].tile==tile)
-            return LOC_REG[i].dest;
+            return &LOC_REG[i];
     return NULL;
+}
+/* 進入用地圖編號(村莊/城鎮/城堡;地牢/塔走 dungeon)。回 NULL = 非 tile-map 地點。 */
+static const char *loc_dest(const char *world, unsigned char tile)
+{
+    const LocReg *L=loc_lookup(world,tile);
+    return (L && (L->kind=='v'||L->kind=='t'||L->kind=='c')) ? L->dest : NULL;
+}
+static const char *kind_name(char k)
+{
+    switch (k){ case 'v':return "村莊"; case 't':return "城鎮"; case 'c':return "城堡";
+                case 'T':return "塔"; case 'd':return "地牢"; }
+    return "地點";
 }
 
 /* 進城:依世界圖 landmark tile 載入對應城鎮地圖 + 實體 + 對話 */
 static void enter_town_tile(Game *g, unsigned char wtile)
 {
+    const LocReg *L = loc_lookup(g->world_num, wtile);
+    g->loc_kind = L ? L->kind : 't';
     const char *num = loc_dest(g->world_num, wtile);
     if (!num) num = "21";   /* 後備:'O' 強制進城或未知 landmark */
     /* 換城(或首次)→ 重載 */
@@ -427,7 +446,7 @@ static void enter_town_tile(Game *g, unsigned char wtile)
     }
     g->player.x=sx; g->player.y=sy;
     g->in_town=1;
-    snprintf(g->msg,sizeof g->msg,"你進入了城鎮。");
+    snprintf(g->msg,sizeof g->msg,"你進入了%s。",kind_name(g->loc_kind));
 }
 
 static void exit_town(Game *g)
@@ -732,9 +751,10 @@ static void handle_dir(Game *g, char dir)
             g->player.x=tx; g->player.y=ty;
             snprintf(g->msg,sizeof g->msg, g->vehicle?"航行 %c。":"往 %c 移動。",dir);
             unsigned char t=u2_map_tile(am,g->player.x,g->player.y);
+            const LocReg *L = (!g->in_town) ? loc_lookup(g->world_num,t) : NULL;
             if (!g->in_town && g->td_x==g->player.x && g->td_y==g->player.y) { time_travel(g); }
-            else if (!g->in_town && t==WORLD_DUNGEON_TILE) { g->nmob=0; enter_dungeon(g); }
-            else if (!g->in_town && loc_dest(g->world_num,t)) { g->nmob=0; enter_town_tile(g,t); }
+            else if (L && (L->kind=='d'||L->kind=='T')) { g->nmob=0; enter_dungeon_kind(g, L->kind=='T'); }
+            else if (L) { g->nmob=0; enter_town_tile(g,t); }
             else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); }
         } else snprintf(g->msg,sizeof g->msg,
                         (!g->in_town&&g->vehicle&&tt!=0&&tt!=1)?"船無法駛上陸地(B 下船)。":"%c 方向被擋住。",dir);
