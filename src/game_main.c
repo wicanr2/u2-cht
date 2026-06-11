@@ -519,9 +519,11 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
 
 static void render_space(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small);
 static void render_ending(SDL_Surface *cv, U2Text *title, U2Text *body);
+static void revive_if_dead(Game *g);
 static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
 {
     if (g->won){ render_ending(cv,title,body); return; }   /* 結局蓋過一切 */
+    revive_if_dead(g);                                     /* HP 歸零 → 復活 */
     if (g->mode==MODE_SPACE)      render_space(cv,g,title,body,small);
     else if (g->mode==MODE_WORLD) render_world(cv,g,title,body);
     else                          render_dungeon(cv,g,title,body,small);
@@ -1207,6 +1209,16 @@ static void minax_encounter(Game *g)
     } else {
         snprintf(g->msg,sizeof g->msg,tr("米娜克斯尖叫「去死吧,蠢貨!」你倒下了……(回城補給再來)"));
     }
+}
+
+/* 死亡 → 復活(HP 歸零時不列顛王在城堡復活;回 overworld、滿血、失半數黃金)*/
+static void revive_if_dead(Game *g)
+{
+    if (g->won || !g->save.has_character || g->php>0) return;
+    g->php=400; g->save.hp=400; g->save.gold/=2;
+    g->mode=MODE_WORLD; g->in_town=0; g->vehicle=VEH_WALK; g->player.tile=PLAYER_TILE; g->nmob=0;
+    find_start(&g->map,&g->player,g->world_num);
+    snprintf(g->msg,sizeof g->msg,tr("你倒下了……不列顛王將你復活,但失去了半數黃金。"));
 }
 
 /* 依模式處理一個方向鍵(dir ∈ N/S/E/W) */
