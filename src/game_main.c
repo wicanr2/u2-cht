@@ -133,6 +133,7 @@ typedef struct {
     int dx, dy, ddir, dlevel;     /* 地牢內位置 / 朝向 / 樓層 */
     int ret_x, ret_y;             /* 進地牢前的座標 */
     char dungeon_path[512];
+    char dg_loaded[8];            /* 目前已載入的地牢編號(換地牢重載) */
     /* 翻譯 / 存檔 */
     U2Strings ui; U2Strings tr;   /* ui=狀態標籤;tr=對話譯文 */
     U2Save save;
@@ -443,11 +444,15 @@ static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2
 }
 
 /* 進地牢:載入地牢檔,設定入口 */
-static void enter_dungeon_kind(Game *g, int tower)
+/* 進地牢/塔:依登記表 dest 載入對應地牢圖(per-location;換地牢重載) */
+static void enter_dungeon_at(Game *g, const char *num, int tower)
 {
-    if (!g->dg_ok){
+    if (!num) num = "15";
+    if (!g->dg_ok || strcmp(g->dg_loaded, num) != 0){
+        snprintf(g->dungeon_path,sizeof g->dungeon_path,"%s/mapx%s",g->data_dir,num);
         g->dg = u2_dungeon_load(g->dungeon_path);
         g->dg_ok = g->dg.ok;
+        if (g->dg_ok) snprintf(g->dg_loaded,sizeof g->dg_loaded,"%s",num);
     }
     if (!g->dg_ok){ snprintf(g->msg,sizeof g->msg,tr("找不到地牢資料,無法進入。")); return; }
     g->dg_tower=tower;
@@ -457,7 +462,7 @@ static void enter_dungeon_kind(Game *g, int tower)
     g->mode=MODE_DUNGEON;
     snprintf(g->msg,sizeof g->msg, tower?tr("你踏入了高聳的塔…"):tr("你踏入了黑暗的地牢…"));
 }
-static void enter_dungeon(Game *g){ enter_dungeon_kind(g,0); }
+static void enter_dungeon(Game *g){ enter_dungeon_at(g,"15",0); }
 
 /* 下樓:站在下梯(&0x20)才生效 */
 static void dungeon_descend(Game *g)
@@ -505,7 +510,7 @@ static const LocReg LOC_REG[] = {
     {"00",8,"03",'t'},{"00",10,"92",'c'},{"00",9,"15",'d'},                 /* Legends */
     {"10",5,"11",'v'},{"10",10,"93",'c'},{"10",9,"15",'d'},                 /* 9,000,000 B.C. */
     {"20",5,"21",'t'},{"20",6,"22",'v'},{"20",7,"23",'c'},{"20",8,"31",'t'},{"20",10,"32",'t'},{"20",9,"15",'d'}, /* 1423 B.C. */
-    {"30",5,"33",'t'},{"30",6,"41",'v'},{"30",7,"61",'c'},{"30",8,"71",'T'},{"30",10,"81",'t'},{"30",9,"15",'d'}, /* 1990 A.D.(8=塔示範)*/
+    {"30",5,"33",'t'},{"30",6,"41",'v'},{"30",7,"61",'c'},{"30",8,"15",'T'},{"30",10,"81",'t'},{"30",9,"15",'d'}, /* 1990 A.D.(8=塔示範,用 15 地牢格式)*/
     {"40",5,"82",'t'},{"40",10,"61",'c'},{"40",9,"15",'d'},                 /* 2112 A.D. */
 };
 static const LocReg *loc_lookup(const char *world, unsigned char tile)
@@ -902,7 +907,7 @@ static void handle_dir(Game *g, char dir)
             unsigned char t=u2_map_tile(am,g->player.x,g->player.y);
             const LocReg *L = (!g->in_town) ? loc_lookup(g->world_num,t) : NULL;
             if (!g->in_town && g->td_x==g->player.x && g->td_y==g->player.y) { time_travel(g); }
-            else if (L && (L->kind=='d'||L->kind=='T')) { g->nmob=0; enter_dungeon_kind(g, L->kind=='T'); }
+            else if (L && (L->kind=='d'||L->kind=='T')) { g->nmob=0; enter_dungeon_at(g, L->dest, L->kind=='T'); }
             else if (L) { g->nmob=0; enter_town_tile(g,t); }
             else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); tick_time_door(g); }
         } else snprintf(g->msg,sizeof g->msg,
