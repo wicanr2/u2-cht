@@ -44,7 +44,8 @@ echo "== 3) 破關走法(確定性 headless)=="
 # I 取得關鍵道具(含力場之戒 + 迅捷之劍 ENILNO)· D 地牢進
 # 7/9/1 地牢施放飛彈/擊殺/光明(驗證法術路徑不崩)· J 下樓 · K 上樓 · X 離開
 # P×3 時空旅行 mapx20→30→40→00(傳說時代)· M 米娜克斯對決 → 結局
-SCRIPT="OZ22211ZXID791JKXPPPM"
+# 地牢段 DN791JKX:D 進地牢 · N 前進(遇前方實體怪→戰鬥)· 7/9/1 飛彈/擊殺/光明 · J/K 樓梯 · X 離開
+SCRIPT="OZ22211ZXIDN791JKXPPPM"
 rm -rf "$OUT"; mkdir -p "$OUT"
 LOG="$("$GAME" "$DATA/mapx20" "$FONT" "$TS" "$UI_TSV" --script "$SCRIPT" "$OUT/reg" 2>&1)"
 echo "$LOG"

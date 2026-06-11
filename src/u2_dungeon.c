@@ -93,7 +93,8 @@ static const struct { Uint8 bg[3], wall[3], dim[3], back[3], door[3]; } DPAL[] =
 #define U2_NDPAL ((int)(sizeof DPAL / sizeof DPAL[0]))
 
 int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
-                      int px, int py, int dir, int ox, int oy, int w, int h, int style)
+                      int px, int py, int dir, int ox, int oy, int w, int h, int style,
+                      int ent_depth, char ent_kind)
 {
     const int s = ((style % U2_NDPAL) + U2_NDPAL) % U2_NDPAL;
     Uint32 bg   = SDL_MapRGB(surf->format, DPAL[s].bg[0],   DPAL[s].bg[1],   DPAL[s].bg[2]);
@@ -156,6 +157,23 @@ int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
         if (c == 0xC0 || c == 0xE0) {
             int q = bf / 2; SDL_Rect dr = { cx - q, cy - q, 2 * q, 2 * q };
             SDL_FillRect(surf, &dr, door);
+        }
+    }
+    /* 前方實體(怪物/寶箱)按深度透視繪製(對齊 oracle:正前方最近怪物畫 sprite,depthIndex 控縮放)*/
+    if (ent_depth >= 1 && ent_depth <= depth) {
+        double eh = half0 * pow(SHRINK, ent_depth);
+        int es = (int)(eh * 0.7); if (es < 4) es = 4;
+        if (ent_kind == 'C') {                       /* 寶箱:黃色方箱 */
+            SDL_Rect cr = { cx - es/2, cy - es/3, es, (es*2)/3 };
+            SDL_FillRect(surf, &cr, door);
+            rectln(surf, cr.x, cr.y, cr.x+cr.w, cr.y+cr.h, wall);
+        } else {                                     /* 怪物:紅色身影 + 眼睛 */
+            Uint32 mc = SDL_MapRGB(surf->format, 230, 70, 70);
+            SDL_Rect mr = { cx - es/2, cy - es/2, es, es };
+            SDL_FillRect(surf, &mr, mc);
+            int e = es/6; if (e < 1) e = 1;
+            SDL_Rect e1 = { cx - es/4, cy - es/6, e, e }, e2 = { cx + es/4 - e, cy - es/6, e, e };
+            SDL_FillRect(surf, &e1, bg); SDL_FillRect(surf, &e2, bg);
         }
     }
     rectln(surf, ox, oy, ox + w - 1, oy + h - 1, dim);

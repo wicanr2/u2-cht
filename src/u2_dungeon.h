@@ -33,8 +33,12 @@ int u2_dungeon_is_wall(const U2Dungeon *d, int level, int x, int y);
 int u2_dungeon_ladder(const U2Dungeon *d, int level, int x, int y);
 
 /* 在 surf 的 (ox,oy,w,h) 方形視區畫 (level) 上站在 (px,py) 面向 dir 的線框。
- * style = 畫風 index(隨 G 鍵 curset 切換地牢線框配色)。回傳前方可見通道深度。 */
+ * style = 畫風 index(隨 G 鍵 curset 切換地牢線框配色)。
+ * ent_depth = 正前方最近實體的深度(1..可見深度;-1=無);ent_kind = 'M'怪物 / 'C'寶箱。
+ *   對齊 oracle:掃描後往正前方找最近怪物畫 sprite(depthIndex 控縮放)。
+ * 回傳前方可見通道深度。 */
 int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
-                      int px, int py, int dir, int ox, int oy, int w, int h, int style);
+                      int px, int py, int dir, int ox, int oy, int w, int h, int style,
+                      int ent_depth, char ent_kind);
 
 #endif
