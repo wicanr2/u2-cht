@@ -72,6 +72,7 @@ static const TrPair TR_TABLE[] = {
     {"HYPERWARP……你來到了%s 的軌道。","HYPERWARP... you reach orbit of %s."},
     {"該行星沒有可降落的地表(mapx%s)。","This planet has no surface to land on (mapx%s)."},
     {"你降落在%s 的地表。","You land on the surface of %s."},
+    {"你飢餓難耐,生命流逝……","You are starving; your life ebbs away..."},
     {"這架飛機少了黃銅鈕扣,飛不起來。","This plane is missing a brass button; it won't fly."},
     {"你的火箭擦過太陽,船身受損!失去 %d 點生命。","Your rocket grazes the sun! Hull damaged, lose %d HP."},
     {"語系:繁體中文", "Language: English"},
@@ -1180,7 +1181,13 @@ static void handle_dir(Game *g, char dir)
             if (!g->in_town && g->td_x==g->player.x && g->td_y==g->player.y) { time_travel(g); }
             else if (L && (L->kind=='d'||L->kind=='T')) { g->nmob=0; enter_dungeon_at(g, L->dest, L->kind=='T'); }
             else if (L) { g->nmob=0; enter_town_tile(g,t); }
-            else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); tick_time_door(g); }
+            else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); tick_time_door(g);
+                /* 食物每回合消耗(manual);耗盡則飢餓扣血 */
+                if (g->save.has_character){
+                    if (g->save.food>0) g->save.food--;
+                    else { g->php-=2; if(g->php<0)g->php=0; snprintf(g->msg,sizeof g->msg,tr("你飢餓難耐,生命流逝……")); }
+                }
+            }
         } else snprintf(g->msg,sizeof g->msg,
                         (!g->in_town&&g->vehicle==VEH_SHIP&&tt!=0&&tt!=1)?tr("船無法駛上陸地(B 下船)。"):tr("%c 方向被擋住。"),dir);
     } else { /* DUNGEON: N前進 S後退 W左轉 E右轉 */
