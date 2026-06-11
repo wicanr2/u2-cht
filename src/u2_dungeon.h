@@ -33,8 +33,8 @@ int u2_dungeon_is_wall(const U2Dungeon *d, int level, int x, int y);
 int u2_dungeon_ladder(const U2Dungeon *d, int level, int x, int y);
 
 /* 在 surf 的 (ox,oy,w,h) 方形視區畫 (level) 上站在 (px,py) 面向 dir 的線框。
- * 回傳前方可見通道深度。 */
+ * style = 畫風 index(隨 G 鍵 curset 切換地牢線框配色)。回傳前方可見通道深度。 */
 int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
-                      int px, int py, int dir, int ox, int oy, int w, int h);
+                      int px, int py, int dir, int ox, int oy, int w, int h, int style);
 
 #endif

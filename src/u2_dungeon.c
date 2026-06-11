@@ -80,14 +80,27 @@ static void vecs(int dir, int *fx, int *fy, int *lx, int *ly)
     *lx = FX[(dir + 3) & 3]; *ly = FY[(dir + 3) & 3];
 }
 
+/* 地牢線框配色盤(隨畫風 style 切換;順序對齊 tileset:ega/fmtowns/vivid/cga/ega_alt/c64)。
+ * 每組:bg 背景 / wall 近牆 / dim 遠牆 / back 側牆 / door 門。 */
+static const struct { Uint8 bg[3], wall[3], dim[3], back[3], door[3]; } DPAL[] = {
+    {{6,8,14},   {120,200,130},{40,90,55},  {70,130,85},  {230,200,90}},   /* 0 EGA 綠 */
+    {{8,10,22},  {110,180,235},{42,72,115}, {72,122,175}, {240,210,120}},  /* 1 FM Towns 青藍 */
+    {{16,8,18},  {220,130,210},{100,52,96}, {165,82,152}, {245,225,130}},  /* 2 Vivid 洋紅 */
+    {{0,0,0},    {85,255,255}, {0,128,128}, {45,205,205}, {255,85,255}},    /* 3 CGA 青/洋紅 */
+    {{14,9,4},   {232,182,72}, {112,82,32}, {172,132,52}, {250,232,160}},   /* 4 EGA-alt 琥珀 */
+    {{8,8,26},   {132,150,242},{52,56,112}, {92,102,182}, {220,210,150}},   /* 5 C64 藍紫 */
+};
+#define U2_NDPAL ((int)(sizeof DPAL / sizeof DPAL[0]))
+
 int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
-                      int px, int py, int dir, int ox, int oy, int w, int h)
+                      int px, int py, int dir, int ox, int oy, int w, int h, int style)
 {
-    Uint32 bg   = SDL_MapRGB(surf->format, 6, 8, 14);
-    Uint32 wall = SDL_MapRGB(surf->format, 120, 200, 130);
-    Uint32 dim  = SDL_MapRGB(surf->format, 40, 90, 55);
-    Uint32 back = SDL_MapRGB(surf->format, 70, 130, 85);
-    Uint32 door = SDL_MapRGB(surf->format, 230, 200, 90);
+    const int s = ((style % U2_NDPAL) + U2_NDPAL) % U2_NDPAL;
+    Uint32 bg   = SDL_MapRGB(surf->format, DPAL[s].bg[0],   DPAL[s].bg[1],   DPAL[s].bg[2]);
+    Uint32 wall = SDL_MapRGB(surf->format, DPAL[s].wall[0], DPAL[s].wall[1], DPAL[s].wall[2]);
+    Uint32 dim  = SDL_MapRGB(surf->format, DPAL[s].dim[0],  DPAL[s].dim[1],  DPAL[s].dim[2]);
+    Uint32 back = SDL_MapRGB(surf->format, DPAL[s].back[0], DPAL[s].back[1], DPAL[s].back[2]);
+    Uint32 door = SDL_MapRGB(surf->format, DPAL[s].door[0], DPAL[s].door[1], DPAL[s].door[2]);
 
     SDL_Rect vr = { ox, oy, w, h };
     SDL_FillRect(surf, &vr, bg);
