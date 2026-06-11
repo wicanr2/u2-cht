@@ -40,6 +40,6 @@ int u2_dungeon_ladder(const U2Dungeon *d, int level, int x, int y);
  * 回傳前方可見通道深度。 */
 int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
                       int px, int py, int dir, int ox, int oy, int w, int h, int style,
-                      int ent_depth, char ent_kind, unsigned char ent_tile);
+                      int ent_depth, char ent_kind, unsigned char ent_tile, int maxd);
 
 #endif

@@ -111,7 +111,7 @@ static void mob_tile_color(unsigned char tile, Uint8 *r, Uint8 *g, Uint8 *b)
 
 int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
                       int px, int py, int dir, int ox, int oy, int w, int h, int style,
-                      int ent_depth, char ent_kind, unsigned char ent_tile)
+                      int ent_depth, char ent_kind, unsigned char ent_tile, int maxd)
 {
     const int s = ((style % U2_NDPAL) + U2_NDPAL) % U2_NDPAL;
     Uint32 bg   = SDL_MapRGB(surf->format, DPAL[s].bg[0],   DPAL[s].bg[1],   DPAL[s].bg[2]);
@@ -126,10 +126,10 @@ int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
     int cx = ox + w / 2, cy = oy + h / 2;
     int fx, fy, lx, ly; vecs(dir, &fx, &fy, &lx, &ly);
 
-    const int MAXD = 5;
+    int MAXD = maxd; if (MAXD < 1) MAXD = 1; if (MAXD > 5) MAXD = 5;  /* 光照決定視野深度 */
     const double SHRINK = 0.60;
     double half0 = (w < h ? w : h) * 0.5 - 4;
-    double hs[MAXD + 1];
+    double hs[6];
     for (int dpt = 0; dpt <= MAXD; dpt++) hs[dpt] = half0 * pow(SHRINK, dpt);
 
     int depth = 0;
