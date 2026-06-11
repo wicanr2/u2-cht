@@ -60,6 +60,20 @@ EARTH 6,6,6 · Mercury 5,4,5 · Venus 3,3,4 · Mars 6,2,3 · Jupiter 1,3,4 · Sa
 - **`mapx24/25` `mapx34/35` `mapx44/45` `mapx85`**(landmark 8 在角落、水 41–59%)= 形態相近,
   疑**行星表面或塔/地牢宿主圖**,待 oracle 座標 + emulator 截圖對照。
 
+## 引擎地點登記表(已接線,provisional)
+
+`src/game_main.c` 的 `LOC_REG[]` 以 **(world 編號, landmark tile) → 目的地 map** 驅動進入,
+world-aware(切到不同 overworld 會對到該世代的城)。目前對應(待 oracle/Codex 校正):
+
+| world | landmark tile → 目的地 mapxNN |
+|---|---|
+| mapx20 | 5→21 · 6→22 · 7→23 · 8→31 · 10→32 · (9→地牢) |
+| mapx30 | 5→33 · 6→41 · 7→61 · 8→71 · 10→81 · (9→地牢) |
+| mapx40 | 5→82 · 10→92 · (9→地牢) |
+
+> 驗證:以 `mapx20` / `mapx30` 為 overworld headless 進城,各自載入對應城鎮(不同地圖)。
+> 改 landmark→map 對應只需編輯 `LOC_REG[]`,無需動進入邏輯。
+
 ## 待辦(M1)
 - [ ] overworld 類對上 5 個地球時代(Legends / 9,000,000 B.C. / 1423 B.C. / 1990 A.D. / 2112 A.D.)
 - [ ] 無對話大地圖對上 9 行星(座標 + emulator 截圖對照)
