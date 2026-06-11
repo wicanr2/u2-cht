@@ -927,15 +927,8 @@ static int attack_mob(Game *g, int nx, int ny)
  * 優先放在玩家相鄰水格(可直接 B 登船),否則放最近的水格(玩家走過去)。 */
 static void place_ship(Game *g)
 {
-    int NX[4]={0,1,0,-1}, NY[4]={-1,0,1,0};
-    /* 先試:玩家四鄰有水 → 直接放船 */
-    for (int d=0;d<4;d++){
-        int x=g->player.x+NX[d], y=g->player.y+NY[d];
-        if (x<1||y<1||x>=U2_MAP_W-1||y>=U2_MAP_H-1) continue;
-        if (u2_map_tile(&g->map,x,y)==0){ g->map.tile[y][x]=SHIP_TILE; return; }
-    }
-    /* 否則:向外找最近水格(玩家自行走到船邊) */
-    for (int r=1;r<24;r++)
+    /* 向外找最近水格放船(距玩家 ≥2 格,不佔玩家四鄰,避免一開場被載具圍困)*/
+    for (int r=2;r<24;r++)
         for (int dy=-r;dy<=r;dy++) for (int dx=-r;dx<=r;dx++){
             if (abs(dx)<r && abs(dy)<r) continue;
             int x=g->player.x+dx, y=g->player.y+dy;
@@ -949,7 +942,7 @@ static int veh_for_tile(unsigned char t);   /* forward */
 static void place_land_vehicles(Game *g)
 {
     unsigned char want[3]={HORSE_TILE,PLANE_TILE,ROCKET_TILE}; int placed=0;
-    for (int r=1;r<24 && placed<3;r++)
+    for (int r=2;r<24 && placed<3;r++)   /* r≥2:不佔玩家四鄰,避免圍困 */
         for (int dy=-r;dy<=r && placed<3;dy++) for (int dx=-r;dx<=r && placed<3;dx++){
             if (abs(dx)<r && abs(dy)<r) continue;
             int x=(g->player.x+dx)&(U2_WORLD_DIM-1), y=(g->player.y+dy)&(U2_WORLD_DIM-1);
