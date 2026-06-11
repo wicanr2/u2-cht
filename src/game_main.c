@@ -72,6 +72,8 @@ static const TrPair TR_TABLE[] = {
     {"HYPERWARP……你來到了%s 的軌道。","HYPERWARP... you reach orbit of %s."},
     {"該行星沒有可降落的地表(mapx%s)。","This planet has no surface to land on (mapx%s)."},
     {"你降落在%s 的地表。","You land on the surface of %s."},
+    {"這架飛機少了黃銅鈕扣,飛不起來。","This plane is missing a brass button; it won't fly."},
+    {"你的火箭擦過太陽,船身受損!失去 %d 點生命。","Your rocket grazes the sun! Hull damaged, lose %d HP."},
     {"語系:繁體中文", "Language: English"},
     /* chrome:標題列 / 操作提示 */
     {"Ultima II — %s(T 交談 · X 離開)", "Ultima II — %s (T talk · X exit)"},
@@ -971,6 +973,12 @@ static void launch_rocket(Game *g)
 static void hyperwarp(Game *g)
 {
     if (g->mode!=MODE_SPACE) return;
+    /* 太陽危險(manual:Sun 4,4,4 / "YOU HIT THE SUN"):躍遷時偶爾擦過太陽 */
+    if ((rng_next(g)&0xf)==0){
+        int dmg=20+(rng_next(g)%30); g->php-=dmg; if(g->php<0)g->php=0;
+        snprintf(g->msg,sizeof g->msg,tr("你的火箭擦過太陽,船身受損!失去 %d 點生命。"),dmg);
+        return;
+    }
     g->planet=(g->planet+1)%NPLANET;
     snprintf(g->msg,sizeof g->msg,tr("HYPERWARP……你來到了%s 的軌道。"),planet_name(g->planet));
 }
@@ -1083,6 +1091,10 @@ static void handle_dir(Game *g, char dir)
         U2Map *am=amap(g);
         int inb = tx>=0&&ty>=0&&tx<U2_MAP_W&&ty<U2_MAP_H;
         unsigned char tt = inb ? u2_map_tile(am,tx,ty) : 0;
+        /* 飛機需黃銅鈕扣才起飛(manual:PLANES NEED BRASS BUTTONS)*/
+        if (!g->in_town && g->vehicle==VEH_PLANE && !(g->items & ITEM_BRASS_BUTTON)){
+            snprintf(g->msg,sizeof g->msg,tr("這架飛機少了黃銅鈕扣,飛不起來。")); return;
+        }
         int pass;
         if (g->in_town) pass = inb && u2_passable(tt);                    /* 城鎮:步行 */
         else switch (g->vehicle){
