@@ -28,3 +28,9 @@ unsigned char u2_map_tile(const U2Map *m, int x, int y)
         return 0;
     return m->tile[y][x];
 }
+
+/* 環形(toroidal)存取:overworld 為 64×64,座標 & 0x3f 環繞(oracle 確認)。 */
+unsigned char u2_map_tile_wrap(const U2Map *m, int x, int y)
+{
+    return m->tile[y & (U2_WORLD_DIM - 1)][x & (U2_WORLD_DIM - 1)];
+}
