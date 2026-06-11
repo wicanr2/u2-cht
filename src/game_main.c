@@ -358,7 +358,7 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
     SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
     u2_text_draw(cv,title, g->dg_tower?tr("塔 — 第一人稱線框"):tr("地牢 — 第一人稱線框"),10,4,235,235,245);
 
-    int depth=u2_dungeon_render(cv,&g->dg,g->dlevel,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW);
+    int depth=u2_dungeon_render(cv,&g->dg,g->dlevel,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW,g->curset);
 
     int en=(u2_lang==U2_EN);
     static const char *DIR_EN[4]={"N","E","S","W"};
