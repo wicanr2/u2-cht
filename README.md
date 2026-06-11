@@ -257,7 +257,7 @@ NPC 對話每 byte `OR 0x80`(ModdingWiki 誤稱 encrypted,實為 high-bit);
 | 來源 | 數量 | 已譯 | 翻譯表 |
 |---|---|---|---|
 | Alderson exe 內嵌 UI 字串 | 392 條(可譯 369) | **369/369** | [`translations/exe_translatable_strings.tsv`](translations/exe_translatable_strings.tsv) |
-| DOS `tlkx` NPC 對話 | 108 行 | **78/108**(餘為 buffer 殘片) | [`translations/talk_dialogue.tsv`](translations/talk_dialogue.tsv) |
+| DOS `tlkx` NPC 對話 | 108 行 | **108/108**(27 行為 parser 尾段/殘片,已還原語意翻譯並標記) | [`translations/talk_dialogue.tsv`](translations/talk_dialogue.tsv) |
 
 原則:**不寫回原始檔**,以外部 UTF-8 覆蓋層、`(來源, key)` 為索引,載入時覆蓋原文(查無譯文則 fallback 原文)。
 
