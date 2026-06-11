@@ -32,7 +32,7 @@ key(){ xdotool key --window "$W" "$1"; sleep "${2:-0.6}"; }
 type_slow(){ for c in $(echo "$1" | sed 's/./& /g'); do xdotool key --window "$W" "$c"; sleep 0.18; done; }
 
 # 開始連續錄製(背景),固定 30s
-ffmpeg -y -f x11grab -video_size 960x600 -framerate 15 -i :99.0 -t 32 \
+ffmpeg -y -f x11grab -video_size 960x600 -framerate 15 -i :99.0 -t 46 \
     -pix_fmt yuv420p -movflags +faststart "$OUT/u2cht_demo.mp4" >/tmp/ffmpeg.log 2>&1 &
 FF=$!
 sleep 2.5                 # 原版標題畫面停留
@@ -48,11 +48,16 @@ key Return 1.0            # 職業→屬性
 key Down 0.5; key Right 0.5; key Right 0.5; key Right 0.5   # 加點
 key Return 1.8            # 完成建角 → 進遊戲(城旁起點)
 key Up 2.2               # 往北踏上城堡 → 進城
-key Down 0.6; key Right 0.6   # 城內走動
+key z 1.5               # 開商店
+key 1 0.8; key 4 0.8; key 7 1.6   # 買武器 / 藍流蘇 / 生命符
+key z 1.0               # 關商店
 key t 2.0                # 與 NPC 交談
 key x 1.5               # 離開城鎮
-key g 2.2               # 切換到 FM Towns 畫風(主角變騎士)
-key F1 2.5              # 指令表
+key g 2.0               # 切換到 FM Towns 畫風(主角變騎士)
+key u 2.2               # (除錯)火箭發射 → 深太空
+key e 1.4; key e 1.6    # HYPERWARP 躍遷行星
+key y 2.4               # 降落行星地表
+key F1 2.4              # 指令表
 key F1 0.6              # 關閉
 wait $FF 2>/dev/null || true
 kill %1 2>/dev/null || true   # Xvfb
