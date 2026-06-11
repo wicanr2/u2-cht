@@ -71,6 +71,21 @@ static const TrPair TR_TABLE[] = {
     {"切換圖塊:%s", "Tileset: %s"},
     {"找不到城鎮資料,無法進入。", "Town data not found; cannot enter."},
     {"找不到地牢資料,無法進入。", "Dungeon data not found; cannot enter."},
+    {"繼續冒險", "Continue"}, {"新遊戲(建立角色)", "New Game (create character)"},
+    {"試玩範例角色", "Try sample character"}, {"離開", "Quit"},
+    {"你離開了城鎮。", "You leave."}, {"這裡沒有人可以交談。", "No one to talk to here."},
+    {"附近沒有人可以交談。", "No one nearby to talk to."},
+    {"對方沉默不語。", "They say nothing."}, {"對方欲言又止。", "They hesitate to speak."},
+    {"%s出現了!", "A %s appears!"}, {"附近沒有陸地可上岸。", "No land nearby to disembark."},
+    {"蜥蜴人","Lizard Man"},{"幽靈","Ghost"},{"魔鬼","Devil"},{"炎魔","Balron"},
+    {"哥布林","Goblin"},{"盜賊","Thief"},{"惡魔","Daemon"},{"海蛇","Sea Serpent"},{"怪物","Monster"},
+    {"腳下沒有向下的樓梯。","No stairs down here."},{"已是最底層。","Already at the bottom."},
+    {"你沿樓梯往下,來到第 %d 層。","You descend to level %d."},
+    {"腳下沒有向上的樓梯。","No stairs up here."},
+    {"你沿樓梯往上,來到第 %d 層。","You ascend to level %d."},
+    {"腳下有向下的樓梯(J 下樓)。","Stairs down here (J)."},
+    {"腳下有向上的樓梯(K 上樓)。","Stairs up here (K)."},
+    {"前方是牆。","A wall ahead."},{"時間之門連向虛無(找不到 mapx%s)。","The time door leads to nothing (mapx%s missing)."},
 };
 static const char *tr(const char *zh)
 {
@@ -148,6 +163,9 @@ static void clampi(int *v, int lo, int hi) { if (*v<lo)*v=lo; if (*v>hi)*v=hi; }
 /* 地點登記表查詢(forward 宣告) */
 static const char *loc_dest(const char *world, unsigned char tile);
 static const char *kind_name(char k);
+static const char *race_nm(int r);
+static const char *class_nm(int k);
+static const char *stat_nm(int i);
 
 static void find_start(const U2Map *m, U2Player *p, const char *world)
 {
@@ -320,20 +338,23 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
 
     int depth=u2_dungeon_render(cv,&g->dg,g->dlevel,g->dx,g->dy,g->ddir,24,MAP_OY,DVIEW,DVIEW);
 
+    int en=(u2_lang==U2_EN);
+    static const char *DIR_EN[4]={"N","E","S","W"};
     int rx=24+DVIEW+24, ry=MAP_OY+6; char ln[96];
-    u2_text_draw(cv,body,"狀態",rx,ry,150,175,205); ry+=34;
-    snprintf(ln,sizeof ln,"座標: (%d, %d)",g->dx,g->dy);
+    u2_text_draw(cv,body,en?"Status":"狀態",rx,ry,150,175,205); ry+=34;
+    snprintf(ln,sizeof ln,"%s (%d, %d)",en?"Pos:":"座標:",g->dx,g->dy);
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
-    snprintf(ln,sizeof ln,"朝向: %s",DIR_ZH[g->ddir]);
+    snprintf(ln,sizeof ln,"%s %s",en?"Facing:":"朝向:",en?DIR_EN[g->ddir]:DIR_ZH[g->ddir]);
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
-    snprintf(ln,sizeof ln,"樓層: %d / 共 %d 層",g->dlevel+1,g->dg.levels);
+    snprintf(ln,sizeof ln,en?"Level: %d / %d":"樓層: %d / 共 %d 層",g->dlevel+1,g->dg.levels);
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=30;
-    snprintf(ln,sizeof ln,"前方可見深度: %d",depth);
+    snprintf(ln,sizeof ln,"%s %d",en?"Visible depth:":"前方可見深度:",depth);
     u2_text_draw(cv,body,ln,rx,ry,225,225,230); ry+=40;
     draw_status_panel(cv,body,&g->ui,&g->save,rx,ry); ry+=4*30+10;
 
     int by=MAP_OY+DVIEW+12;
-    u2_text_draw(cv,small,"N 前進 · S 後退 · W 左轉 · E 右轉 · J 下樓 · K 上樓 · X 離開 · C 角色表",
+    u2_text_draw(cv,small,en?"N fwd · S back · W left · E right · J down · K up · X exit · C sheet"
+                            :"N 前進 · S 後退 · W 左轉 · E 右轉 · J 下樓 · K 上樓 · X 離開 · C 角色表",
         24,by,150,170,200);
     u2_text_draw(cv,small,g->msg,24,by+26,210,225,205);
 }
@@ -341,7 +362,7 @@ static void render_dungeon(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body
 /* F1 指令表疊加面板(置中) */
 static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
 {
-    static const char *ROWS[] = {
+    static const char *ROWS_ZH[] = {
         "方向鍵 / WASD   移動 / 攻擊(朝怪物移動即攻擊)",
         "B               登船 / 下船(站在船旁)",
         "P / 踏入青紫門   穿越時間之門(切換時代)",
@@ -355,14 +376,29 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
         "F1              顯示 / 關閉本指令表",
         "Q / Esc         離開遊戲(自動存檔)",
     };
-    int nrow = (int)(sizeof ROWS / sizeof ROWS[0]);
+    static const char *ROWS_EN[] = {
+        "Arrows / WASD   Move / attack (move into a monster)",
+        "B               Board / disembark ship (beside it)",
+        "P / step in door  Enter time door (change era)",
+        "Step on castle  Enter town",
+        "Step on dungeon Enter dungeon",
+        "T               Talk to NPC in town",
+        "J / K           Descend / ascend in dungeon",
+        "X               Leave town / dungeon",
+        "C               Character sheet",
+        "G               Switch theme (EGA / FM Towns...)",
+        "F1              Show / hide this list",
+        "Q / Esc         Quit game (autosave)",
+    };
+    const char **ROWS = (u2_lang==U2_EN)?ROWS_EN:ROWS_ZH;
+    int nrow = (int)(sizeof ROWS_ZH / sizeof ROWS_ZH[0]);
     int pw=560, ph=70+nrow*30, x=(CANVAS_W-pw)/2, y=(CANVAS_H-ph)/2;
     SDL_Rect bg={x,y,pw,ph}; SDL_FillRect(cv,&bg,SDL_MapRGB(cv->format,18,22,40));
     SDL_Rect bar={x,y,pw,40}; SDL_FillRect(cv,&bar,SDL_MapRGB(cv->format,40,50,120));
     Uint32 fr=SDL_MapRGB(cv->format,120,140,200);
     SDL_Rect e1={x,y,pw,2},e2={x,y+ph-2,pw,2},e3={x,y,2,ph},e4={x+pw-2,y,2,ph};
     SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
-    u2_text_draw(cv,body,"指令表(F1 關閉)",x+16,y+8,235,235,245);
+    u2_text_draw(cv,body,(u2_lang==U2_EN)?"Commands (F1 to close)":"指令表(F1 關閉)",x+16,y+8,235,235,245);
     int iy=y+52;
     for (int i=0;i<nrow;i++){ u2_text_draw(cv,small,ROWS[i],x+24,iy,215,220,230); iy+=30; }
 }
@@ -378,19 +414,20 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
     SDL_Rect e1={x,y,pw,2},e2={x,y+ph-2,pw,2},e3={x,y,2,ph},e4={x+pw-2,y,2,ph};
     SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
 
-    u2_text_draw(cv,body,"角色資料(C 關閉)",x+16,y+8,235,235,245);
+    int en=(u2_lang==U2_EN);
+    u2_text_draw(cv,body,en?"Character (C to close)":"角色資料(C 關閉)",x+16,y+8,235,235,245);
     U2Save *s=&g->save; int ix=x+28, iy=y+56, lh=30; char ln[96];
     if (!s->ok || !s->has_character){
-        u2_text_draw(cv,body,"(無 player 存檔可顯示)",ix,iy,200,180,120);
+        u2_text_draw(cv,body,en?"(no player save to show)":"(無 player 存檔可顯示)",ix,iy,200,180,120);
         return;
     }
-    snprintf(ln,sizeof ln,"姓名: %s",s->name); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
-    snprintf(ln,sizeof ln,"性別: %s",s->sex=='F'?"女":"男"); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
-    snprintf(ln,sizeof ln,"種族: %s",u2_save_race_zh(s->race)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
-    snprintf(ln,sizeof ln,"職業: %s",u2_save_class_zh(s->klass)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh+6;
-    u2_text_draw(cv,small,"屬性(BCD 解碼)",ix,iy,150,170,205); iy+=26;
+    snprintf(ln,sizeof ln,"%s %s",en?"Name:":"姓名:",s->name); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
+    snprintf(ln,sizeof ln,"%s %s",en?"Sex:":"性別:",s->sex=='F'?(en?"Female":"女"):(en?"Male":"男")); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
+    snprintf(ln,sizeof ln,"%s %s",en?"Race:":"種族:",race_nm(s->race)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
+    snprintf(ln,sizeof ln,"%s %s",en?"Class:":"職業:",class_nm(s->klass)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh+6;
+    u2_text_draw(cv,small,en?"Attributes (BCD)":"屬性(BCD 解碼)",ix,iy,150,170,205); iy+=26;
     for (int i=0;i<U2_NUM_STATS;i++){
-        char lab[64]; snprintf(lab,sizeof lab,"%s %s",u2_save_stat_zh(i),u2_save_stat_name(i));
+        char lab[64]; snprintf(lab,sizeof lab,en?"%s":"%s %s",stat_nm(i),u2_save_stat_name(i));
         u2_text_draw(cv,body,lab,ix,iy,210,215,225);
         char v[8]; snprintf(v,sizeof v,"%2d",s->stats[i]);
         u2_text_draw(cv,body,v,ix+170,iy,245,225,150); iy+=lh;
@@ -427,12 +464,12 @@ static void dungeon_descend(Game *g)
 {
     if (g->mode!=MODE_DUNGEON) return;
     if (u2_dungeon_ladder(&g->dg,g->dlevel,g->dx,g->dy)!=+1){
-        snprintf(g->msg,sizeof g->msg,"腳下沒有向下的樓梯。"); return; }
-    if (g->dlevel+1>=g->dg.levels){ snprintf(g->msg,sizeof g->msg,"已是最底層。"); return; }
+        snprintf(g->msg,sizeof g->msg,tr("腳下沒有向下的樓梯。")); return; }
+    if (g->dlevel+1>=g->dg.levels){ snprintf(g->msg,sizeof g->msg,tr("已是最底層。")); return; }
     g->dlevel++;
     if (u2_dungeon_is_wall(&g->dg,g->dlevel,g->dx,g->dy))
         dungeon_entry(&g->dg,g->dlevel,&g->dx,&g->dy,&g->ddir);
-    snprintf(g->msg,sizeof g->msg,"你沿樓梯往下,來到第 %d 層。",g->dlevel+1);
+    snprintf(g->msg,sizeof g->msg,tr("你沿樓梯往下,來到第 %d 層。"),g->dlevel+1);
 }
 
 /* 上樓:站在上梯(&0x10)才生效;最頂層再上則離開地牢 */
@@ -440,7 +477,7 @@ static void dungeon_ascend(Game *g)
 {
     if (g->mode!=MODE_DUNGEON) return;
     if (u2_dungeon_ladder(&g->dg,g->dlevel,g->dx,g->dy)!=-1){
-        snprintf(g->msg,sizeof g->msg,"腳下沒有向上的樓梯。"); return; }
+        snprintf(g->msg,sizeof g->msg,tr("腳下沒有向上的樓梯。")); return; }
     if (g->dlevel==0){
         g->mode=MODE_WORLD; g->player.x=g->ret_x; g->player.y=g->ret_y;
         snprintf(g->msg,sizeof g->msg,tr("你沿樓梯回到了地面。")); return;
@@ -448,7 +485,7 @@ static void dungeon_ascend(Game *g)
     g->dlevel--;
     if (u2_dungeon_is_wall(&g->dg,g->dlevel,g->dx,g->dy))
         dungeon_entry(&g->dg,g->dlevel,&g->dx,&g->dy,&g->ddir);
-    snprintf(g->msg,sizeof g->msg,"你沿樓梯往上,來到第 %d 層。",g->dlevel+1);
+    snprintf(g->msg,sizeof g->msg,tr("你沿樓梯往上,來到第 %d 層。"),g->dlevel+1);
 }
 
 static void exit_dungeon(Game *g)
@@ -484,6 +521,11 @@ static const char *loc_dest(const char *world, unsigned char tile)
     const LocReg *L=loc_lookup(world,tile);
     return (L && (L->kind=='v'||L->kind=='t'||L->kind=='c')) ? L->dest : NULL;
 }
+/* 種族/職業/屬性名:lang-aware(EN 用 u2_save_*_name,ZH 用 *_zh) */
+static const char *race_nm(int r){ return u2_lang==U2_EN?u2_save_race_name(r):u2_save_race_zh(r); }
+static const char *class_nm(int k){ return u2_lang==U2_EN?u2_save_class_name(k):u2_save_class_zh(k); }
+static const char *stat_nm(int i){ return u2_lang==U2_EN?u2_save_stat_name(i):u2_save_stat_zh(i); }
+
 static const char *kind_name(char k)
 {
     if (u2_lang==U2_EN)
@@ -535,13 +577,13 @@ static void exit_town(Game *g)
 {
     g->in_town=0;
     g->player.x=g->tret_x; g->player.y=g->tret_y;
-    snprintf(g->msg,sizeof g->msg,"你離開了城鎮。");
+    snprintf(g->msg,sizeof g->msg,tr("你離開了城鎮。"));
 }
 
 /* 交談:鄰格若有 NPC 實體,顯示其 tlkx 對話(查翻譯覆蓋層) */
 static void do_talk(Game *g)
 {
-    if (!g->in_town){ snprintf(g->msg,sizeof g->msg,"這裡沒有人可以交談。"); return; }
+    if (!g->in_town){ snprintf(g->msg,sizeof g->msg,tr("這裡沒有人可以交談。")); return; }
     int FX[4]={0,1,0,-1}, FY[4]={-1,0,1,0};
     for (int d=0; d<4; d++){
         int nx=g->player.x+FX[d], ny=g->player.y+FY[d];
@@ -549,9 +591,9 @@ static void do_talk(Game *g)
             U2Entity *e=&g->tmon.ent[i];
             if (!e->tile || e->x!=nx || e->y!=ny) continue;
             /* dlg & 0x80 = 可交談;行索引 = (dlg&0x7f)-1 (1-based 進 tlkx) */
-            if (!(e->dlg & 0x80)){ snprintf(g->msg,sizeof g->msg,"對方沉默不語。"); return; }
+            if (!(e->dlg & 0x80)){ snprintf(g->msg,sizeof g->msg,tr("對方沉默不語。")); return; }
             int k=(e->dlg & 0x7f) - 1;
-            if (k<0 || k>=g->talk.count){ snprintf(g->msg,sizeof g->msg,"對方欲言又止。"); return; }
+            if (k<0 || k>=g->talk.count){ snprintf(g->msg,sizeof g->msg,tr("對方欲言又止。")); return; }
             const char *zh=u2_strings_lookup(&g->tr, g->talk.line[k]);
             const char *disp=zh?zh:g->talk.line[k];
             char one[180]; size_t j=0;
@@ -561,7 +603,7 @@ static void do_talk(Game *g)
             return;
         }
     }
-    snprintf(g->msg,sizeof g->msg,"附近沒有人可以交談。");
+    snprintf(g->msg,sizeof g->msg,tr("附近沒有人可以交談。"));
 }
 
 /* ---- 地面隨機遭遇 / 戰鬥(oracle 公式) ---- */
@@ -611,7 +653,7 @@ static void spawn_mob(Game *g)
         const char *nm; int hp,atk; mob_type(tile,&nm,&hp,&atk);
         g->mob[m].x=x; g->mob[m].y=y; g->mob[m].tile=tile;
         g->mob[m].hp=g->mob[m].maxhp=hp; g->mob[m].atk=atk; g->mob[m].name=nm;
-        snprintf(g->msg,sizeof g->msg,"%s出現了!",nm);
+        snprintf(g->msg,sizeof g->msg,tr("%s出現了!"),tr(nm));
         return;
     }
 }
@@ -622,7 +664,7 @@ static void step_mobs(Game *g)
         int dx=g->player.x-g->mob[i].x, dy=g->player.y-g->mob[i].y;
         if (abs(dx)+abs(dy)==1){
             int dmg=g->mob[i].atk + (rng_next(g)%4); g->php-=dmg; if(g->php<0)g->php=0;
-            snprintf(g->msg,sizeof g->msg,tr("%s攻擊你!失去 %d 點生命。"),g->mob[i].name,dmg);
+            snprintf(g->msg,sizeof g->msg,tr("%s攻擊你!失去 %d 點生命。"),tr(g->mob[i].name),dmg);
             continue;
         }
         int sx=dx>0?1:dx<0?-1:0, sy=dy>0?1:dy<0?-1:0;
@@ -640,17 +682,17 @@ static int attack_mob(Game *g, int nx, int ny)
     for (int i=0;i<g->nmob;i++){
         if (g->mob[i].x==nx && g->mob[i].y==ny){
             if ((int)(rng_next(g) % 0x50) >= hit_skill(g)){
-                snprintf(g->msg,sizeof g->msg,tr("你攻擊%s,但沒打中。"),g->mob[i].name);
+                snprintf(g->msg,sizeof g->msg,tr("你攻擊%s,但沒打中。"),tr(g->mob[i].name));
                 return 1;
             }
             int dmg=player_dmg(g); g->mob[i].hp-=dmg;
             if (g->mob[i].hp<=0){
                 int xp=(rng_next(g)&3)+1;            /* oracle 地面 EXP +(rng&3)+1 */
                 g->save.exp += xp;
-                snprintf(g->msg,sizeof g->msg,tr("你擊敗了%s!(+%d 經驗)"),g->mob[i].name,xp);
+                snprintf(g->msg,sizeof g->msg,tr("你擊敗了%s!(+%d 經驗)"),tr(g->mob[i].name),xp);
                 g->mob[i]=g->mob[--g->nmob];
             } else snprintf(g->msg,sizeof g->msg,tr("你擊中%s,造成 %d 傷害(剩 %d)。"),
-                            g->mob[i].name,dmg,g->mob[i].hp);
+                            tr(g->mob[i].name),dmg,g->mob[i].hp);
             return 1;
         }
     }
@@ -693,7 +735,7 @@ static void board_ship(Game *g)
                 snprintf(g->msg,sizeof g->msg,tr("你上岸了,船停在水邊。")); return;
             }
         }
-        snprintf(g->msg,sizeof g->msg,"附近沒有陸地可上岸。"); return;
+        snprintf(g->msg,sizeof g->msg,tr("附近沒有陸地可上岸。")); return;
     }
     /* 登船:腳下是船 */
     if (u2_map_tile(&g->map,g->player.x,g->player.y)==SHIP_TILE){
@@ -788,7 +830,7 @@ static void time_travel(Game *g)
     char mp[600];
     snprintf(mp,sizeof mp,"%s/mapx%s",g->data_dir,nw);
     U2Map nm=u2_map_load(mp);
-    if (!nm.ok){ snprintf(g->msg,sizeof g->msg,"時間之門連向虛無(找不到 mapx%s)。",nw); return; }
+    if (!nm.ok){ snprintf(g->msg,sizeof g->msg,tr("時間之門連向虛無(找不到 mapx%s)。"),nw); return; }
     g->map=nm;
     snprintf(mp,sizeof mp,"%s/monx%s",g->data_dir,nw); g->mon=u2_mon_load(mp);
     snprintf(g->world_num,sizeof g->world_num,"%s",nw);
@@ -873,11 +915,11 @@ static void handle_dir(Game *g, char dir)
             int di=g->ddir; int nx=g->dx+FX[di]*s, ny=g->dy+FY[di]*s;
             if (!u2_dungeon_is_wall(&g->dg,g->dlevel,nx,ny)){ g->dx=nx; g->dy=ny;
                 int lad=u2_dungeon_ladder(&g->dg,g->dlevel,nx,ny);
-                if (lad>0) snprintf(g->msg,sizeof g->msg,"腳下有向下的樓梯(J 下樓)。");
-                else if (lad<0) snprintf(g->msg,sizeof g->msg,"腳下有向上的樓梯(K 上樓)。");
+                if (lad>0) snprintf(g->msg,sizeof g->msg,tr("腳下有向下的樓梯(J 下樓)。"));
+                else if (lad<0) snprintf(g->msg,sizeof g->msg,tr("腳下有向上的樓梯(K 上樓)。"));
                 else snprintf(g->msg,sizeof g->msg, s>0?tr("前進。"):tr("後退。"));
             }
-            else snprintf(g->msg,sizeof g->msg,"前方是牆。");
+            else snprintf(g->msg,sizeof g->msg,tr("前方是牆。"));
         }
     }
 }
@@ -978,60 +1020,61 @@ static U2Save make_character(const Create *c)
     return s;
 }
 
-static const char *SEX_ZH[2]={"男","女"};
-
 /* 渲染建角當前步驟 */
 static void render_create(SDL_Surface *cv, const Create *c, U2Text *title, U2Text *body, U2Text *small)
 {
     SDL_FillRect(cv,NULL,SDL_MapRGB(cv->format,12,14,28));
     SDL_Rect hdr={0,0,CANVAS_W,HDR_H}; SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
-    u2_text_draw(cv,title,"建立角色",16,4,250,240,140);
-    const char *steps[]={"① 姓名","② 性別","③ 種族","④ 職業","⑤ 屬性分配"};
-    char bar[128]=""; for (int i=0;i<5;i++){ strcat(bar,(i==c->step)?"[":" "); strcat(bar,steps[i]); strcat(bar,(i==c->step)?"]":" "); }
+    int en=(u2_lang==U2_EN);
+    const char *sexnm = en?(c->sex?"Female":"Male"):(c->sex?"女":"男");
+    u2_text_draw(cv,title,en?"Create Character":"建立角色",16,4,250,240,140);
+    const char *steps_zh[]={"① 姓名","② 性別","③ 種族","④ 職業","⑤ 屬性分配"};
+    const char *steps_en[]={"1.Name","2.Sex","3.Race","4.Class","5.Stats"};
+    const char **steps = en?steps_en:steps_zh;
+    char bar[160]=""; for (int i=0;i<5;i++){ strcat(bar,(i==c->step)?"[":" "); strcat(bar,steps[i]); strcat(bar,(i==c->step)?"] ":" "); }
     u2_text_draw(cv,small,bar,16,40,170,185,215);
 
     int x=60, y=110, lh=40;
     char ln[160];
     /* 已決定欄位摘要 */
-    if (c->step>CS_NAME){ snprintf(ln,sizeof ln,"姓名:%s",c->name); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
-    if (c->step>CS_SEX){ snprintf(ln,sizeof ln,"性別:%s",SEX_ZH[c->sex]); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
-    if (c->step>CS_RACE){ snprintf(ln,sizeof ln,"種族:%s",u2_save_race_zh(c->race)); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
-    if (c->step>CS_CLASS){ snprintf(ln,sizeof ln,"職業:%s",u2_save_class_zh(c->klass)); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
+    if (c->step>CS_NAME){ snprintf(ln,sizeof ln,"%s %s",en?"Name:":"姓名:",c->name); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
+    if (c->step>CS_SEX){ snprintf(ln,sizeof ln,"%s %s",en?"Sex:":"性別:",sexnm); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
+    if (c->step>CS_RACE){ snprintf(ln,sizeof ln,"%s %s",en?"Race:":"種族:",race_nm(c->race)); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
+    if (c->step>CS_CLASS){ snprintf(ln,sizeof ln,"%s %s",en?"Class:":"職業:",class_nm(c->klass)); u2_text_draw(cv,body,ln,x,y,210,215,225);} y+=lh;
 
-    y=110+CS_STATS*0;  /* 當前步驟提示區固定在下半 */
     int py=320;
     switch (c->step){
     case CS_NAME:
-        snprintf(ln,sizeof ln,"輸入姓名:%s_",c->name);
+        snprintf(ln,sizeof ln,"%s%s_",en?"Enter name: ":"輸入姓名:",c->name);
         u2_text_draw(cv,body,ln,x,py,245,235,180);
-        u2_text_draw(cv,small,"鍵入 A–Z / 0–9,Backspace 刪除,Enter 確認",x,py+44,180,195,220);
+        u2_text_draw(cv,small,en?"Type A-Z / 0-9, Backspace, Enter to confirm":"鍵入 A–Z / 0–9,Backspace 刪除,Enter 確認",x,py+44,180,195,220);
         break;
     case CS_SEX:
-        snprintf(ln,sizeof ln,"性別:◀ %s ▶",SEX_ZH[c->sex]);
+        snprintf(ln,sizeof ln,"%s ◀ %s ▶",en?"Sex:":"性別:",sexnm);
         u2_text_draw(cv,body,ln,x,py,245,235,180);
-        u2_text_draw(cv,small,"←/→ 切換,Enter 確認",x,py+44,180,195,220);
+        u2_text_draw(cv,small,en?"Left/Right to switch, Enter to confirm":"←/→ 切換,Enter 確認",x,py+44,180,195,220);
         break;
     case CS_RACE:
-        snprintf(ln,sizeof ln,"種族:◀ %s ▶",u2_save_race_zh(c->race));
+        snprintf(ln,sizeof ln,"%s ◀ %s ▶",en?"Race:":"種族:",race_nm(c->race));
         u2_text_draw(cv,body,ln,x,py,245,235,180);
-        u2_text_draw(cv,small,"←/→ 選擇(人類/精靈/矮人/哈比人),Enter 確認",x,py+44,180,195,220);
+        u2_text_draw(cv,small,en?"Left/Right: Human/Elf/Dwarf/Hobbit, Enter":"←/→ 選擇(人類/精靈/矮人/哈比人),Enter 確認",x,py+44,180,195,220);
         break;
     case CS_CLASS:
-        snprintf(ln,sizeof ln,"職業:◀ %s ▶",u2_save_class_zh(c->klass));
+        snprintf(ln,sizeof ln,"%s ◀ %s ▶",en?"Class:":"職業:",class_nm(c->klass));
         u2_text_draw(cv,body,ln,x,py,245,235,180);
-        u2_text_draw(cv,small,"←/→ 選擇(戰士/牧師/巫師/盜賊),Enter 確認",x,py+44,180,195,220);
+        u2_text_draw(cv,small,en?"Left/Right: Fighter/Cleric/Wizard/Thief, Enter":"←/→ 選擇(戰士/牧師/巫師/盜賊),Enter 確認",x,py+44,180,195,220);
         break;
     case CS_STATS: {
-        snprintf(ln,sizeof ln,"屬性分配  剩餘點數:%d",c->pool);
+        snprintf(ln,sizeof ln,"%s%d",en?"Allocate stats  points left: ":"屬性分配  剩餘點數:",c->pool);
         u2_text_draw(cv,body,ln,x,260,245,235,180);
         for (int i=0;i<6;i++){
             int yy=300+i*30;
-            char lab[80]; snprintf(lab,sizeof lab,"%s %s %s",(i==c->cur)?"▶":"  ",u2_save_stat_zh(i),u2_save_stat_name(i));
+            char lab[80]; snprintf(lab,sizeof lab,en?"%s %s":"%s %s %s",(i==c->cur)?"▶":"  ",stat_nm(i),u2_save_stat_name(i));
             u2_text_draw(cv,body,lab,x,yy,(i==c->cur)?250:210,(i==c->cur)?235:215,(i==c->cur)?150:225);
             char v[8]; snprintf(v,sizeof v,"%d",c->stats[i]);
             u2_text_draw(cv,body,v,x+230,yy,245,225,150);
         }
-        u2_text_draw(cv,small,"↑/↓ 選屬性,←/→ 增減,Enter 完成建角",x,300+6*30+8,180,195,220);
+        u2_text_draw(cv,small,en?"Up/Down pick, Left/Right adjust, Enter to finish":"↑/↓ 選屬性,←/→ 增減,Enter 完成建角",x,300+6*30+8,180,195,220);
         break; }
     default: break;
     }
@@ -1051,9 +1094,9 @@ static void render_menu(SDL_Surface *cv, const char *opts[], int n, int sel,
     for (int i=0;i<n;i++){
         int yy=by+i*44;
         if (i==sel){ SDL_Rect r={CANVAS_W/2-160,yy-4,320,40}; SDL_FillRect(cv,&r,SDL_MapRGB(cv->format,40,50,120)); }
-        u2_text_draw(cv,body,opts[i],CANVAS_W/2-120,yy,(i==sel)?250:200,(i==sel)?235:205,(i==sel)?150:215);
+        u2_text_draw(cv,body,tr(opts[i]),CANVAS_W/2-120,yy,(i==sel)?250:200,(i==sel)?235:205,(i==sel)?150:215);
     }
-    u2_text_draw(cv,title,"↑/↓ 選擇 · Enter 確認",CANVAS_W/2-150,CANVAS_H-28,170,185,215);
+    u2_text_draw(cv,title,(u2_lang==U2_EN)?"Up/Down select · Enter confirm":"↑/↓ 選擇 · Enter 確認",CANVAS_W/2-150,CANVAS_H-28,170,185,215);
 }
 
 int main(int argc, char **argv)
@@ -1147,7 +1190,7 @@ int main(int argc, char **argv)
     /* --screens:渲染選單 + 建角各步驟到 PNG(版面驗證),不進遊戲 */
     if (screens_prefix){
         char out[600];
-        const char *opts[]={"繼續冒險","新遊戲(建立角色)","試玩範例角色","離開"};
+        const char *opts[]={tr("繼續冒險"),tr("新遊戲(建立角色)"),tr("試玩範例角色"),tr("離開")};
         render_menu(cv,opts,4,1,titleimg,&title,&body);
         snprintf(out,sizeof out,"%smenu.png",screens_prefix); IMG_SavePNG(cv,out);
         Create c; create_init(&c);
@@ -1250,10 +1293,10 @@ int main(int argc, char **argv)
         /* ---- 開場選單:繼續 / 新遊戲 / 試玩範例 / 離開 ---- */
         {
             const char *opts[4]; int code[4], n=0;
-            if (have_continue){ opts[n]="繼續冒險"; code[n++]=0; }
-            opts[n]="新遊戲(建立角色)"; code[n++]=1;
-            if (tmpl.ok && tmpl.has_character){ opts[n]="試玩範例角色"; code[n++]=2; }
-            opts[n]="離開"; code[n++]=3;
+            if (have_continue){ opts[n]=tr("繼續冒險"); code[n++]=0; }
+            opts[n]=tr("新遊戲(建立角色)"); code[n++]=1;
+            if (tmpl.ok && tmpl.has_character){ opts[n]=tr("試玩範例角色"); code[n++]=2; }
+            opts[n]=tr("離開"); code[n++]=3;
             int sel=0, chosen=-1;
             while (running && chosen<0){
                 render_menu(cv,opts,n,sel,titleimg,&title,&body);
