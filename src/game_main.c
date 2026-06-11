@@ -432,6 +432,7 @@ static void shop_buy(Game *g, int idx)
         case 2: g->save.food += SHOP[idx].arg; if(g->save.food>9999)g->save.food=9999; break;
         case 3: g->items |= (unsigned)SHOP[idx].arg; break;
         case 4: { g->save.gold -= SHOP[idx].price;
+                  g->php=400;   /* 國王為你療傷(回滿生命)*/
                   /* 持有力場之戒者,國王賜予迅捷之劍 ENILNO(任務主鏈)*/
                   if ((g->items&ITEM_RING) && !(g->items&ITEM_QUICKSWORD)){
                       g->items|=ITEM_QUICKSWORD;
@@ -439,7 +440,7 @@ static void shop_buy(Game *g, int idx)
                   }
                   int lo=0; for(int i=1;i<U2_NUM_STATS;i++) if(g->save.stats[i]<g->save.stats[lo])lo=i;
                   if(g->save.stats[lo]<99) g->save.stats[lo]++;
-                  snprintf(g->msg,sizeof g->msg,en?"The King raises your %s.":"國王提升了你的%s。",
+                  snprintf(g->msg,sizeof g->msg,en?"The King heals you and raises your %s.":"國王為你療傷,並提升了你的%s。",
                            u2_lang==U2_EN?u2_save_stat_name(lo):u2_save_stat_zh(lo)); return; }
     }
     g->save.gold -= SHOP[idx].price;
