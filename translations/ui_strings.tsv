@@ -185,3 +185,6 @@ E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表	E/W HYPERWARP · Y land · F1 h
 %s 攻擊你!失去 %d 點生命。	%s attacks you! Lost %d HP.	%s の攻撃!HP %d 減少。
 你擊敗了%s!(+%d 經驗,+%d 金)	You defeated %s! (+%d exp, +%d gold)	%s を倒した!(経験+%d、金+%d)
 本層敵人 %d · 寶箱 %d	Enemies %d · Chests %d	敵 %d · 宝箱 %d
+沉睡 %d 回合	Asleep %d turns	睡眠 残り%d
+手臂麻痺 %d 回合	Arms numb %d turns	腕の麻痺 残り%d
+雙腿麻痺 %d 回合	Legs numb %d turns	脚の麻痺 残り%d
