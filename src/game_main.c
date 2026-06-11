@@ -380,12 +380,12 @@ static void exit_dungeon(Game *g)
  * tile 9 = 地牢,不在此表(走 enter_dungeon)。回 NULL = 非地點 landmark。 */
 typedef struct { const char *world; unsigned char tile; const char *dest; } LocReg;
 static const LocReg LOC_REG[] = {
-    /* mapx20(地球時代之一)— 6 landmark 全覆蓋(9 為地牢) */
-    {"20",5,"21"},{"20",6,"22"},{"20",7,"23"},{"20",8,"31"},{"20",10,"32"},
-    /* mapx30(地球另一時代)*/
-    {"30",5,"33"},{"30",6,"41"},{"30",7,"61"},{"30",8,"71"},{"30",10,"81"},
-    /* mapx40(地球另一時代)*/
-    {"40",5,"82"},{"40",10,"92"},
+    /* 5 個地球時代 overworld(oracle 首位數字定);landmark → 城鎮(provisional,9=地牢) */
+    {"00",8,"03"},{"00",10,"92"},                                  /* Legends */
+    {"10",5,"11"},{"10",10,"93"},                                  /* 9,000,000 B.C. */
+    {"20",5,"21"},{"20",6,"22"},{"20",7,"23"},{"20",8,"31"},{"20",10,"32"}, /* 1423 B.C. */
+    {"30",5,"33"},{"30",6,"41"},{"30",7,"61"},{"30",8,"71"},{"30",10,"81"}, /* 1990 A.D. */
+    {"40",5,"82"},{"40",10,"61"},                                  /* 2112 A.D. */
 };
 static const char *loc_dest(const char *world, unsigned char tile)
 {
@@ -613,19 +613,29 @@ static void board_ship(Game *g)
 }
 
 /* ---- 時間之門(時間旅行雛形)---- */
-/* 時代招牌(ANOS …,oracle FUN_0040c270);world 編號 → 時代名(provisional)。 */
+/* 時代招牌(oracle FUN_0040c270 已釘死):map 檔名首位數字 → 時代。
+ * 0=Legends 1=9,000,000 B.C. 2=1423 B.C. 3=1990 A.D. 4=2112 A.D. */
 static const char *era_name(const char *world)
 {
-    if (!strcmp(world,"20")) return "1990 A.D.";
-    if (!strcmp(world,"30")) return "1423 B.C.";
-    if (!strcmp(world,"40")) return "9,000,000 B.C.";
+    switch (world[0]){
+        case '0': return "Legends(傳奇時代)";
+        case '1': return "9,000,000 B.C.";
+        case '2': return "1423 B.C.";
+        case '3': return "1990 A.D.";
+        case '4': return "2112 A.D.";
+    }
     return "未知時代";
 }
-/* 時間門循環:20 → 30 → 40 → 20(provisional;待對齊 oracle 時代地圖)。 */
+/* 時間門循環:5 個時代 overworld(mapx00/10/20/30/40)依序。 */
 static const char *next_era_world(const char *world)
 {
-    if (!strcmp(world,"20")) return "30";
-    if (!strcmp(world,"30")) return "40";
+    switch (world[0]){
+        case '0': return "10";
+        case '1': return "20";
+        case '2': return "30";
+        case '3': return "40";
+        case '4': return "00";
+    }
     return "20";
 }
 

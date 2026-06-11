@@ -45,6 +45,22 @@
 
 EARTH 6,6,6 · Mercury 5,4,5 · Venus 3,3,4 · Mars 6,2,3 · Jupiter 1,3,4 · Saturn 2,8,5 · Uranus 9,4,6 · Neptune 4,0,5 · Pluto 0,1,4。
 
+## ★ Oracle 校正:時代 = map 檔名首位數字(高信度,已釘死)
+
+`FUN_0040c270`(ENTER THE SIGN READS / ANOS …)以 **map 名首位數字** switch 決定時代:
+
+| 首位 | 時代 | overworld | 該時代城鎮/地點(mapxNN) |
+|---|---|---|---|
+| 0 | **Legends(傳奇時代)** ← Minax 在此 9-9-9 | mapx00 | mapx03 |
+| 1 | **9,000,000 B.C.**(Pangea) | mapx10 | mapx11, mapx15 |
+| 2 | **1423 B.C.** | mapx20 | mapx21/22/23/24/25 |
+| 3 | **1990 A.D.** | mapx30 | mapx31/32/33/34/35 |
+| 4 | **2112 A.D.**(Aftermath) | mapx40 | mapx41/44/45 |
+
+⇒ **5 個地球時代 overworld = mapx00/10/20/30/40**(非先前以為的 3 個)。引擎時間之門已依此
+循環(`next_era_world`)、招牌時代名已對齊(`era_name`)。**行星**(Mercury…Pluto)仍待校正
+(疑 mapx5x–9x;需 oracle 軌道→map 或 emulator)。
+
 ## 高信度推定(本輪資料即可推得)
 
 - **`mapx20` / `mapx30` / `mapx40` = 地球 overworld 三個時代**:三者共享 landmark 指紋
@@ -65,11 +81,16 @@ EARTH 6,6,6 · Mercury 5,4,5 · Venus 3,3,4 · Mars 6,2,3 · Jupiter 1,3,4 · Sa
 `src/game_main.c` 的 `LOC_REG[]` 以 **(world 編號, landmark tile) → 目的地 map** 驅動進入,
 world-aware(切到不同 overworld 會對到該世代的城)。目前對應(待 oracle/Codex 校正):
 
-| world | landmark tile → 目的地 mapxNN |
+| world(時代) | landmark tile → 目的地 mapxNN |
 |---|---|
-| mapx20 | 5→21 · 6→22 · 7→23 · 8→31 · 10→32 · (9→地牢) |
-| mapx30 | 5→33 · 6→41 · 7→61 · 8→71 · 10→81 · (9→地牢) |
-| mapx40 | 5→82 · 10→92 · (9→地牢) |
+| mapx00 (Legends) | 8→03 · 10→92 · (9→地牢) |
+| mapx10 (9,000,000 B.C.) | 5→11 · 10→93 · (9→地牢) |
+| mapx20 (1423 B.C.) | 5→21 · 6→22 · 7→23 · 8→31 · 10→32 |
+| mapx30 (1990 A.D.) | 5→33 · 6→41 · 7→61 · 8→71 · 10→81 |
+| mapx40 (2112 A.D.) | 5→82 · 10→61 · (9→地牢) |
+
+> landmark→城 的「哪個門通哪座城」仍 provisional(待 emulator/oracle 校正);
+> 但**時代↔overworld** 已由 oracle 釘死。
 
 > 驗證:以 `mapx20` / `mapx30` 為 overworld headless 進城,各自載入對應城鎮(不同地圖)。
 > 改 landmark→map 對應只需編輯 `LOC_REG[]`,無需動進入邏輯。
