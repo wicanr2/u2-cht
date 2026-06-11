@@ -181,3 +181,7 @@ E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表	E/W HYPERWARP · Y land · F1 h
 屬性分配  剩餘點數:	Allocate stats  points left: 	能力値配分  残りポイント:
 ↑/↓ 選屬性,←/→ 增減,Enter 完成建角	Up/Down pick, Left/Right adjust, Enter to finish	↑/↓ で選択、←/→ で増減、Enter で作成完了
 ↑/↓ 選擇 · Enter 確認	Up/Down select · Enter confirm	↑/↓ で選択 · Enter で確定
+%s 擋住去路,重創了你!	%s blocks your way and strikes hard!	%s が道を塞ぎ、強烈な一撃!
+%s 攻擊你!失去 %d 點生命。	%s attacks you! Lost %d HP.	%s の攻撃!HP %d 減少。
+你擊敗了%s!(+%d 經驗,+%d 金)	You defeated %s! (+%d exp, +%d gold)	%s を倒した!(経験+%d、金+%d)
+本層敵人 %d · 寶箱 %d	Enemies %d · Chests %d	敵 %d · 宝箱 %d
