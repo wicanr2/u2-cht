@@ -1453,6 +1453,31 @@ static void dungeon_open_chest(Game *g, int ei)
     dungeon_chest_reward(g);
 }
 
+/* 地牢怪物每回合行動(對齊 oracle FUN_0040c610):朝玩家移動;貼身則主動攻擊
+ * (受防具減傷)+ 概率施加狀態/偷竊。玩家在地牢移動後呼叫。 */
+static void step_dungeon_mobs(Game *g)
+{
+    if (g->mode != MODE_DUNGEON) return;
+    for (int i=0; i<g->ndgent; i++){
+        if (g->dgent[i].kind != 'M') continue;
+        int dx=g->dx-g->dgent[i].x, dy=g->dy-g->dgent[i].y;
+        if (abs(dx)+abs(dy)==1){                                  /* 貼身:攻擊玩家 */
+            int d=g->dgent[i].atk+(rng_next(g)%4)-g->armour*2; if(d<1)d=1;
+            g->php-=d; if(g->php<0)g->php=0;
+            snprintf(g->msg,sizeof g->msg,tr("%s 攻擊你!失去 %d 點生命。"),tr(g->dgent[i].name),d);
+            if ((rng_next(g)&0xff) < 0x30) apply_status_attack(g);   /* 概率狀態/偷竊 */
+            continue;
+        }
+        int sx=dx>0?1:dx<0?-1:0, sy=dy>0?1:dy<0?-1:0;            /* 朝玩家移動一格 */
+        int nx=g->dgent[i].x, ny=g->dgent[i].y;
+        if (abs(dx)>=abs(dy) && sx) nx+=sx; else if(sy) ny+=sy; else if(sx) nx+=sx;
+        if (nx==g->dx && ny==g->dy) continue;                    /* 不踩玩家(下回合貼身攻擊)*/
+        if (u2_dungeon_is_wall(&g->dg,g->dlevel,nx,ny)) continue;
+        int occ=0; for(int j=0;j<g->ndgent;j++) if(j!=i&&g->dgent[j].x==nx&&g->dgent[j].y==ny) occ=1;
+        if(!occ){ g->dgent[i].x=nx; g->dgent[i].y=ny; }
+    }
+}
+
 /* 施放法術 idx(僅地牢/塔內;手冊:C)ast only in dungeons and towers)。 */
 static void cast_spell(Game *g, int idx)
 {
@@ -1619,6 +1644,7 @@ static void handle_dir(Game *g, char dir)
                     else snprintf(g->msg,sizeof g->msg, s>0?tr("前進。"):tr("後退。"));
                 }
             }
+            step_dungeon_mobs(g);   /* 玩家前進/後退後,地牢怪物行動(移動/貼身攻擊)*/
         }
     }
 }
