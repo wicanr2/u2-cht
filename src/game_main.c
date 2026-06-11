@@ -128,6 +128,8 @@ typedef struct {
     int spells[9];                /* 各法術持有數(SPELLBOOK 索引;消耗制) */
     int spell_light;              /* 魔法照明剩餘回合(地牢 HUD) */
     int spells_given;             /* 起始法術已依職業發放(一次性) */
+    int level;                    /* 等級(自 EXP 結算;不進存檔每次重算) */
+    int maxhp;                    /* HP 上限(隨等級提升;取代硬編 400) */
     char msg[200];
 } Game;
 /* 載具(oracle this+0x7390) */
@@ -462,6 +464,29 @@ static void grant_starting_spells(Game *g, int n){
     for(int i=0;i<9;i++) if(spell_class_ok(g,i) && g->spells[i]<n) g->spells[i]=n;
 }
 
+/* ---- 升級系統(EXP→等級→HP 上限)----
+ * U2 等級偏隱晦(原版靠 Lord British 結算 HP);此處用階梯閾值自動結算,讓 EXP 即時有意義。*/
+static int level_for_exp(int exp){
+    static const int TH[9]={0,20,50,100,200,400,800,1600,3200};  /* 9 級閾值 */
+    int lv=1; for(int i=1;i<9;i++) if(exp>=TH[i]) lv=i+1; return lv;
+}
+static int max_hp_for(int level){ return 400 + (level-1)*50; }   /* 1 級=400(對齊舊預設)*/
+static void init_level(Game *g){
+    g->level = g->save.has_character ? level_for_exp(g->save.exp) : 1;
+    g->maxhp = max_hp_for(g->level);
+}
+/* 戰鬥/法術得 EXP 後呼叫:結算升級(HP 上限提升 + 回滿 + 提示)。*/
+static void check_levelup(Game *g){
+    if (!g->save.has_character) return;
+    int lv = level_for_exp(g->save.exp);
+    if (lv > g->level){
+        g->level = lv; g->maxhp = max_hp_for(lv); g->php = g->maxhp;   /* 升級回滿 */
+        snprintf(g->msg,sizeof g->msg,
+            (u2_lang==U2_EN)?"Level up! Now level %d (Max HP %d).":"升級!你已達 %d 級(HP 上限 %d)。",
+            lv,g->maxhp);
+    }
+}
+
 static const struct { const char *zh,*en; int price,kind,arg; } SHOP[] = {
     {"升級武器","Upgrade weapon",   100,0,0},
     {"升級防具","Upgrade armour",    80,1,0},
@@ -486,7 +511,7 @@ static void shop_buy(Game *g, int idx)
         case 2: g->save.food += SHOP[idx].arg; if(g->save.food>9999)g->save.food=9999; break;
         case 3: g->items |= (unsigned)SHOP[idx].arg; break;
         case 4: { g->save.gold -= SHOP[idx].price;
-                  g->php=400;   /* 國王為你療傷(回滿生命)*/
+                  g->php=g->maxhp;   /* 國王為你療傷(回滿生命)*/
                   /* 持有力場之戒者,國王賜予迅捷之劍 ENILNO(任務主鏈)*/
                   if ((g->items&ITEM_RING) && !(g->items&ITEM_QUICKSWORD)){
                       g->items|=ITEM_QUICKSWORD;
@@ -539,7 +564,7 @@ static const char *quest_hint(const Game *g)
 /* 角色表疊加面板(置中) */
 static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text *small)
 {
-    int pw=560, ph=448, x=(CANVAS_W-pw)/2, y=(CANVAS_H-ph)/2;
+    int pw=560, ph=485, x=(CANVAS_W-pw)/2, y=(CANVAS_H-ph)/2;
     SDL_Rect bg={x,y,pw,ph}; SDL_FillRect(cv,&bg,SDL_MapRGB(cv->format,18,22,40));
     SDL_Rect bar={x,y,pw,40}; SDL_FillRect(cv,&bar,SDL_MapRGB(cv->format,40,50,120));
     /* 邊框 */
@@ -558,6 +583,8 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
     snprintf(ln,sizeof ln,"%s %s",en?"Sex:":"性別:",s->sex=='F'?(en?"Female":"女"):(en?"Male":"男")); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
     snprintf(ln,sizeof ln,"%s %s",en?"Race:":"種族:",race_nm(s->race)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
     snprintf(ln,sizeof ln,"%s %s",en?"Class:":"職業:",class_nm(s->klass)); u2_text_draw(cv,body,ln,ix,iy,230,230,235); iy+=lh;
+    snprintf(ln,sizeof ln,en?"Level: %d   Max HP: %d":"等級:%d   HP 上限:%d",g->level,g->maxhp);
+    u2_text_draw(cv,body,ln,ix,iy,200,225,190); iy+=lh;
     snprintf(ln,sizeof ln,en?"Weapon: %s  Armour: %s":"武器:%s  防具:%s",weapon_nm(g->weapon),armour_nm(g->armour));
     u2_text_draw(cv,small,ln,ix,iy,200,205,165); iy+=lh-6;
     { char it[200]=""; struct{unsigned f;const char*z,*e;}IT[]={{ITEM_BLUE_TASSLE,"藍流蘇","Tassle"},
@@ -583,8 +610,8 @@ static void revive_if_dead(Game *g);
 static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
 {
     if (g->won){ render_ending(cv,title,body); return; }   /* 結局蓋過一切 */
+    if (!g->spells_given){ g->spells_given=1; grant_starting_spells(g,8); init_level(g); }  /* 起始法術+等級 */
     revive_if_dead(g);                                     /* HP 歸零 → 復活 */
-    if (!g->spells_given){ g->spells_given=1; grant_starting_spells(g,8); }  /* 起始法術(依職業)*/
     if (g->mode==MODE_SPACE)      render_space(cv,g,title,body,small);
     else if (g->mode==MODE_WORLD) render_world(cv,g,title,body);
     else                          render_dungeon(cv,g,title,body,small);
@@ -853,6 +880,7 @@ static int attack_mob(Game *g, int nx, int ny)
                 int xp=(rng_next(g)&3)+1;            /* oracle 地面 EXP +(rng&3)+1 */
                 g->save.exp += xp;
                 snprintf(g->msg,sizeof g->msg,tr("你擊敗了%s!(+%d 經驗)"),tr(g->mob[i].name),xp);
+                check_levelup(g);
                 g->mob[i]=g->mob[--g->nmob];
             } else snprintf(g->msg,sizeof g->msg,tr("你擊中%s,造成 %d 傷害(剩 %d)。"),
                             tr(g->mob[i].name),dmg,g->mob[i].hp);
@@ -1238,6 +1266,7 @@ static void dungeon_event(Game *g)
             int xp=(rng_next(g)&3)+2, gold=5+(rng_next(g)%20);
             g->save.exp+=xp; g->save.gold+=gold;
             snprintf(g->msg,sizeof g->msg,tr("地牢中%s擋路!你擊敗了它(+%d 經驗,+%d 金)。"),tr(nm),xp,gold);
+            check_levelup(g);
         } else {
             snprintf(g->msg,sizeof g->msg,tr("%s 在地牢重創了你!"),tr(nm));
         }
@@ -1275,12 +1304,12 @@ static void cast_spell(Game *g, int idx)
         case SP_SURF:
             snprintf(g->msg,sizeof g->msg,tr("返地表法術將你傳回地面。")); exit_dungeon(g); break;
         case SP_PRAY:
-            g->php = 400;                                /* 神聖干預:治癒(results simulate reality)*/
+            g->php = g->maxhp;                           /* 神聖干預:治癒(results simulate reality)*/
             snprintf(g->msg,sizeof g->msg,tr("你祈禱,神聖之力湧入,傷勢盡復。")); break;
         case SP_MISSILE: {
             int xp=(rng_next(g)&3)+2, gold=4+(rng_next(g)%16);
             g->save.exp+=xp; g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
-            snprintf(g->msg,sizeof g->msg,tr("魔法飛彈轟向前方,擊潰擋路之敵(+%d 經驗)。"),xp); break;
+            snprintf(g->msg,sizeof g->msg,tr("魔法飛彈轟向前方,擊潰擋路之敵(+%d 經驗)。"),xp); check_levelup(g); break;
         }
         case SP_BLINK: {
             for (int t=0;t<16;t++){
@@ -1293,7 +1322,7 @@ static void cast_spell(Game *g, int idx)
         case SP_KILL: {
             int xp=(rng_next(g)&7)+4, gold=8+(rng_next(g)%24);
             g->save.exp+=xp; g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
-            snprintf(g->msg,sizeof g->msg,tr("擊殺術迸發,前方之敵灰飛煙滅(+%d 經驗,+%d 金)。"),xp,gold); break;
+            snprintf(g->msg,sizeof g->msg,tr("擊殺術迸發,前方之敵灰飛煙滅(+%d 經驗,+%d 金)。"),xp,gold); check_levelup(g); break;
         }
     }
 }
@@ -1330,7 +1359,7 @@ static void minax_encounter(Game *g)
 static void revive_if_dead(Game *g)
 {
     if (g->won || !g->save.has_character || g->php>0) return;
-    g->php=400; g->save.hp=400; g->save.gold/=2;
+    g->php=g->maxhp; g->save.hp=g->maxhp; g->save.gold/=2;
     g->mode=MODE_WORLD; g->in_town=0; g->vehicle=VEH_WALK; g->player.tile=PLAYER_TILE; g->nmob=0;
     find_start(&g->map,&g->player,g->world_num);
     snprintf(g->msg,sizeof g->msg,tr("你倒下了……不列顛王將你復活,但失去了半數黃金。"));
