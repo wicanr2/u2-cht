@@ -1375,6 +1375,20 @@ static void render_menu(SDL_Surface *cv, const char *opts[], int n, int sel,
     u2_text_draw(cv,title,(u2_lang==U2_EN)?"Up/Down select · Enter confirm":"↑/↓ 選擇 · Enter 確認",CANVAS_W/2-150,CANVAS_H-28,170,185,215);
 }
 
+/* 裝備/道具 sidecar 持久化(存檔旁 .meta;不碰原存檔格式,避免損壞)。 */
+static void meta_path(char *out, size_t n, const char *save_path){ snprintf(out,n,"%s.meta",save_path); }
+static void load_meta(Game *g, const char *save_path){
+    char mp[1100]; meta_path(mp,sizeof mp,save_path);
+    FILE *f=fopen(mp,"rb"); if(!f) return;
+    unsigned int v[3]={0,0,0}; if(fread(v,sizeof(unsigned int),3,f)==3){ g->items=v[0]; g->weapon=(int)v[1]; g->armour=(int)v[2]; }
+    fclose(f);
+}
+static void save_meta(const Game *g, const char *save_path){
+    char mp[1100]; meta_path(mp,sizeof mp,save_path);
+    FILE *f=fopen(mp,"wb"); if(!f) return;
+    unsigned int v[3]={g->items,(unsigned)g->weapon,(unsigned)g->armour}; fwrite(v,sizeof(unsigned int),3,f); fclose(f);
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 5){
@@ -1456,6 +1470,7 @@ int main(int argc, char **argv)
     int have_continue = wsave.ok && wsave.has_character;
     /* headless / 預設:有可寫存檔用它,否則用範本 */
     g.save = have_continue ? wsave : tmpl;
+    load_meta(&g, save_path);   /* 還原裝備/道具(continue)*/
 
     SDL_Surface *cv=SDL_CreateRGBSurfaceWithFormat(0,CANVAS_W,CANVAS_H,32,SDL_PIXELFORMAT_RGBA32);
     U2Text title=u2_text_open(font_path,20), body=u2_text_open(font_path,22), small=u2_text_open(font_path,17);
@@ -1625,7 +1640,9 @@ int main(int argc, char **argv)
                 }
                 if (done){
                     g.save=make_character(&c);
-                    u2_save_store(&g.save,save_path);   /* 立即存檔,下次可「繼續」 */
+                    g.items=0; g.weapon=0; g.armour=0;  /* 新角色:無裝備/道具 */
+                    u2_save_store(&g.save,save_path);
+                    save_meta(&g,save_path);            /* 同步初始 meta */
                 }
             }
             g.php=(g.save.ok && g.save.has_character)?g.save.hp:400;
@@ -1676,13 +1693,14 @@ int main(int argc, char **argv)
         SDL_DestroyRenderer(ren); SDL_DestroyWindow(win);
     }
 
-    /* 離開時把執行時狀態(HP/EXP/GOLD…)寫回可寫存檔 */
+    /* 離開時把執行時狀態(HP/EXP/GOLD…)寫回可寫存檔 + 裝備/道具 meta */
     if (g.save.ok && g.save.has_character){
         g.save.hp = g.php;
         if (u2_save_store(&g.save, save_path))
             printf("已存檔:%s\n", save_path);
         else
             fprintf(stderr, "存檔失敗:%s(%s)\n", save_path, strerror(errno));
+        save_meta(&g, save_path);
     }
 
     u2_text_close(&title); u2_text_close(&body); u2_text_close(&small);
