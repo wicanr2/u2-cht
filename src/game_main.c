@@ -618,11 +618,11 @@ static void board_ship(Game *g)
 static const char *era_name(const char *world)
 {
     switch (world[0]){
-        case '0': return "Legends(傳奇時代)";
-        case '1': return "9,000,000 B.C.";
-        case '2': return "1423 B.C.";
-        case '3': return "1990 A.D.";
-        case '4': return "2112 A.D.";
+        case '0': return "傳說時代(Legends)";
+        case '1': return "盤古大陸(9,000,000 B.C.)";
+        case '2': return "西元前 1423 年";
+        case '3': return "西元 1990 年";
+        case '4': return "浩劫餘生(2112 A.D.)";
     }
     return "未知時代";
 }
