@@ -59,7 +59,8 @@ typedef struct {
     char town_path[512];
     char data_dir[512];           /* mapxNN 所在目錄(動態組地點檔路徑) */
     char world_num[8];            /* 目前 overworld 編號(如 "20"),供地點登記表查詢 */
-    int td_x, td_y;               /* 時間之門座標(overworld;-1=無) */
+    int td_x, td_y;               /* 時間之門座標(overworld;-1=消散中) */
+    int td_timer;                 /* 時間之門可見/隱沒週期計數(回合) */
     char town_loaded[8];          /* 目前已載入的城鎮編號(偵測換城重載) */
     /* 地牢 */
     U2Dungeon dg; int dg_ok;
@@ -685,20 +686,38 @@ static const char *next_era_world(const char *world)
     return "20";
 }
 
-/* 在玩家附近的可通行陸地放一個時間之門(非 landmark) */
+/* 時間之門可見週期(回合;手冊:定時升起、很快消散)。 */
+#define TD_VIS 14   /* 升起後可見回合數 */
+#define TD_HID 6    /* 消散後隱沒回合數 */
+
+/* 在玩家附近的可通行陸地放一個時間之門(非 landmark、非玩家腳下;wrap-aware) */
 static void place_time_door(Game *g)
 {
     g->td_x=g->td_y=-1;
-    for (int r=1;r<20 && g->td_x<0;r++)
+    for (int r=2;r<22 && g->td_x<0;r++)
         for (int dy=-r;dy<=r && g->td_x<0;dy++) for (int dx=-r;dx<=r;dx++){
             if (abs(dx)<r && abs(dy)<r) continue;
-            int x=g->player.x+dx, y=g->player.y+dy;
-            if (x<0||y<0||x>=U2_MAP_W||y>=U2_MAP_H) continue;
+            int x=(g->player.x+dx)&(U2_WORLD_DIM-1), y=(g->player.y+dy)&(U2_WORLD_DIM-1);
+            if (x==g->player.x && y==g->player.y) continue;       /* 勿在玩家腳下重現 */
             unsigned char t=u2_map_tile(&g->map,x,y);
             if (t!=0 && u2_passable(t) && !loc_dest(g->world_num,t) && t!=WORLD_DUNGEON_TILE){
                 g->td_x=x; g->td_y=y; break;
             }
         }
+    g->td_timer=0;
+}
+
+/* 每回合推進時間之門:可見 TD_VIS 回合 → 消散 → 隱沒 TD_HID 回合 → 在新位置升起。 */
+static void tick_time_door(Game *g)
+{
+    g->td_timer++;
+    if (g->td_x>=0){
+        if (g->td_timer>=TD_VIS){ g->td_x=g->td_y=-1; g->td_timer=0;
+            snprintf(g->msg,sizeof g->msg,"時間之門化作藍霧消散了……"); }
+    } else {
+        if (g->td_timer>=TD_HID){ place_time_door(g);
+            if (g->td_x>=0) snprintf(g->msg,sizeof g->msg,"一道時間之門如藍霧般在附近升起。"); }
+    }
 }
 
 /* 穿越時間之門:切到下個時代 overworld,座標保留,重載地圖/實體/門/船 */
@@ -783,7 +802,7 @@ static void handle_dir(Game *g, char dir)
             if (!g->in_town && g->td_x==g->player.x && g->td_y==g->player.y) { time_travel(g); }
             else if (L && (L->kind=='d'||L->kind=='T')) { g->nmob=0; enter_dungeon_kind(g, L->kind=='T'); }
             else if (L) { g->nmob=0; enter_town_tile(g,t); }
-            else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); }
+            else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); tick_time_door(g); }
         } else snprintf(g->msg,sizeof g->msg,
                         (!g->in_town&&g->vehicle&&tt!=0&&tt!=1)?"船無法駛上陸地(B 下船)。":"%c 方向被擋住。",dir);
     } else { /* DUNGEON: N前進 S後退 W左轉 E右轉 */
