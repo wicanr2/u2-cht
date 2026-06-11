@@ -130,6 +130,7 @@ typedef struct {
     int spells_given;             /* 起始法術已依職業發放(一次性) */
     int level;                    /* 等級(自 EXP 結算;不進存檔每次重算) */
     int maxhp;                    /* HP 上限(隨等級提升;取代硬編 400) */
+    int sleep_t, arms_t, legs_t;  /* 狀態計時器(oracle 0x73a0/0x7398/0x739c):睡眠/臂麻/腿麻 */
     char msg[200];
 } Game;
 /* 載具(oracle this+0x7390) */
@@ -147,6 +148,9 @@ enum { VEH_WALK=0, VEH_HORSE=1, VEH_SHIP=2, VEH_PLANE=3, VEH_ROCKET=4 };
 #define ITEM_TRI_LITHIUM (1u<<4)   /* 0x160:火箭發射燃料 */
 #define ITEM_RING        (1u<<5)   /* 戒指:破 Minax 力場(Father Antos 賜)*/
 #define ITEM_QUICKSWORD  (1u<<6)   /* ENILNO 迅捷之劍:唯一能殺 Minax */
+#define ITEM_BOOTS       (1u<<7)   /* 0x130 魔法長靴:擋腿麻痺(oracle SAVED BY MAGICAL BOOTS)*/
+#define ITEM_CLOAK       (1u<<8)   /* 0x134 魔法斗篷:擋臂麻痺 */
+#define ITEM_IDOL        (1u<<9)   /* 0x15c 綠色神像:擋睡眠(oracle SAVED BY IDOL)*/
 
 /* 簡易 LCG(同 oracle 風格,seed 固定 → headless 可重現) */
 static unsigned int rng_next(Game *g)
@@ -590,8 +594,9 @@ static void render_sheet_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text 
     { char it[200]=""; struct{unsigned f;const char*z,*e;}IT[]={{ITEM_BLUE_TASSLE,"藍流蘇","Tassle"},
         {ITEM_SKULL_KEY,"骷髏鑰","SkullKey"},{ITEM_BRASS_BUTTON,"黃銅鈕扣","Brass"},
         {ITEM_ANKH,"生命符","Ankh"},{ITEM_TRI_LITHIUM,"三鋰","TriLith"},
-        {ITEM_RING,"力場之戒","Ring"},{ITEM_QUICKSWORD,"迅捷之劍","Enilno"}};
-      for(int i=0;i<7;i++) if(g->items&IT[i].f){ if(it[0])strcat(it," ·"); strcat(it," "); strcat(it,en?IT[i].e:IT[i].z); }
+        {ITEM_RING,"力場之戒","Ring"},{ITEM_QUICKSWORD,"迅捷之劍","Enilno"},
+        {ITEM_BOOTS,"魔法長靴","Boots"},{ITEM_CLOAK,"魔法斗篷","Cloak"},{ITEM_IDOL,"綠色神像","Idol"}};
+      for(int i=0;i<10;i++) if(g->items&IT[i].f){ if(it[0])strcat(it," ·"); strcat(it," "); strcat(it,en?IT[i].e:IT[i].z); }
       snprintf(ln,sizeof ln,en?"Items:%s":"道具:%s",it[0]?it:(en?" (none)":" 無"));
       u2_text_draw(cv,small,ln,ix,iy,180,195,160); iy+=lh+2; }
     u2_text_draw(cv,small,en?"Attributes (BCD)":"屬性(BCD 解碼)",ix,iy,150,170,205); iy+=26;
@@ -846,6 +851,30 @@ static void spawn_mob(Game *g)
     }
 }
 /* 怪物朝玩家移動;貼身則以各自攻擊力打玩家 */
+/* 怪物特殊攻擊(oracle FUN_0040c610):遠程狀態(~12.5%)+ 偷竊(~12.5%),防護道具減免。*/
+static void apply_status_attack(Game *g)
+{
+    unsigned int sr = rng_next(g) & 0xff;
+    int en=(u2_lang==U2_EN);
+    if (sr < 0x20){                            /* 遠程狀態攻擊:腿麻 / 臂麻 / 睡眠 */
+        int kind = sr % 3;
+        if (kind==0){
+            if(g->items&ITEM_BOOTS) snprintf(g->msg,sizeof g->msg,en?"Saved by magical boots!":"魔法長靴擋下了腿麻!");
+            else { g->legs_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,en?"Your legs are paralyzed!":"你的雙腿被麻痺了!"); }
+        } else if (kind==1){
+            if(g->items&ITEM_CLOAK) snprintf(g->msg,sizeof g->msg,en?"Saved by magical cloak!":"魔法斗篷擋下了臂麻!");
+            else { g->arms_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,en?"Your arms are paralyzed!":"你的手臂被麻痺了!"); }
+        } else {
+            if(g->items&ITEM_IDOL) snprintf(g->msg,sizeof g->msg,en?"Saved by the idol!":"綠色神像擋下了睡眠!");
+            else { g->sleep_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,en?"You fall asleep!":"你陷入了沉睡!"); }
+        }
+    } else if (sr < 0x40){                      /* 偷竊:哥布林偷食物 / 盜賊偷金 */
+        if (sr&1){ int f=50+(rng_next(g)%50); g->save.food-=f; if(g->save.food<0)g->save.food=0;
+                   snprintf(g->msg,sizeof g->msg,en?"A gremlin steals %d food!":"哥布林偷走了 %d 份食物!",f); }
+        else { int gd=10+(rng_next(g)%40); g->save.gold-=gd; if(g->save.gold<0)g->save.gold=0;
+               snprintf(g->msg,sizeof g->msg,en?"A thief steals %d gold!":"盜賊偷走了 %d 金幣!",gd); }
+    }
+}
 static void step_mobs(Game *g)
 {
     for (int i=0;i<g->nmob;i++){
@@ -855,6 +884,7 @@ static void step_mobs(Game *g)
             if (dmg<1) dmg=1;
             g->php-=dmg; if(g->php<0)g->php=0;
             snprintf(g->msg,sizeof g->msg,tr("%s攻擊你!失去 %d 點生命。"),tr(g->mob[i].name),dmg);
+            apply_status_attack(g);            /* oracle:遠程狀態 / 偷竊 */
             continue;
         }
         int sx=dx>0?1:dx<0?-1:0, sy=dy>0?1:dy<0?-1:0;
@@ -871,6 +901,8 @@ static int attack_mob(Game *g, int nx, int ny)
 {
     for (int i=0;i<g->nmob;i++){
         if (g->mob[i].x==nx && g->mob[i].y==ny){
+            if (g->arms_t>0){ g->arms_t--;            /* 臂麻:無法攻擊 */
+                snprintf(g->msg,sizeof g->msg,tr("手臂麻痺,無法攻擊!(剩 %d)"),g->arms_t); return 1; }
             if ((int)(rng_next(g) % 0x50) >= hit_skill(g)){
                 snprintf(g->msg,sizeof g->msg,tr("你攻擊%s,但沒打中。"),tr(g->mob[i].name));
                 return 1;
@@ -1240,14 +1272,21 @@ static void render_splash(SDL_Surface *cv, SDL_Surface *photo, U2Text *title, U2
     u2_text_draw(cv,body,"感謝遊玩 ── 獻給我的家人。  按任意鍵開始。",60,CANVAS_H-52,180,205,235);
 }
 
-/* 地牢遭遇:前進時隨機觸發寶箱或怪物(自動戰鬥)。第 16 層寶箱給三鋰(火箭燃料)。 */
+/* 地牢遭遇:前進時隨機觸發寶箱或怪物(自動戰鬥)。最深層寶箱給三鋰(火箭燃料);深層寶箱可得防護具。 */
 static void dungeon_event(Game *g)
 {
     unsigned int r = rng_next(g) % 100;
     if (r < 22){                                  /* 寶箱 */
-        if (g->dlevel>=15 && !(g->items & ITEM_TRI_LITHIUM)){
+        unsigned want = (~g->items) & (ITEM_BOOTS|ITEM_CLOAK|ITEM_IDOL);  /* 尚缺的防護具 */
+        if (g->dlevel>=13 && !(g->items & ITEM_TRI_LITHIUM)){
             g->items |= ITEM_TRI_LITHIUM;
             snprintf(g->msg,sizeof g->msg,tr("寶箱中閃耀著三鋰!(火箭燃料)"));
+        } else if (g->dlevel>=4 && want && (rng_next(g)%3==0)){           /* 深層概率給防護具 */
+            unsigned pick = (want&ITEM_BOOTS)?ITEM_BOOTS:(want&ITEM_CLOAK)?ITEM_CLOAK:ITEM_IDOL;
+            g->items |= pick;
+            const char *nm = (pick==ITEM_BOOTS)?tr("魔法長靴(擋腿麻)")
+                           : (pick==ITEM_CLOAK)?tr("魔法斗篷(擋臂麻)"):tr("綠色神像(擋睡眠)");
+            snprintf(g->msg,sizeof g->msg,tr("寶箱中是%s!"),nm);
         } else {
             int gold=10+(rng_next(g)%40); g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
             snprintf(g->msg,sizeof g->msg,tr("你找到一個寶箱:+%d 黃金。"),gold);
@@ -1369,6 +1408,10 @@ static void revive_if_dead(Game *g)
 static void handle_dir(Game *g, char dir)
 {
     int FX[4]={0,1,0,-1}, FY[4]={-1,0,1,0};  /* N E S W */
+    if (g->mode!=MODE_SPACE){                /* 狀態效果:睡眠/腿麻阻止行動,每回合遞減自解 */
+        if (g->sleep_t>0){ g->sleep_t--; snprintf(g->msg,sizeof g->msg,tr("你在沉睡中,動彈不得……(剩 %d)"),g->sleep_t); return; }
+        if (g->legs_t>0){ g->legs_t--; snprintf(g->msg,sizeof g->msg,tr("雙腿麻痺,無法移動……(剩 %d)"),g->legs_t); return; }
+    }
     if (g->mode==MODE_SPACE){                /* 太空:E/W HYPERWARP 切換行星軌道 */
         if (dir=='E') hyperwarp(g);
         else if (dir=='W'){ g->planet=(g->planet+NPLANET-1)%NPLANET;
