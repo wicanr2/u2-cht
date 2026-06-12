@@ -1167,28 +1167,37 @@ static void spawn_mob(Game *g)
     }
 }
 /* 怪物朝玩家移動;貼身則以各自攻擊力打玩家 */
-/* 怪物特殊攻擊(oracle FUN_0040c610):遠程狀態(~12.5%)+ 偷竊(~12.5%),防護道具減免。*/
-static void apply_status_attack(Game *g)
+/* 怪物特殊攻擊(oracle FUN_0040c610):依怪種專長施加狀態/偷竊,防護道具減免。
+   [正典] U2 monster data 每怪專長:
+     Daemon(62)麻腿 · Devil(14)麻臂 · Balron(15)睡眠 · Goblin(60)偷食 · Thief(61)偷金。
+   其餘怪物(蜥蜴人/幽靈/海蛇…)純物理攻擊,無遠程特技。tile 決定效果而非隨機。*/
+static void apply_status_attack(Game *g, unsigned char tile)
 {
     unsigned int sr = rng_next(g) & 0xff;
-    int en=(u2_lang==U2_EN); (void)en;
-    if (sr < 0x20){                            /* 遠程狀態攻擊:腿麻 / 臂麻 / 睡眠 */
-        int kind = sr % 3;
-        if (kind==0){
-            if(g->items&ITEM_BOOTS) snprintf(g->msg,sizeof g->msg,tr("魔法長靴擋下了腿麻!"));
-            else { g->legs_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,tr("你的雙腿被麻痺了!")); }
-        } else if (kind==1){
-            if(g->items&ITEM_CLOAK) snprintf(g->msg,sizeof g->msg,tr("魔法斗篷擋下了臂麻!"));
-            else { g->arms_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,tr("你的手臂被麻痺了!")); }
-        } else {
-            if(g->items&ITEM_IDOL) snprintf(g->msg,sizeof g->msg,tr("綠色神像擋下了睡眠!"));
-            else { g->sleep_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,tr("你陷入了沉睡!")); }
-        }
-    } else if (sr < 0x40){                      /* 偷竊:哥布林偷食物 / 盜賊偷金 */
-        if (sr&1){ int f=50+(rng_next(g)%50); g->save.food-=f; if(g->save.food<0)g->save.food=0;
-                   snprintf(g->msg,sizeof g->msg,tr("哥布林偷走了 %d 份食物!"),f); }
-        else { int gd=10+(rng_next(g)%40); g->save.gold-=gd; if(g->save.gold<0)g->save.gold=0;
-               snprintf(g->msg,sizeof g->msg,tr("盜賊偷走了 %d 金幣!"),gd); }
+    if (sr >= 0x60) return;                     /* 約 37.5% 觸發特技,其餘僅物理 */
+    switch (tile){
+    case 62:   /* Daemon → 腿麻(魔法長靴擋)*/
+        if(g->items&ITEM_BOOTS) snprintf(g->msg,sizeof g->msg,tr("魔法長靴擋下了腿麻!"));
+        else { g->legs_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,tr("惡魔的法術麻痺了你的雙腿!")); }
+        break;
+    case 14:   /* Devil → 臂麻(魔法斗篷擋)*/
+        if(g->items&ITEM_CLOAK) snprintf(g->msg,sizeof g->msg,tr("魔法斗篷擋下了臂麻!"));
+        else { g->arms_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,tr("魔鬼的法術麻痺了你的手臂!")); }
+        break;
+    case 15:   /* Balron → 睡眠(綠色神像擋)*/
+        if(g->items&ITEM_IDOL) snprintf(g->msg,sizeof g->msg,tr("綠色神像擋下了睡眠!"));
+        else { g->sleep_t=(rng_next(g)&7)+2; snprintf(g->msg,sizeof g->msg,tr("炎魔的咒語讓你陷入沉睡!")); }
+        break;
+    case 60:   /* Goblin → 偷食 */
+        { int f=50+(rng_next(g)%50); g->save.food-=f; if(g->save.food<0)g->save.food=0;
+          snprintf(g->msg,sizeof g->msg,tr("哥布林偷走了 %d 份食物!"),f); }
+        break;
+    case 61:   /* Thief → 偷金 */
+        { int gd=10+(rng_next(g)%40); g->save.gold-=gd; if(g->save.gold<0)g->save.gold=0;
+          snprintf(g->msg,sizeof g->msg,tr("盜賊偷走了 %d 金幣!"),gd); }
+        break;
+    default:   /* 其餘怪物無特技 */
+        break;
     }
 }
 /* NEGATE TIME([正典] oracle:擲奇異硬幣凝結時間 20 回合,無幣則失敗)*/
@@ -1208,7 +1217,7 @@ static void step_mobs(Game *g)
             if (dmg<1) dmg=1;
             g->php-=dmg; if(g->php<0)g->php=0;
             snprintf(g->msg,sizeof g->msg,tr("%s攻擊你!失去 %d 點生命。"),tr(g->mob[i].name),dmg);
-            apply_status_attack(g);            /* oracle:遠程狀態 / 偷竊 */
+            apply_status_attack(g, g->mob[i].tile);   /* oracle:依怪種狀態 / 偷竊 */
             continue;
         }
         int sx=dx>0?1:dx<0?-1:0, sy=dy>0?1:dy<0?-1:0;
@@ -1703,7 +1712,7 @@ static void step_dungeon_mobs(Game *g)
             int d=g->dgent[i].atk+(rng_next(g)%4)-g->armour*2; if(d<1)d=1;
             g->php-=d; if(g->php<0)g->php=0;
             snprintf(g->msg,sizeof g->msg,tr("%s 攻擊你!失去 %d 點生命。"),tr(g->dgent[i].name),d);
-            if ((rng_next(g)&0xff) < 0x30) apply_status_attack(g);   /* 概率狀態/偷竊 */
+            if ((rng_next(g)&0xff) < 0x30) apply_status_attack(g, g->dgent[i].tile);   /* 概率依怪種狀態/偷竊 */
             continue;
         }
         int sx=dx>0?1:dx<0?-1:0, sy=dy>0?1:dy<0?-1:0;            /* 朝玩家移動一格 */
