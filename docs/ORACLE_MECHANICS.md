@@ -255,6 +255,34 @@
 - `FUN_0040bbd0`（護甲）：`need = idx*5 (+3 if odd)`；須 `need < this+0x5c`（力量）才能 `READY`，否則 `STRONG ENOUGH TO WEAR` 失敗。`this+0x88` = 已備護甲。
 - 兩者都要求未持有（陣列計數 0 且 idx!=0）時印 `NOT OWNED`。`[確定]`
 
+### 進入地點 ENTER（`E`）landmark tile → 地點類型 `[確定]`
+`FUN_004064d0` case 0x45/0x65（oracle 行 4916-5056）。僅當腳下 overworld（mapname byte1 == '0'）：讀腳下 tile id（`tile >> 2`），依 id switch 決定地點類型並組出目的地 `mapxNN`：
+- 目的地 byte0（時代碼）= 當前 overworld mapname byte0（`this+0x58` 字串）。
+- 目的地 byte1（kind 碼）由 `FUN_00427a50(mapname,1,'?')` 寫死：
+
+| tile id | 地點 | kind 碼（byte1） | 目的地 |
+|---|---|---|---|
+| 5 | VILLAGE | '1' | `mapx<時代>1` |
+| 6 | TOWN | '2' | `mapx<時代>2` |
+| 8 | CASTLE | '3' | `mapx<時代>3` |
+| 7 | TOWER | '4' | `mapx<時代>4` |
+| 9 | DUNGEON | '5' | `mapx<時代>5` |
+| 10 | 時間之門 | — | 呼叫 `FUN_0040c270`（印招牌 ANOS \<era\>），非載圖 |
+
+⇒ **進入規則是 deterministic（tile id → kind 碼），非逐 landmark 推定**。引擎 `LOC_REG[]` 已照此重排（2026-06-13），只列各時代 overworld 實際存在且目的地檔存在的 landmark。
+
+### 時間之門（moongate）排程 `[確定機制 / 座標表未解]`
+- **每回合 tick** `FUN_0040cd20`：僅 overworld（mapname byte1=='0'）、時代碼 <'5'（即 5 個地球時代 0-4）、非行星（`0x74dc==0`）。倒數 `this+0xac`（init 8）每回合 -1；歸零→重設 8 並**搬移時間之門**：
+  - 舊門座標 = `DAT[(phase>>1) + era*4]`，若仍是門 tile（`&0xfc==0xc0`）則還原成記錄的底圖 `this+0xb0`。
+  - **月相前進**：`this+0xa8 = (this+0xa8 + 2) & 7`（init 0）⇒ `phase = 0xa8>>1` 週期 0,1,2,3。
+  - 新門座標 = `DAT[(new_phase) + era*4]`，記錄底圖到 `0xb0`，蓋上門 tile `0xc0`。
+- **踏上時間之門**（移動後腳下 `tile>>2 == 0x30`，即 raw `0xc0`，oracle 行 5705-5727）：
+  - `phase = this+0xa8 >> 1`。
+  - **目的地時代** `dest_era = (cur_era <= phase) ? phase+1 : phase`（cur_era = mapname byte0 - '0'）。
+  - 寫回 `mapname[0] = dest_era + '0'`，並從 `DAT_0043e260[]`（x）/ `DAT_0043e261[]`（y）依 `(phase + dest_era*4)*2` 索引取得**落地座標**。
+- ⚠ **座標表 `DAT_0043e260/e261` 不在 Ghidra C dump（`.data` 未含）**：門生成 / 落地座標無法從 oracle 還原，需 emulator dump 或原版 exe `.data` 抽取。
+- **與現行引擎差異**：現行 `next_era_world`/`time_travel` 為**自由循環** 0→1→2→3→4→0（可自由到 5 個時代）；原版為**月相驅動**（dest 由 `phase` 決定，玩家不能任選，且只能到 `phase` 或 `phase+1`）。改為原版排程需：(a) 座標表（未解）；(b) 會破壞 headless 破關鏈 `PPPM` 的決定性。⇒ **保留現行自由循環，待座標表還原後再評估**。
+
 ---
 
 ## 待驗證 / 未解清單
