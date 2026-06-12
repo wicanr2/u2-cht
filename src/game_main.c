@@ -1818,8 +1818,21 @@ static void handle_dir(Game *g, char dir)
         else {
             int s=(dir=='N')?1:-1;
             int di=g->ddir; int nx=g->dx+FX[di]*s, ny=g->dy+FY[di]*s;
+            unsigned char dcell = (nx>=0&&ny>=0&&nx<U2_DNG_N&&ny<U2_DNG_N) ? g->dg.cell[g->dlevel][ny][nx] : 0x80;
             if (u2_dungeon_is_wall(&g->dg,g->dlevel,nx,ny)){
                 snprintf(g->msg,sizeof g->msg,tr("前方是牆。"));
+            } else if (dcell == 0xC0){
+                /* 上鎖門([正典] UNLOCK):有守衛鑰匙自動開,否則 AGI 撬鎖;開門耗一回合 */
+                int agi = g->save.has_character ? g->save.stats[1] : 15;
+                if (g->guard_key){
+                    g->dg.cell[g->dlevel][ny][nx]=0x00;
+                    snprintf(g->msg,sizeof g->msg,tr("你用守衛的鑰匙打開了上鎖的門。"));
+                } else if ((int)(rng_next(g)%100) < 20+agi){
+                    g->dg.cell[g->dlevel][ny][nx]=0x00;
+                    snprintf(g->msg,sizeof g->msg,tr("你撬開了上鎖的門。"));
+                } else {
+                    snprintf(g->msg,sizeof g->msg,tr("門上鎖了 ── 需要鑰匙,或再試著撬鎖。"));
+                }
             } else {
                 int ei=-1;
                 for(int i=0;i<g->ndgent;i++) if(g->dgent[i].x==nx&&g->dgent[i].y==ny){ei=i;break;}
@@ -2186,7 +2199,7 @@ int main(int argc, char **argv)
                 snprintf(g.msg,sizeof g.msg,tr("切換圖塊:%s"),g.tname[g.curset]); } }
             else if (c=='X'||c=='x'){ if (g.mode==MODE_DUNGEON) exit_dungeon(&g); else if (g.in_town) exit_town(&g); }
             else if (c=='B'||c=='b') board_vehicle(&g);
-            else if (c=='I'||c=='i'){ g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); }
+            else if (c=='I'||c=='i'){ g.items=~0u; g.guard_key=1; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); }
             else if (c=='R'){ g.items|=ITEM_RING; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得力場之戒。")); }  /* 測試金幣閘門用:單發戒指 */
             else if (c=='$'){ g.save.gold+=300; if(g.save.gold>9999)g.save.gold=9999;
                 snprintf(g.msg,sizeof g.msg,tr("(除錯)黃金 +300。")); }  /* 測試金幣閘門用:精確控金 */
@@ -2197,6 +2210,11 @@ int main(int argc, char **argv)
                 for (int gi=0;gi<g.tmon.count && gi<U2_MON_SLOTS;gi++)
                     if (g.tmon.ent[gi].tile==TILE_GUARD && g.tent_hp[gi]>0){
                         town_attack_guard(&g,gi); break; } }
+            else if (c=='#'){ if (g.mode==MODE_DUNGEON){     /* 測試鉤:面向首個上鎖門(驗 UNLOCK)*/
+                int found=0;
+                for (int y=0;y<U2_DNG_N && !found;y++) for (int x=1;x<U2_DNG_N && !found;x++)
+                    if (g.dg.cell[g.dlevel][y][x]==0xC0){ g.dx=x-1; g.dy=y; g.ddir=1; found=1;
+                        snprintf(g.msg,sizeof g.msg,"(dbg) face locked door"); } } }
             else if (c=='V'||c=='v') do_view(&g);   /* VIEW 鳥瞰 */
             else if (c=='U'){ g.items=~0u; g.vehicle=VEH_ROCKET; launch_rocket(&g); }  /* 除錯:直接發射 */
             else if (c=='M') minax_encounter(&g);   /* Minax 對決(傳說時代)*/
@@ -2329,7 +2347,7 @@ int main(int argc, char **argv)
                         case SDLK_j: dungeon_descend(&g); break;
                         case SDLK_k: dungeon_ascend(&g); break;
                         case SDLK_b: board_vehicle(&g); break;
-                        case SDLK_i: g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); break;
+                        case SDLK_i: g.items=~0u; g.guard_key=1; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); break;
                         case SDLK_y: if (g.in_town) do_yell(&g); else if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); break;
                         case SDLK_f: do_steal(&g); break;   /* 城內行竊(STEAL) */
                         case SDLK_v: do_view(&g); break;   /* VIEW 鳥瞰 */
