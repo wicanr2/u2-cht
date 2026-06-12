@@ -555,13 +555,20 @@ static void shop_buy(Game *g, int idx)
         case 1: if(g->armour>=5){snprintf(g->msg,sizeof g->msg,tr("防具已是最強。"));return;} g->armour++; break;
         case 2: g->save.food += SHOP[idx].arg; if(g->save.food>9999)g->save.food=9999; break;
         case 3: g->items |= (unsigned)SHOP[idx].arg; break;
-        case 4: { g->save.gold -= SHOP[idx].price;
-                  g->php=g->maxhp;   /* 國王為你療傷(回滿生命)*/
-                  /* 持有力場之戒者,國王賜予迅捷之劍 ENILNO(任務主鏈)*/
+        case 4: {
+                  /* 持戒者求劍:[正典] FUN_00408e50 0x81 分支 ── ENILNO 需獻 ≥500 金,不足回絕 */
                   if ((g->items&ITEM_RING) && !(g->items&ITEM_QUICKSWORD)){
+                      if (g->save.gold < 500){
+                          snprintf(g->msg,sizeof g->msg,tr("國王說:「迅捷之劍 ENILNO 需獻上 500 黃金 ── 你帶的不夠。」")); return;
+                      }
+                      g->save.gold -= 500;
                       g->items|=ITEM_QUICKSWORD;
-                      snprintf(g->msg,sizeof g->msg,tr("國王見你持有力場之戒,賜予迅捷之劍 ENILNO!")); return;
+                      g->php=g->maxhp;
+                      snprintf(g->msg,sizeof g->msg,tr("國王收下 500 金貢禮,賜予迅捷之劍 ENILNO!")); return;
                   }
+                  /* 一般貢禮:療傷 + 最低屬性 +1 */
+                  g->save.gold -= SHOP[idx].price;
+                  g->php=g->maxhp;
                   int lo=0; for(int i=1;i<U2_NUM_STATS;i++) if(g->save.stats[i]<g->save.stats[lo])lo=i;
                   if(g->save.stats[lo]<99) g->save.stats[lo]++;
                   snprintf(g->msg,sizeof g->msg,tr("國王為你療傷,並提升了你的%s。"),
@@ -607,7 +614,7 @@ static const char *quest_hint(const Game *g)
         if (g->quest_clue < 2) return tr("任務:破米娜克斯需力場之戒;傳聞樹下老人知其下落,繼續打聽。");
         return tr("任務:尋找安托斯神父(盤古大陸的城堡)取得力場之戒。");
     }
-    if (!(g->items & ITEM_QUICKSWORD)) return tr("任務:帶著戒指晉見國王,取得迅捷之劍 ENILNO。");
+    if (!(g->items & ITEM_QUICKSWORD)) return tr("任務:備妥 500 黃金,晉見國王獻禮換取迅捷之劍 ENILNO。");
     return tr("任務:前往傳說時代,於巢穴擊敗米娜克斯!");
 }
 
