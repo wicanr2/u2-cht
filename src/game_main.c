@@ -1002,9 +1002,13 @@ static void do_talk(Game *g)
                 if (g->quest_clue < 1){   /* [正典] EARN_THE_RING:需先打聽線索才有資格取戒 */
                     snprintf(g->msg,sizeof g->msg,tr("安托斯神父說:「你尚未準備好。先在城鎮間打聽,明白你的使命再來。」")); return;
                 }
+                if (g->save.gold < 900){  /* [正典] 力場之戒索價 900 金(canon ring price) */
+                    snprintf(g->msg,sizeof g->msg,tr("安托斯神父說:「力場之戒需獻上 900 黃金以鑄其力 ── 你帶的不夠。」")); return;
+                }
+                g->save.gold -= 900;
                 g->quest_clue=2;
                 g->items |= ITEM_RING;
-                snprintf(g->msg,sizeof g->msg,tr("安托斯神父祝福你,賜予了力場之戒。")); return;
+                snprintf(g->msg,sizeof g->msg,tr("安托斯神父收下 900 金,祝福你,賜予了力場之戒。")); return;
             }
             /* 非 Antos NPC:對話蒐線索(對齊 oracle FUN_00402a90 線索詩)→ 推進任務認知 */
             if (strcmp(g->town_loaded,"93") && !(g->items & ITEM_RING) && g->quest_clue < 2){
