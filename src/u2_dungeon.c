@@ -123,9 +123,16 @@ static void fill_quad(SDL_Surface *s, int xn, int ynt, int ynb,
         SDL_Rect c = { x, yt, 1, yb - yt + 1 };
         SDL_FillRect(s, &c, col);
     }
-    line(s, xn, ynt, xf, yft, mortar);                       /* 上緣 */
-    line(s, xn, ynb, xf, yfb, mortar);                       /* 下緣 */
-    line(s, xn, (ynt+ynb)/2, xf, (yft+yfb)/2, mortar);       /* 中線 */
+    /* 磚層:5 道水平 mortar 橫線(near→far 內插),做出磚牆橫縫 */
+    for (int k = 0; k <= 4; k++) {
+        int ny = ynt + (ynb - ynt) * k / 4;
+        int fy = yft + (yfb - yft) * k / 4;
+        line(s, xn, ny, xf, fy, mortar);
+    }
+    /* 垂直磚縫:near/mid/far 各一道短豎線,做出磚塊錯位感 */
+    int xm = (xn + xf) / 2, ymt = (ynt + yft) / 2, ymb = (ynb + yfb) / 2;
+    line(s, xn, (ynt+ynb)/2, xn, ynb, mortar);
+    line(s, xm, ymt, xm, (ymt+ymb)/2, mortar);
 }
 
 int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,

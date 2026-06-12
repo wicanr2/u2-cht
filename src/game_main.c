@@ -298,6 +298,7 @@ static int draw_status_fx(SDL_Surface *cv, U2Text *body, const Game *g, int x, i
 
 static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
 {
+    (void)body;   /* 底部 UI 改用 small 後 body 暫未用於本畫面 */
     U2Map *m=amap(g); U2Mon *mon=amon(g);
     SDL_Surface *tiles = g->ntset ? g->tset[g->curset] : NULL;
     SDL_FillRect(cv, NULL, SDL_MapRGB(cv->format,0,0,0));
