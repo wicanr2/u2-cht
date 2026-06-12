@@ -111,6 +111,8 @@ typedef struct {
     unsigned char tent_hp[U2_MON_SLOTS]; /* 城鎮實體戰鬥 HP(守衛;進城初始化)*/
     unsigned int tent_hostile;    /* 城鎮實體敵對 bitset(slot i)*/
     int guard_key;                /* 已從守衛取得鑰匙(供日後 UNLOCK)*/
+    int coins;                    /* 奇異硬幣數(NEGATE TIME 消耗;oracle +0x158)*/
+    int freeze_t;                 /* 時間凝結剩餘回合(NEGATE TIME;oracle +0x7394=20)*/
     /* 地牢 */
     U2Dungeon dg; int dg_ok;
     int dx, dy, ddir, dlevel;     /* 地牢內位置 / 朝向 / 樓層 */
@@ -1124,8 +1126,16 @@ static void apply_status_attack(Game *g)
                snprintf(g->msg,sizeof g->msg,tr("盜賊偷走了 %d 金幣!"),gd); }
     }
 }
+/* NEGATE TIME([正典] oracle:擲奇異硬幣凝結時間 20 回合,無幣則失敗)*/
+static void do_negate(Game *g)
+{
+    if (g->coins <= 0){ snprintf(g->msg,sizeof g->msg,tr("時間凝結術?你又不是愛因斯坦。")); return; }
+    g->coins--; g->freeze_t = 20;
+    snprintf(g->msg,sizeof g->msg,tr("你擲出一枚奇異硬幣 ── 時間凝結了!(20 回合)"));
+}
 static void step_mobs(Game *g)
 {
+    if (g->freeze_t>0){ g->freeze_t--; return; }   /* 時間凝結:怪物不行動 */
     for (int i=0;i<g->nmob;i++){
         int dx=g->player.x-g->mob[i].x, dy=g->player.y-g->mob[i].y;
         if (abs(dx)+abs(dy)==1){
@@ -1531,6 +1541,9 @@ static void dungeon_chest_reward(Game *g)
                        : (pick==ITEM_CLOAK)?tr("魔法斗篷(擋臂麻)")
                        : (pick==ITEM_IDOL)?tr("綠色神像(擋睡眠)"):tr("魔法頭盔(鳥瞰)");
         snprintf(g->msg,sizeof g->msg,tr("寶箱中是%s!"),nm);
+    } else if (rng_next(g)%6==0){          /* ~17%:奇異硬幣(NEGATE TIME 用)*/
+        g->coins++;
+        snprintf(g->msg,sizeof g->msg,tr("寶箱中有一枚奇異硬幣!(n 凝結時間)"));
     } else {
         int gold=10+(rng_next(g)%40); g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
         snprintf(g->msg,sizeof g->msg,tr("你找到一個寶箱:+%d 黃金。"),gold);
@@ -1602,6 +1615,7 @@ static void dungeon_open_chest(Game *g, int ei)
 static void step_dungeon_mobs(Game *g)
 {
     if (g->mode != MODE_DUNGEON) return;
+    if (g->freeze_t>0){ g->freeze_t--; return; }   /* 時間凝結:地牢怪不行動 */
     for (int i=0; i<g->ndgent; i++){
         if (g->dgent[i].kind != 'M') continue;
         int dx=g->dx-g->dgent[i].x, dy=g->dy-g->dgent[i].y;
@@ -1756,6 +1770,7 @@ static int town_cell_blocked(Game *g, int x, int y)
 /* 城鎮回合:敵對守衛相鄰則攻擊,否則朝玩家移動一步(貪婪追擊,避牆/占用)。 */
 static void step_town_guards(Game *g)
 {
+    if (g->freeze_t>0){ g->freeze_t--; return; }   /* 時間凝結:守衛不行動 */
     if (!g->tent_hostile) return;
     for (int i=0;i<g->tmon.count && i<U2_MON_SLOTS;i++){
         if (!(g->tent_hostile&(1u<<i)) || g->tent_hp[i]==0) continue;
@@ -2238,6 +2253,8 @@ int main(int argc, char **argv)
                 snprintf(g.msg,sizeof g.msg,tr("(除錯)黃金 +300。")); }  /* 測試金幣閘門用:精確控金 */
             else if (c=='Y'||c=='y'){ if (g.in_town) do_yell(&g); else if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); }
             else if (c=='F'||c=='f'){ do_steal(&g); }   /* 城內行竊(STEAL) */
+            else if (c=='n'){ do_negate(&g); }           /* NEGATE TIME 時間凝結 */
+            else if (c=='@'){ g.coins++; snprintf(g.msg,sizeof g.msg,"(dbg) coin +1"); }  /* 測試鉤:奇異硬幣 +1 */
             else if (c=='*'){ if (g.mode==MODE_DUNGEON) chest_loot(&g); }   /* 測試鉤:直接開箱(驗陷阱)*/
             else if (c=='!'){ if (g.in_town)               /* 測試鉤:攻擊首個守衛(驗城鎮戰鬥)*/
                 for (int gi=0;gi<g.tmon.count && gi<U2_MON_SLOTS;gi++)
@@ -2388,6 +2405,7 @@ int main(int argc, char **argv)
                         case SDLK_i: g.items=~0u; g.guard_key=1; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); break;
                         case SDLK_y: if (g.in_town) do_yell(&g); else if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); break;
                         case SDLK_f: do_steal(&g); break;   /* 城內行竊(STEAL) */
+                        case SDLK_n: do_negate(&g); break;  /* NEGATE TIME 時間凝結 */
                         case SDLK_v: do_view(&g); break;   /* VIEW 鳥瞰 */
                         case SDLK_m: minax_encounter(&g); break;
                         case SDLK_z: if (g.in_town) g.show_shop=!g.show_shop; break;

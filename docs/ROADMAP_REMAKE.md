@@ -145,7 +145,9 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
   不改 is_wall(渲染/視野不動),僅閘前進;`I` 除錯含 guard_key 保破關回歸確定性。
   守衛→鑰匙→UNLOCK 正典鏈閉環([正典] GUARDS_CARRY_KEYS + UNLOCK_DIRECTION)。
 - ✅ **守衛敵對追擊**:敵對守衛每回合朝玩家貪婪移動一步(避牆/占用),逼近後攻擊 ── 激怒守衛成真正威脅。
-- 🟡 ID 查驗、`NEGATE` 尚未。
+- ✅ **NEGATE TIME**(oracle +0x158/+0x7394):擲奇異硬幣凍結所有怪物 20 回合(step_mobs/dungeon/guards
+  尊重 freeze_t),無幣則「你又不是愛因斯坦」;硬幣由地牢寶箱 ~17% 取得。
+- 🟡 ID 查驗(oracle 語意未明,需更多考古)、Antos/King 多段對話(純 flavor)尚未。
 - **驗收**:買賣改變金/裝備/屬性(✅ headless OZ.. 驗證)。
 
 ### M4 — 戰鬥深化 + 地牢實體化
