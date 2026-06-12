@@ -1037,14 +1037,15 @@ static void do_talk(Game *g)
 static void mob_type(unsigned char tile, const char **name, int *hp, int *atk)
 {
     switch (tile) {
-        case 12: *name="蜥蜴人"; *hp=16;  *atk=4;  break;  /* Orc 級 */
-        case 13: *name="幽靈";   *hp=49;  *atk=6;  break;  /* Ghost */
-        case 14: *name="魔鬼";   *hp=64;  *atk=8;  break;  /* Devil(縮放) */
-        case 15: *name="炎魔";   *hp=80;  *atk=10; break;  /* Balron(縮放) */
-        case 60: *name="哥布林"; *hp=12;  *atk=3;  break;
-        case 61: *name="盜賊";   *hp=32;  *atk=5;  break;
-        case 62: *name="惡魔";   *hp=64;  *atk=7;  break;
-        case 63: *name="海蛇";   *hp=48;  *atk=6;  break;
+        /* HP 對齊正典 bestiary(Codex U2 monster data)*/
+        case 12: *name="蜥蜴人"; *hp=16;  *atk=4;  break;  /* Orc 16 */
+        case 13: *name="幽靈";   *hp=49;  *atk=6;  break;  /* Ghost(地牢)49 */
+        case 14: *name="魔鬼";   *hp=192; *atk=8;  break;  /* Devil 192(麻臂)*/
+        case 15: *name="炎魔";   *hp=255; *atk=10; break;  /* Balron 255(睡眠)*/
+        case 60: *name="哥布林"; *hp=5;   *atk=3;  break;  /* Goblin 5 */
+        case 61: *name="盜賊";   *hp=32;  *atk=5;  break;  /* Thief 32(偷竊)*/
+        case 62: *name="惡魔";   *hp=64;  *atk=7;  break;  /* Daemon 64(麻腿)*/
+        case 63: *name="海蛇";   *hp=64;  *atk=6;  break;  /* Sea Serpent 64 */
         default: *name="怪物";   *hp=20;  *atk=4;  break;
     }
 }
