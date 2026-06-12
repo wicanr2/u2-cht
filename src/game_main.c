@@ -150,6 +150,9 @@ typedef struct {
     int show_view;                /* VIEW 鳥瞰疊加(需魔法頭盔) */
     int quest_clue;               /* 任務線索進度(對話蒐線索;0 未知→1 知需戒指/老人→2 知 Antos)*/
     char msg[200];
+    char msglog[4][200];          /* 命令/結果滾動記錄(原版風;[3]=最新)*/
+    char msglog_last[200];        /* 偵測 msg 變化才推入記錄 */
+    int quit_confirm;             /* ESC 退出確認視窗顯示中 */
 } Game;
 /* 載具(oracle this+0x7390) */
 enum { VEH_WALK=0, VEH_HORSE=1, VEH_SHIP=2, VEH_PLANE=3, VEH_ROCKET=4 };
@@ -308,6 +311,15 @@ static int draw_status_fx(SDL_Surface *cv, U2Text *body, const Game *g, int x, i
     return y-y0;
 }
 
+/* 命令/結果滾動記錄(原版風):msg 變化時推入,[3]=最新。 */
+static void msglog_push(Game *g)
+{
+    if (!g->msg[0] || !strcmp(g->msg, g->msglog_last)) return;
+    snprintf(g->msglog_last,sizeof g->msglog_last,"%s",g->msg);
+    for (int i=0;i<3;i++) snprintf(g->msglog[i],sizeof g->msglog[i],"%s",g->msglog[i+1]);
+    snprintf(g->msglog[3],sizeof g->msglog[3],"%s",g->msg);
+}
+
 static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
 {
     (void)body;   /* 底部 UI 改用 small 後 body 暫未用於本畫面 */
@@ -376,19 +388,22 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, 
              l={px,py,2,TILE_PX},rr={px+TILE_PX-2,py,2,TILE_PX};
     SDL_FillRect(cv,&t,col);SDL_FillRect(cv,&b,col);SDL_FillRect(cv,&l,col);SDL_FillRect(cv,&rr,col);
 
-    int by=MAP_OY+VIEW_ROWS*TILE_PX+10;
-    /* 底部 UI 用 small 字級,避免與右側狀態面板重疊 */
+    int by=MAP_OY+VIEW_ROWS*TILE_PX+8;
+    msglog_push(g);   /* 命令/結果滾動記錄(原版風)*/
+    /* 提示列(small)*/
     u2_text_draw(cv,small, g->in_town ? tr("方向鍵/WASD 移動 · T 交談 · Z 商店 · F 偷竊 · Y 大喊 · C 角色表 · X 離開")
                                       : tr("方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q"),
                  MAP_OX,by,150,175,205);
-    u2_text_draw(cv,small,g->msg,MAP_OX,by+24,210,225,205);
-    char pos[96]; snprintf(pos,sizeof pos,tr("座標 (%d, %d)  地形 id=%d  圖塊 %s(G 切換)"),
-        g->player.x,g->player.y,u2_map_tile(m,g->player.x,g->player.y),
-        g->ntset?g->tname[g->curset]:"-");
-    u2_text_draw(cv,small,pos,MAP_OX,by+48,150,165,150);
+    /* 命令記錄:4 行滾動,左下,新的在下(原版 CMD: 風格)*/
+    for (int i=0;i<4;i++)
+        if (g->msglog[i][0]){
+            int newest=(i==3);
+            u2_text_draw(cv,small,g->msglog[i],MAP_OX,by+20+i*18,
+                         newest?225:150, newest?235:165, newest?205:150);
+        }
     if (g->save.has_character) g->save.hp = g->php;   /* 顯示運行時生命 */
-    draw_status_panel(cv,small,&g->ui,&g->save,800,by);   /* small 字 + 右移,避免與提示/訊息列重疊 */
-    draw_status_fx(cv,small,g,800,by+4*30+12);        /* 狀態效果(若有)*/
+    draw_status_panel(cv,small,&g->ui,&g->save,850,by);   /* 狀態面板靠最右(高度 by 不變)*/
+    draw_status_fx(cv,small,g,850,by+4*30+12);        /* 狀態效果(若有)*/
 }
 
 static const char *DIR_ZH[4]={"北 N","東 E","南 S","西 W"};
@@ -714,6 +729,18 @@ static void render_view_overlay(SDL_Surface *cv, Game *g, U2Text *body)
     u2_text_draw(cv,body,tr("鳥瞰 VIEW(V 關閉)"),ox,oy-40,235,230,200);
 }
 
+/* ESC 退出確認視窗(置中)*/
+static void render_quit_confirm(SDL_Surface *cv, U2Text *body)
+{
+    int pw=440, ph=120, x=(CANVAS_W-pw)/2, y=(CANVAS_H-ph)/2;
+    SDL_Rect bg={x,y,pw,ph}; SDL_FillRect(cv,&bg,SDL_MapRGB(cv->format,32,20,22));
+    Uint32 fr=SDL_MapRGB(cv->format,210,80,80);
+    SDL_Rect e1={x,y,pw,3},e2={x,y+ph-3,pw,3},e3={x,y,3,ph},e4={x+pw-3,y,3,ph};
+    SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
+    u2_text_draw(cv,body,tr("確定要退出遊戲嗎?"),x+30,y+28,235,235,245);
+    u2_text_draw(cv,body,tr("Y 確定退出　·　其他鍵取消"),x+30,y+66,215,200,150);
+}
+
 static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
 {
     if (g->won){ render_ending(cv,title,body); return; }   /* 結局蓋過一切 */
@@ -726,6 +753,7 @@ static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2
     if (g->show_sheet)       render_sheet_overlay(cv,g,body,small);
     if (g->show_help)        render_help_overlay(cv,body,small);
     if (g->show_shop)        render_shop_overlay(cv,g,body,small);
+    if (g->quit_confirm)     render_quit_confirm(cv,body);
 }
 
 /* 進地牢:載入地牢檔,設定入口 */
@@ -2476,6 +2504,10 @@ int main(int argc, char **argv)
                 if (e.type==SDL_QUIT) running=0;
                 else if (e.type==SDL_KEYDOWN){
                     SDL_Keycode k=e.key.keysym.sym; char d=0;
+                    if (g.quit_confirm){                    /* 退出確認視窗:Y 退出,其他取消 */
+                        if (k==SDLK_y) running=0; else g.quit_confirm=0;
+                        continue;
+                    }
                     switch (k){
                         case SDLK_UP:case SDLK_w: d='N'; break;
                         case SDLK_DOWN:case SDLK_s: d='S'; break;
@@ -2509,7 +2541,7 @@ int main(int argc, char **argv)
                             if (g.mode==MODE_DUNGEON) exit_dungeon(&g);
                             else if (g.in_town) exit_town(&g);
                             break;
-                        case SDLK_q:case SDLK_ESCAPE: running=0; break;
+                        case SDLK_q:case SDLK_ESCAPE: g.quit_confirm=1; break;   /* 叫出退出確認視窗 */
                     }
                     if (d) handle_dir(&g,d);
                 }
