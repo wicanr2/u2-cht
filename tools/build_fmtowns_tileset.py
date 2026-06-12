@@ -68,7 +68,7 @@ def main():
     #   id 0=水 · 2=草 · 3=林(u2_passable/mapx 直方確認)。有檔才疊。
     import os
     tdir = os.path.dirname(out) or "."
-    for tid, nm in ((0, "water"), (2, "grass"), (3, "forest")):
+    for tid, nm in ((0, "water"), (2, "grass"), (3, "forest"), (4, "mountain")):
         p = os.path.join(tdir, f"fmt_{nm}.png")
         if os.path.exists(p):
             put(tid, Image.open(p).convert("RGB").resize((TS, TS), Image.NEAREST))
