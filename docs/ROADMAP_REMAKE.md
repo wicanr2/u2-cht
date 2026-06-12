@@ -159,7 +159,8 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
   怪物 HP/反擊 + 狀態攻擊)。撞擊=攻擊模型即正典,非簡化。擊殺給 gold=rng%0x11+1、EXP=rng&7+1
   (對齊 oracle KILLED__GOLD__EXP)。
 - ✅ 狀態效果(麻痺/睡眠 + BOOTS/CLOAK/IDOL 防護 + 阻擋行動 + HUD)+ 偷食/偷金(apply_status_attack)。
-- 🟡 攻擊法術(MISSILE/KILL/PRAYER)overworld 接隨機遭遇模型;地牢已實體化。
+- ✅ 攻擊法術(MISSILE/KILL)打前方真實地牢實體(dgent):MISSILE 扣 HP、KILL 秒殺,給實際 gold/exp;
+  無目標時提示「無敵可擊」。PRAYER 治癒。🟡 overworld 施法仍待開(cast_spell 目前限地牢)。
 - **驗收**:✅ 法術可用、地牢戰鬥對齊 oracle、地牢實體化、overworld 擊殺給 gold/exp。
 
 ### M5 — 道具 / 任務旗標 / 結局

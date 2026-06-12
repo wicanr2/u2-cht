@@ -228,3 +228,8 @@ E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表	E/W HYPERWARP · Y land · F1 h
 你用守衛的鑰匙打開了上鎖的門。	You open the locked door with the guard's key.	衛兵の鍵で施錠された扉を開けた。
 你撬開了上鎖的門。	You pick the locked door open.	施錠された扉をこじ開けた。
 門上鎖了 ── 需要鑰匙,或再試著撬鎖。	The door is locked — you need a key, or try picking it again.	扉は施錠されている ── 鍵が要る、もう一度こじ開けてみよ。
+魔法飛彈射向前方,但無敵可擊。	The missile streaks ahead, but there is no foe to hit.	魔法のミサイルが飛んだが、撃つ敵がいない。
+魔法飛彈擊潰了%s!(+%d 經驗,+%d 金)	The magic missile destroys the %s! (+%d EXP, +%d gold)	魔法のミサイルが%sを撃ち砕いた!(+%d 経験、+%d ゴールド)
+魔法飛彈擊中%s,造成 %d 傷害。	The magic missile hits the %s for %d damage.	魔法のミサイルが%sに%dダメージ。
+擊殺術迸發,但前方無敵可擊。	The kill spell flares, but there is no foe ahead.	キルの呪文が放たれたが、前方に敵はいない。
+擊殺術迸發,%s 灰飛煙滅!(+%d 經驗,+%d 金)	The kill spell erupts — the %s is annihilated! (+%d EXP, +%d gold)	キルの呪文が炸裂し、%sは消し飛んだ!(+%d 経験、+%d ゴールド)
