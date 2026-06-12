@@ -102,5 +102,10 @@ assert_grep "$J1" "門上鎖了\|撬開" "J 上鎖門·無鑰匙撬鎖"
 J2="$(run door_key "DI#N")"
 assert_grep "$J2" "鑰匙打開"        "J 上鎖門·守衛鑰匙自動開"
 
+# 情境 K:overworld 擊殺給 gold/exp(oracle KILLED__GOLD__EXP;主地圖方向攻擊即 U2 正典)
+#   & 測試鉤北方生 1HP 弱怪,w 撞殺;固定 seed 下必出現「擊敗…經驗…金」
+K="$(run owkill "&w&w&w")"
+assert_grep "$K" "你擊敗了.*經驗.*金" "K overworld 擊殺給 gold+exp"
+
 echo "== 4) 判定 =="
-echo "PASS: 城鎮/地牢正典玩法 10 情境全數通過(輸出 $OUT)"
+echo "PASS: 城鎮/地牢/overworld 正典玩法 11 情境全數通過(輸出 $OUT)"

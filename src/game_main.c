@@ -1158,9 +1158,11 @@ static int attack_mob(Game *g, int nx, int ny)
             }
             int dmg=player_dmg(g); g->mob[i].hp-=dmg;
             if (g->mob[i].hp<=0){
-                int xp=(rng_next(g)&3)+1;            /* oracle 地面 EXP +(rng&3)+1 */
+                /* [正典] oracle KILLED__GOLD__EXP:gold=rng%0x11+1(1..17)、EXP=rng&7+1(1..8)*/
+                int gold=(rng_next(g)%0x11)+1, xp=(rng_next(g)&7)+1;
+                g->save.gold += gold; if(g->save.gold>9999)g->save.gold=9999;
                 g->save.exp += xp;
-                snprintf(g->msg,sizeof g->msg,tr("你擊敗了%s!(+%d 經驗)"),tr(g->mob[i].name),xp);
+                snprintf(g->msg,sizeof g->msg,tr("你擊敗了%s!(+%d 經驗,+%d 金)"),tr(g->mob[i].name),xp,gold);
                 check_levelup(g);
                 g->mob[i]=g->mob[--g->nmob];
             } else snprintf(g->msg,sizeof g->msg,tr("你擊中%s,造成 %d 傷害(剩 %d)。"),
@@ -2231,6 +2233,11 @@ int main(int argc, char **argv)
                 for (int gi=0;gi<g.tmon.count && gi<U2_MON_SLOTS;gi++)
                     if (g.tmon.ent[gi].tile==TILE_GUARD && g.tent_hp[gi]>0){
                         town_attack_guard(&g,gi); break; } }
+            else if (c=='&'){ if (!g.in_town && g.mode==MODE_WORLD && g.nmob<MOB_MAX){  /* 測試鉤:北方生 1HP 弱怪(驗 overworld 擊殺給金)*/
+                int m=g.nmob++; const char *nm; int hp,atk; mob_type(12,&nm,&hp,&atk);
+                g.mob[m].x=g.player.x; g.mob[m].y=g.player.y-1; g.mob[m].tile=12;
+                g.mob[m].hp=g.mob[m].maxhp=1; g.mob[m].atk=atk; g.mob[m].name=nm;
+                snprintf(g.msg,sizeof g.msg,"(dbg) weak mob N"); } }
             else if (c=='#'){ if (g.mode==MODE_DUNGEON){     /* 測試鉤:面向首個上鎖門(驗 UNLOCK)*/
                 int found=0;
                 for (int y=0;y<U2_DNG_N && !found;y++) for (int x=1;x<U2_DNG_N && !found;x++)

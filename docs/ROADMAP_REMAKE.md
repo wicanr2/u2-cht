@@ -33,12 +33,15 @@
 **評分(2026-06-12 更新)**:作為「中文化 + 引擎重寫地基」約 9/10;作為「可破關 demo」約 8/10;作為
 「完整正典重製」約 **6/10**(本 session 補:對話蒐線索任務鏈、ENILNO 金幣閘門、ALAKAZAM、
 YELL/STEAL 城鎮指令、地牢寶箱陷阱;確認地牢戰鬥已對齊 oracle、狀態效果/防護已實作。
-仍缺大功能:戰術 overworld 戰鬥、完整守衛系統、UNLOCK/NEGATE、美術/音樂)。
+仍缺:美術/音樂(需 FM Towns 資產)、provisional 資料校正、ID 查驗/NEGATE 等 flavor。
+> ⚠️ [校正] 先前列的「戰術 overworld 戰鬥」經 oracle 查證為**誤判**:U2 戰鬥即主地圖方向攻擊,
+> 無 U3+ 戰術地圖;守衛系統已於本 session 完整實作)。
 > **誠實揭露(對齊外部審查;2026-06-12 更新)**:可破關鏈已通,任務鏈本 session 由
 > **旗標短路**進化為**對話蒐線索驅動**(Antos 需先打聽 `EARN_THE_RING` 才賜戒、King 收
 > **≥500 金**貢禮才賜 ENILNO,皆對齊 oracle FUN_00408e50/FUN_00402a90);`VIEW`/`YELL`
 > 已實作(YELL 引正典市民台詞、STEAL 向商店行竊)。**仍缺**:`UNLOCK`/`NEGATE`/guards(稅/ID/KEY)、
-> 戰術 overworld 戰鬥(目前撞擊制)、角色升級系統、時間門真值表。詳見 §3 Gap 與 §4 M3/M4 待辦。
+> 角色升級系統、時間門真值表。詳見 §3 Gap 與 §4 M3/M4 待辦。
+> (overworld 戰鬥的「撞擊制」即 U2 正典主地圖方向攻擊,非待補項 —— 見 §4 M4 校正。)
 
 ---
 
@@ -151,9 +154,13 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 - ✅ **地牢戰鬥對齊 oracle**:DIRECT 必中、dmg=rng&0x3f|0x20(32..95)、EXP=rng&7+1、金=rng%0x11+1(`dungeon_fight`)。
 - ✅ **地牢實體化**:怪物實體(低 nibble 類型/上色)、寶箱(BOOTS/CLOAK/IDOL/HELM/三鋰)、
   **寶箱陷阱**(ARGH_A_TRAP / ESCAPED_BY_USE_OF_TOOLS,AGI 決定解除)、火把光照/視野受限(LIGHT 法術)。
-- 🟡 overworld 戰鬥仍為撞擊制(戰術戰鬥地圖未實作);狀態效果(麻痺/睡眠/偷食/偷物)部分。
-- 🟡 攻擊法術(MISSILE/KILL/PRAYER)目前接隨機遭遇模型(無持久怪物實體),待地牢實體化後深化。
-- **驗收**:✅ 法術可用(headless 巫師施法驗證);❌ 戰鬥數值對 oracle、地牢實體化。
+- ✅ **overworld 戰鬥 = 主地圖方向攻擊(即 U2 正典模型)**:[校正] oracle FUN_0040b3d0 確認 U2
+  **無 U3+ 的獨立戰術戰鬥地圖**;`ATTACK`+方向在主地圖對相鄰怪物解算(命中技能判定 + 武器傷害 +
+  怪物 HP/反擊 + 狀態攻擊)。撞擊=攻擊模型即正典,非簡化。擊殺給 gold=rng%0x11+1、EXP=rng&7+1
+  (對齊 oracle KILLED__GOLD__EXP)。
+- ✅ 狀態效果(麻痺/睡眠 + BOOTS/CLOAK/IDOL 防護 + 阻擋行動 + HUD)+ 偷食/偷金(apply_status_attack)。
+- 🟡 攻擊法術(MISSILE/KILL/PRAYER)overworld 接隨機遭遇模型;地牢已實體化。
+- **驗收**:✅ 法術可用、地牢戰鬥對齊 oracle、地牢實體化、overworld 擊殺給 gold/exp。
 
 ### M5 — 道具 / 任務旗標 / 結局
 - ✅ 道具系統(runtime + sidecar 持久化);RING 破力場(1000 傷)、ENILNO Quicksword。
