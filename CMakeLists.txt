@@ -8,6 +8,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL2 REQUIRED sdl2)
 pkg_check_modules(SDL2TTF REQUIRED SDL2_ttf)
 pkg_check_modules(SDL2IMG REQUIRED SDL2_image)
+pkg_check_modules(SDL2MIXER SDL2_mixer)   # 可選:FM Towns CDDA 音樂(無則靜音 fallback)
 
 set(U2_CORE
     src/u2_map.c
@@ -36,8 +37,11 @@ target_compile_options(u2_test PRIVATE -Wall -Wextra)
 
 foreach(tgt u2_poc u2_demo u2_game u2_sheet u2_dungeon_demo)
     target_include_directories(${tgt} PRIVATE
-        ${SDL2_INCLUDE_DIRS} ${SDL2TTF_INCLUDE_DIRS} ${SDL2IMG_INCLUDE_DIRS})
+        ${SDL2_INCLUDE_DIRS} ${SDL2TTF_INCLUDE_DIRS} ${SDL2IMG_INCLUDE_DIRS} ${SDL2MIXER_INCLUDE_DIRS})
     target_link_libraries(${tgt} PRIVATE
-        ${SDL2_LIBRARIES} ${SDL2TTF_LIBRARIES} ${SDL2IMG_LIBRARIES} m)
+        ${SDL2_LIBRARIES} ${SDL2TTF_LIBRARIES} ${SDL2IMG_LIBRARIES} ${SDL2MIXER_LIBRARIES} m)
     target_compile_options(${tgt} PRIVATE -Wall -Wextra)
+    if(SDL2MIXER_FOUND)
+        target_compile_definitions(${tgt} PRIVATE HAVE_SDL_MIXER=1)
+    endif()
 endforeach()

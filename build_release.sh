@@ -43,6 +43,8 @@ stage_data(){  # $1 = 目標 share 目錄
   cp tests/fixtures/player_sample_abcd "$S/data/player" || true
   cp "$FONT" "$S/font/wqy-zenhei.ttc"
   cp /tmp/ts/*.png "$S/tileset/"
+  # FM Towns CDDA 音樂(預抽的 build/music/*.ogg;extract_fmtowns_cdda.py 產;版權,使用者自備)
+  if ls build/music/*.ogg >/dev/null 2>&1; then mkdir -p "$S/music"; cp build/music/*.ogg "$S/music/"; fi
   cp translations/exe_translatable_strings.tsv translations/talk_dialogue.tsv translations/ui_strings.tsv "$S/translations/"
   [ -f /work/build/splash.png ] && cp /work/build/splash.png "$S/splash.png" || true   # 開場全家福
   [ -f docs/screenshots/fmtowns_title_decoded.png ] && cp docs/screenshots/fmtowns_title_decoded.png "$S/title.png" || true  # 原版開場標題
@@ -93,8 +95,9 @@ SPL=""; [ -f "$S/splash.png" ] && SPL="--splash $S/splash.png"
 TTL=""; [ -f "$S/title.png" ] && TTL="--title $S/title.png"
 # FM Towns 城鎮變體(slot1);其餘畫風 '-' fallback 主 tileset
 TWN=""; [ -f "$S/tileset/fmtowns_town.png" ] && TWN="--town-tiles -,$S/tileset/fmtowns_town.png,-,-,-,-"
+MUS=""; [ -d "$S/music" ] && MUS="--music $S/music"   # FM Towns CDDA BGM
 exec "$HERE/usr/bin/u2cht_bin" "$S/data/mapx20" "$S/font/wqy-zenhei.ttc" "$TS" \
-     "$S/translations/exe_translatable_strings.tsv" "$S/data/player" $TTL $SPL $TWN "$@"
+     "$S/translations/exe_translatable_strings.tsv" "$S/data/player" $TTL $SPL $TWN $MUS "$@"
 EOF
   chmod +x /tmp/AppDir/AppRun
   ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run /tmp/AppDir "$OUT/Ultima2-繁中試玩版-x86_64.AppImage"
