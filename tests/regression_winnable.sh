@@ -43,9 +43,10 @@ echo "== 3) 破關走法(確定性 headless)=="
 # O 進城 · Z 開店 · 22211 升防具×3/武器×2(提高對決存活)· Z 關店 · X 離城
 # I 取得關鍵道具(含力場之戒 + 迅捷之劍 ENILNO)· D 地牢進
 # 7/9/1 地牢施放飛彈/擊殺/光明(驗證法術路徑不崩)· J 下樓 · K 上樓 · X 離開
-# P×3 時空旅行 mapx20→30→40→00(傳說時代)· M 米娜克斯對決 → 結局
+# P×4 時空旅行(正典拓樸,月相推進):mapx20(1423BC)→30(1990)→40(2112)→20(1423BC)→00(傳說)
+#   ── 各時代 4 門通往不同時代(ERA_GATE_DEST),非線性循環;第 4 門抵傳說時代 · M 米娜克斯對決 → 結局
 # 地牢段 DN791JKX:D 進地牢 · N 前進(遇前方實體怪→戰鬥)· 7/9/1 飛彈/擊殺/光明 · J/K 樓梯 · X 離開
-SCRIPT="OZ22211ZXIDN791JKXPPPM"
+SCRIPT="OZ22211ZXIDN791JKXPPPPM"
 rm -rf "$OUT"; mkdir -p "$OUT"
 LOG="$("$GAME" "$DATA/mapx20" "$FONT" "$TS" "$UI_TSV" --script "$SCRIPT" "$OUT/reg" 2>&1)"
 echo "$LOG"
