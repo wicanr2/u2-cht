@@ -1539,13 +1539,39 @@ static void dungeon_fight(Game *g, int ei)
     }
 }
 
-/* 開啟地牢實體 ei(寶箱):進入該格 + 移除實體 + 給獎勵。 */
+/* 寶箱陷阱([正典] oracle FUN_004064d0 ARGH_A_TRAP / ESCAPED_BY_USE_OF_TOOLS):
+   ~40% 觸發;敏捷(AGI)決定能否用工具解除,否則受傷。陷阱文字寫入 out(可空)。 */
+static void dungeon_chest_trap(Game *g, char *out, size_t n)
+{
+    out[0]=0;
+    if (rng_next(g)%5 >= 2) return;                              /* 60% 無陷阱 */
+    int agi = g->save.has_character ? g->save.stats[1] : 15;
+    if ((int)(rng_next(g)%100) < 25+agi){                       /* AGI 15→40% 解除 */
+        snprintf(out,n,"%s",tr("寶箱有陷阱 ── 你機警地用工具解除了它。"));
+    } else {
+        int dmg=8+(int)(rng_next(g)%18); g->php-=dmg; if(g->php<1)g->php=1;
+        snprintf(out,n,tr("啊!陷阱!機關傷了你(失去 %d 點生命)。"),dmg);
+    }
+}
+
+/* 寶箱拾取:陷阱判定 + 給獎勵 + 組合訊息(供正常開箱與測試鉤共用)。 */
+static void chest_loot(Game *g)
+{
+    char trap[120]; dungeon_chest_trap(g,trap,sizeof trap);     /* 先判陷阱 */
+    dungeon_chest_reward(g);                                     /* 再給獎勵(寫 g->msg)*/
+    if (trap[0]){                                                /* 組合:陷阱 + 獎勵 */
+        char tmp[200]; snprintf(tmp,sizeof tmp,"%s %s",trap,g->msg);
+        snprintf(g->msg,sizeof g->msg,"%s",tmp);
+    }
+}
+
+/* 開啟地牢實體 ei(寶箱):進入該格 + 移除實體 + 陷阱判定 + 給獎勵。 */
 static void dungeon_open_chest(Game *g, int ei)
 {
     int cx=g->dgent[ei].x, cy=g->dgent[ei].y;
     g->dgent[ei]=g->dgent[--g->ndgent];                          /* 移除(ei 換成末尾)*/
     g->dx=cx; g->dy=cy;                                          /* 進入該格 */
-    dungeon_chest_reward(g);
+    chest_loot(g);
 }
 
 /* 地牢怪物每回合行動(對齊 oracle FUN_0040c610):朝玩家移動;貼身則主動攻擊
@@ -2098,6 +2124,7 @@ int main(int argc, char **argv)
                 snprintf(g.msg,sizeof g.msg,tr("(除錯)黃金 +300。")); }  /* 測試金幣閘門用:精確控金 */
             else if (c=='Y'||c=='y'){ if (g.in_town) do_yell(&g); else if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); }
             else if (c=='F'||c=='f'){ do_steal(&g); }   /* 城內行竊(STEAL) */
+            else if (c=='*'){ if (g.mode==MODE_DUNGEON) chest_loot(&g); }   /* 測試鉤:直接開箱(驗陷阱)*/
             else if (c=='V'||c=='v') do_view(&g);   /* VIEW 鳥瞰 */
             else if (c=='U'){ g.items=~0u; g.vehicle=VEH_ROCKET; launch_rocket(&g); }  /* 除錯:直接發射 */
             else if (c=='M') minax_encounter(&g);   /* Minax 對決(傳說時代)*/

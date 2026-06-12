@@ -74,5 +74,12 @@ F="$(run steal "OFFFFFFFFFF")"
 assert_grep "$F" "沒得手"        "F STEAL 失敗(守衛逮到)"
 assert_grep "$F" "摸走\|偷得"    "F STEAL 成功(白拿武/防/食)"
 
+# 情境 G:地牢寶箱陷阱(oracle FUN_004064d0 ARGH_A_TRAP / ESCAPED_BY_USE_OF_TOOLS)
+#   D 進地牢,* 測試鉤直接開箱 ×20;固定 seed 下必同時出現「解除」與「受傷」
+G="$(run chest "D********************")"
+assert_grep "$G" "機警地用工具解除" "G 寶箱陷阱解除(ESCAPED BY TOOLS)"
+assert_grep "$G" "機關傷了你"        "G 寶箱陷阱觸發(ARGH A TRAP)"
+assert_grep "$G" "你找到一個寶箱"    "G 開箱仍給獎勵(陷阱+獎勵組合)"
+
 echo "== 4) 判定 =="
-echo "PASS: 城鎮正典玩法 6 情境全數通過(輸出 $OUT)"
+echo "PASS: 城鎮/地牢正典玩法 7 情境全數通過(輸出 $OUT)"
