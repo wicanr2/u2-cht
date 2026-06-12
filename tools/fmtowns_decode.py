@@ -22,9 +22,12 @@ from PIL import Image
 
 # FM Towns U2 真實 palette 暫存器順序(由 U2TITLE1.TIF 與模擬器標題 100% 吻合驗證)
 # UT1TILE0 等 sprite 只用 index 0-7。
-# 標準 EGA-16 palette,對齊 ref_u2_play.jpg 的 FM Towns 實機色。
-EGA16 = [(0,0,0),(0,0,170),(0,170,0),(0,170,170),(170,0,0),(170,0,170),(170,85,0),(170,170,170),
-         (85,85,85),(85,85,255),(85,255,85),(85,255,255),(255,85,85),(255,85,255),(255,255,85),(255,255,255)]
+# FM Towns U2 sprite palette(對齊 ref_u2_play.jpg / 頭像截圖校準):sprite 只用偶數 nibble
+# = real index 0-7;EGA16[2k] = 第 k 色。0=透明/黑、6=藍(甲)、3=黃、2=綠、5=膚、7=白、1=紅。
+_PAL8 = [(0,0,0),(210,30,40),(40,180,90),(240,220,70),(120,160,240),(205,150,110),(30,60,180),(245,245,255)]
+EGA16 = [(0,0,0)]*16
+for _k in range(8):
+    EGA16[2*_k] = _PAL8[_k]
 GRAY = [(i*17,i*17,i*17) for i in range(16)]
 
 # FillOrder=2(LSB-first)位元反序表:TIFF tag FillOrder=2 → 每 byte 8 bits 反轉後再取 nibble。

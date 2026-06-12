@@ -296,7 +296,7 @@ static int draw_status_fx(SDL_Surface *cv, U2Text *body, const Game *g, int x, i
     return y-y0;
 }
 
-static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
+static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2Text *small)
 {
     U2Map *m=amap(g); U2Mon *mon=amon(g);
     SDL_Surface *tiles = g->ntset ? g->tset[g->curset] : NULL;
@@ -361,17 +361,18 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
     SDL_FillRect(cv,&t,col);SDL_FillRect(cv,&b,col);SDL_FillRect(cv,&l,col);SDL_FillRect(cv,&rr,col);
 
     int by=MAP_OY+VIEW_ROWS*TILE_PX+10;
-    u2_text_draw(cv,body, g->in_town ? tr("方向鍵/WASD 移動 · T 交談 · Z 商店 · F 偷竊 · Y 大喊 · C 角色表 · X 離開")
-                                     : tr("方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q"),
+    /* 底部 UI 用 small 字級,避免與右側狀態面板重疊 */
+    u2_text_draw(cv,small, g->in_town ? tr("方向鍵/WASD 移動 · T 交談 · Z 商店 · F 偷竊 · Y 大喊 · C 角色表 · X 離開")
+                                      : tr("方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q"),
                  MAP_OX,by,150,175,205);
-    u2_text_draw(cv,body,g->msg,MAP_OX,by+30,210,225,205);
+    u2_text_draw(cv,small,g->msg,MAP_OX,by+24,210,225,205);
     char pos[96]; snprintf(pos,sizeof pos,tr("座標 (%d, %d)  地形 id=%d  圖塊 %s(G 切換)"),
         g->player.x,g->player.y,u2_map_tile(m,g->player.x,g->player.y),
         g->ntset?g->tname[g->curset]:"-");
-    u2_text_draw(cv,body,pos,MAP_OX,by+60,150,165,150);
+    u2_text_draw(cv,small,pos,MAP_OX,by+48,150,165,150);
     if (g->save.has_character) g->save.hp = g->php;   /* 顯示運行時生命 */
-    draw_status_panel(cv,body,&g->ui,&g->save,640,by);
-    draw_status_fx(cv,body,g,640,by+4*30+12);         /* 狀態效果(若有)*/
+    draw_status_panel(cv,small,&g->ui,&g->save,800,by);   /* small 字 + 右移,避免與提示/訊息列重疊 */
+    draw_status_fx(cv,small,g,800,by+4*30+12);        /* 狀態效果(若有)*/
 }
 
 static const char *DIR_ZH[4]={"北 N","東 E","南 S","西 W"};
@@ -703,7 +704,7 @@ static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2
     if (!g->spells_given){ g->spells_given=1; grant_starting_spells(g,8); init_level(g); }  /* 起始法術+等級 */
     revive_if_dead(g);                                     /* HP 歸零 → 復活 */
     if (g->mode==MODE_SPACE)      render_space(cv,g,title,body,small);
-    else if (g->mode==MODE_WORLD) render_world(cv,g,title,body);
+    else if (g->mode==MODE_WORLD) render_world(cv,g,title,body,small);
     else                          render_dungeon(cv,g,title,body,small);
     if (g->show_view)        render_view_overlay(cv,g,body);
     if (g->show_sheet)       render_sheet_overlay(cv,g,body,small);
