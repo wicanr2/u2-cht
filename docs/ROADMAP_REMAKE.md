@@ -138,7 +138,10 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 - ✅ **城鎮戰鬥 + 守衛敵對**:撞守衛 = 攻擊(player_dmg vs 守衛 40 HP,守衛反擊);不繳稅/被攻擊 → 敵對
   (`tent_hostile` bitset),移動經敵對守衛鄰格挨打(`step_town_guards`);擊倒守衛 → 取得鑰匙
   (`guard_key`,[正典] GUARDS_CARRY_KEYS,供日後 UNLOCK)。
-- 🟡 守衛敵對追擊(目前固定不尋路)、`UNLOCK` 上鎖門(KEY 已就緒)、ID 查驗、`NEGATE` 尚未。
+- ✅ **UNLOCK 上鎖門**(地牢 0xC0 門改為上鎖):前進撞門 → 有守衛鑰匙自動開、否則 AGI 撬鎖(可重試);
+  不改 is_wall(渲染/視野不動),僅閘前進;`I` 除錯含 guard_key 保破關回歸確定性。
+  守衛→鑰匙→UNLOCK 正典鏈閉環([正典] GUARDS_CARRY_KEYS + UNLOCK_DIRECTION)。
+- 🟡 守衛敵對追擊(目前固定不尋路)、ID 查驗、`NEGATE` 尚未。
 - **驗收**:買賣改變金/裝備/屬性(✅ headless OZ.. 驗證)。
 
 ### M4 — 戰鬥深化 + 地牢實體化

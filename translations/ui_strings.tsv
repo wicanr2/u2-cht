@@ -225,3 +225,6 @@ E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表	E/W HYPERWARP · Y land · F1 h
 你擊倒了守衛!	You strike down the guard!	衛兵を倒した!
 你砍向守衛(剩 %d)── 他反手回擊,你失去 %d 點生命。	You slash the guard (%d left) — he strikes back, you lose %d HP.	衛兵に斬りかかる(残り %d)── 反撃を受け、%d ダメージ。
 敵對守衛攻擊你!失去 %d 點生命。	A hostile guard attacks you! Lose %d HP.	敵対した衛兵が攻撃!%d ダメージ。
+你用守衛的鑰匙打開了上鎖的門。	You open the locked door with the guard's key.	衛兵の鍵で施錠された扉を開けた。
+你撬開了上鎖的門。	You pick the locked door open.	施錠された扉をこじ開けた。
+門上鎖了 ── 需要鑰匙,或再試著撬鎖。	The door is locked — you need a key, or try picking it again.	扉は施錠されている ── 鍵が要る、もう一度こじ開けてみよ。

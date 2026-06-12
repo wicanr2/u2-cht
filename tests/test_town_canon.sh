@@ -96,5 +96,11 @@ assert_grep "$I" "砍向守衛"   "I 城鎮戰鬥·攻擊+守衛反擊"
 assert_grep "$I" "擊倒了守衛" "I 城鎮戰鬥·擊倒守衛"
 assert_grep "$I" "鑰匙"       "I 城鎮戰鬥·守衛掉鑰匙(GUARDS CARRY KEYS)"
 
+# 情境 J:地牢上鎖門 UNLOCK(0xC0 門)— # 測試鉤面向門,無鑰匙撬鎖 / I 給鑰匙自動開
+J1="$(run door_pick "D#NNN")"
+assert_grep "$J1" "門上鎖了\|撬開" "J 上鎖門·無鑰匙撬鎖"
+J2="$(run door_key "DI#N")"
+assert_grep "$J2" "鑰匙打開"        "J 上鎖門·守衛鑰匙自動開"
+
 echo "== 4) 判定 =="
-echo "PASS: 城鎮/地牢正典玩法 9 情境全數通過(輸出 $OUT)"
+echo "PASS: 城鎮/地牢正典玩法 10 情境全數通過(輸出 $OUT)"
