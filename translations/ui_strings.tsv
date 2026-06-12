@@ -200,3 +200,10 @@ E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表	E/W HYPERWARP · Y land · F1 h
 任務:備妥 500 黃金,晉見國王獻禮換取迅捷之劍 ENILNO。	Quest: Gather 500 gold and tribute the King for Quicksword ENILNO.	任務:500ゴールドを蓄え、王に貢いでクイックソード・エニルノを得よ。
 (除錯)取得力場之戒。	(debug) Force Field Ring granted.	(デバッグ)フォースフィールドの指輪を取得。
 (除錯)黃金 +300。	(debug) Gold +300.	(デバッグ)ゴールド +300。
+你大喊一聲 ── 一名守衛瞪過來:「乖乖繳你的稅!」	You shout aloud — a guard glares: 'Pay your taxes!'	大声で叫ぶと ── 衛兵が睨む:「税を払え!」
+你大喊一聲 ── 弄臣跟著哼唱:「呵 呵 呵!」	You shout aloud — a jester sings along: 'Ho ho ho!'	大声で叫ぶと ── 道化師が歌う:「ホ ホ ホ!」
+你大喊一聲 ── 商人湊上來:「要不要買我的蘋果?」	You shout aloud — a merchant sidles up: 'Will you buy my apples?'	大声で叫ぶと ── 商人が寄ってくる:「林檎を買わんか?」
+你大喊一聲 ── 戰士咧嘴:「哼!老子很強!」	You shout aloud — a fighter grins: 'Ugh, me tough!'	大声で叫ぶと ── 戦士がにやり:「ウグ、おれ強い!」
+你大喊一聲 ── 牧師低聲道:「要有信仰。」	You shout aloud — a cleric murmurs: 'Believe.'	大声で叫ぶと ── 司祭が呟く:「信じよ。」
+你大喊一聲 ── 巫師朝你比畫:「黑克 厄 普 ── 對你下咒!」	You shout aloud — a wizard gestures: 'Hex-e-poo, hex on you!'	大声で叫ぶと ── 魔術師が手を振る:「ヘクス・エ・プー、お前に呪いを!」
+你大喊一聲 ── 竊賊壓低嗓音:「噓……想買支錶嗎?」	You shout aloud — a thief whispers: 'Psst... wanna buy a watch?'	大声で叫ぶと ── 盗賊が囁く:「シッ…時計はいらんか?」
