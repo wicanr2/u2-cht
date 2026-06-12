@@ -908,6 +908,15 @@ static void do_talk(Game *g)
                     snprintf(g->msg,sizeof g->msg,tr("老者說:「力場之戒由安托斯神父守護,他隱居於盤古大陸的城堡。去那裡尋他。」"));
                 return;
             }
+            /* [正典] FUN_00408e50 else 分支 ALAKAZAM:偶遇慷慨市民,提升隨機屬性
+               (本分支只在 clue 鏈已過後到達,不干擾蒐線索;回歸腳本不含 T,RNG 流不受影響)*/
+            if ((rng_next(g)%6)==0){
+                int s=rng_next(g)%U2_NUM_STATS;
+                if (g->save.stats[s]<99) g->save.stats[s]++;
+                snprintf(g->msg,sizeof g->msg,tr("「阿拉卡贊!」對方為你祝福,%s 提升了。"),
+                         u2_lang==U2_EN?u2_save_stat_name(s):u2_save_stat_zh(s));
+                return;
+            }
             const char *zh=u2_strings_lookup(&g->tr, g->talk.line[k]);
             const char *disp=zh?zh:g->talk.line[k];
             char one[180]; size_t j=0;
@@ -2079,6 +2088,7 @@ int main(int argc, char **argv)
             else continue;
             render_all(cv,&g,&title,&body,&small);
             snprintf(out,sizeof out,"%s%02d.png",out_prefix,step++); IMG_SavePNG(cv,out);
+            if (g.msg[0]) printf("[step %02d] %s\n",step-1,g.msg);  /* 訊息 stdout 儀器(headless 可 grep)*/
             if (g.won && !won_announced){      /* 破關確定性訊號(回歸測試 grep 用) */
                 won_announced=1;
                 printf("*** GAME WON (Minax defeated) step=%d ***\n",step-1);
