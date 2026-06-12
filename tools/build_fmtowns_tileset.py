@@ -19,8 +19,11 @@ for _k in range(8):
 REV = [int(f"{b:08b}"[::-1], 2) for b in range(256)]
 
 
+TS = 32   # 輸出 tile 邊長(FM Towns sprite 原生 32×32,引擎依 strip 高度自動判定)
+
+
 def sprite(path, si, sp=32):
-    """解 path 第 si 個 32×32 sprite → 16×16 RGB(FillOrder=2)。"""
+    """解 path 第 si 個 sprite → 原生 32×32 RGB(FillOrder=2,不縮)。"""
     d = open(path, "rb").read()[512:]
     bpr = sp // 2
     im = Image.new("RGB", (sp, sp), (0, 0, 0))
@@ -32,15 +35,22 @@ def sprite(path, si, sp=32):
             b = REV[d[off]]
             im.putpixel((xb*2, y), EGA[(b >> 4) & 0xF])
             im.putpixel((xb*2+1, y), EGA[b & 0xF])
-    return im.resize((16, 16), Image.NEAREST)
+    return im
 
 
 def main():
     graph, ega, out = sys.argv[1], sys.argv[2], sys.argv[3]
-    base = Image.open(ega).convert("RGB")            # 1040×16 EGA 底
+    src = Image.open(ega).convert("RGB")             # EGA 底 1040×16(65 個 16×16)
+    n = src.height                                   # 16
+    ntiles = src.width // n
+    # 底圖每 tile 16→32 nearest 放大(像素地形保持銳利),組成 32×32 strip
+    base = Image.new("RGB", (ntiles*TS, TS), (0, 0, 0))
+    for i in range(ntiles):
+        t = src.crop((i*n, 0, i*n+n, n)).resize((TS, TS), Image.NEAREST)
+        base.paste(t, (i*TS, 0))
 
-    def put(tid, img):
-        base.paste(img, (tid*16, 0))
+    def put(tid, img32):
+        base.paste(img32, (tid*TS, 0))               # FM Towns sprite 原生 32×32
 
     put(16, sprite(f"{graph}/PLAYER.TIF", 0))         # 主角
     # 8 個怪物 tile ← ENEMY 前 8 隻(frame-1,偶數 sprite);provisional
@@ -51,7 +61,7 @@ def main():
     put(26, sprite(f"{graph}/HITO.TIF", 2))           # NPC
 
     base.save(out)
-    print(f"built {out} {base.size}")
+    print(f"built {out} {base.size} (tile {TS}px)")
 
 
 if __name__ == "__main__":

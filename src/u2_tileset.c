@@ -17,7 +17,9 @@ void u2_tileset_blit(SDL_Surface *dst, SDL_Surface *tiles, int id,
 {
     if (!tiles)
         return;
-    SDL_Rect src = { id * U2_TILE_SRC, 0, U2_TILE_SRC, U2_TILE_SRC };
+    /* tile 源邊長 = strip 高度(16=EGA / 32=FM Towns 原生);自動支援兩種 */
+    int ss = tiles->h > 0 ? tiles->h : U2_TILE_SRC;
+    SDL_Rect src = { id * ss, 0, ss, ss };
     SDL_Rect d = { dx, dy, size, size };
     /* nearest 放大 (pixel art);SDL_BlitScaled 對 surface 為 nearest stretch */
     SDL_BlitScaled(tiles, &src, dst, &d);
