@@ -109,11 +109,31 @@ static void mob_tile_color(unsigned char tile, Uint8 *r, Uint8 *g, Uint8 *b)
     }
 }
 
+/* 填滿一道側牆梯形(near 邊 x=xn 上下 ynt..ynb;far 邊 x=xf 上下 yft..yfb),
+ * 逐欄垂直填色 + 上/中/下 mortar 橫線做磚紋(FM Towns 填滿牆用)。 */
+static void fill_quad(SDL_Surface *s, int xn, int ynt, int ynb,
+                      int xf, int yft, int yfb, Uint32 col, Uint32 mortar)
+{
+    int lo = xn < xf ? xn : xf, hi = xn < xf ? xf : xn;
+    for (int x = lo; x <= hi; x++) {
+        double t = (xf == xn) ? 0.0 : (double)(x - xn) / (double)(xf - xn);
+        int yt = (int)(ynt + (yft - ynt) * t + 0.5);
+        int yb = (int)(ynb + (yfb - ynb) * t + 0.5);
+        if (yb < yt) { int tmp = yt; yt = yb; yb = tmp; }
+        SDL_Rect c = { x, yt, 1, yb - yt + 1 };
+        SDL_FillRect(s, &c, col);
+    }
+    line(s, xn, ynt, xf, yft, mortar);                       /* 上緣 */
+    line(s, xn, ynb, xf, yfb, mortar);                       /* 下緣 */
+    line(s, xn, (ynt+ynb)/2, xf, (yft+yfb)/2, mortar);       /* 中線 */
+}
+
 int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
                       int px, int py, int dir, int ox, int oy, int w, int h, int style,
                       int ent_depth, char ent_kind, unsigned char ent_tile, int maxd)
 {
     const int s = ((style % U2_NDPAL) + U2_NDPAL) % U2_NDPAL;
+    const int filled = (s == 1);   /* [A] 只有 FM Towns 畫風(style 1)填滿藍磚;其餘維持線框 */
     Uint32 bg   = SDL_MapRGB(surf->format, DPAL[s].bg[0],   DPAL[s].bg[1],   DPAL[s].bg[2]);
     Uint32 wall = SDL_MapRGB(surf->format, DPAL[s].wall[0], DPAL[s].wall[1], DPAL[s].wall[2]);
     Uint32 dim  = SDL_MapRGB(surf->format, DPAL[s].dim[0],  DPAL[s].dim[1],  DPAL[s].dim[2]);
@@ -146,7 +166,8 @@ int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
 
         int lwx = cxp + lx, lwy = cyp + ly;
         if (u2_dungeon_is_wall(d, level, lwx, lwy)) {
-            line(surf, nL, nT, nL, nB, wall); line(surf, fL, fT, fL, fB, wall);
+            if (filled) fill_quad(surf, nL, nT, nB, fL, fT, fB, wall, dim);
+            else { line(surf, nL, nT, nL, nB, wall); line(surf, fL, fT, fL, fB, wall); }
         } else {
             unsigned char c = (lwx>=0&&lwy>=0&&lwx<16&&lwy<16)?d->cell[level][lwy][lwx]:0;
             Uint32 oc = (c==0xC0||c==0xE0)?door:dim;
@@ -155,7 +176,8 @@ int u2_dungeon_render(SDL_Surface *surf, const U2Dungeon *d, int level,
         }
         int rwx = cxp - lx, rwy = cyp - ly;
         if (u2_dungeon_is_wall(d, level, rwx, rwy)) {
-            line(surf, nR, nT, nR, nB, wall); line(surf, fR, fT, fR, fB, wall);
+            if (filled) fill_quad(surf, nR, nT, nB, fR, fT, fB, wall, dim);
+            else { line(surf, nR, nT, nR, nB, wall); line(surf, fR, fT, fR, fB, wall); }
         } else {
             unsigned char c = (rwx>=0&&rwy>=0&&rwx<16&&rwy<16)?d->cell[level][rwy][rwx]:0;
             Uint32 oc = (c==0xC0||c==0xE0)?door:dim;
