@@ -76,21 +76,39 @@ EARTH 6,6,6 · Mercury 5,4,5 · Venus 3,3,4 · Mars 6,2,3 · Jupiter 1,3,4 · Sa
 - **`mapx24/25` `mapx34/35` `mapx44/45` `mapx85`**(landmark 8 在角落、水 41–59%)= 形態相近,
   疑**行星表面或塔/地牢宿主圖**,待 oracle 座標 + emulator 截圖對照。
 
-## 引擎地點登記表(已接線,provisional)
+## ★ Oracle 校正:landmark tile → 地點 = deterministic 規則(2026-06-13,已釘死)
 
-`src/game_main.c` 的 `LOC_REG[]` 以 **(world 編號, landmark tile) → 目的地 map** 驅動進入,
-world-aware(切到不同 overworld 會對到該世代的城)。目前對應(待 oracle/Codex 校正):
+`FUN_004064d0`(ENTER 派發,oracle 行 4916-5056)以**腳下 landmark tile id 直接決定地點類型**,
+並把目的地 `mapxNN` 第 2 碼(kind 碼)寫死(`FUN_00427a50(mapname,1,'?')`):
 
-| world(時代) | landmark tile → 目的地 mapxNN |
+| tile id | 類型 | kind 碼 | 目的地 |
+|---|---|---|---|
+| 5 | VILLAGE | '1' | `mapx<時代>1` |
+| 6 | TOWN | '2' | `mapx<時代>2` |
+| 8 | CASTLE | '3' | `mapx<時代>3` |
+| 7 | TOWER | '4' | `mapx<時代>4` |
+| 9 | DUNGEON | '5' | `mapx<時代>5` |
+| 10 | 時間之門 | — | `FUN_0040c270` 印招牌 ANOS \<era\>(非載圖) |
+
+第 1 碼 = 當前 overworld 時代數字。⇒ **目的地 = `mapx<時代碼><kind碼>`,非逐 landmark 推定。**
+(原先「哪個門通哪座城」的 provisional 問題到此解除。)
+
+## 引擎地點登記表(已照 oracle 規則重排,2026-06-13)
+
+`src/game_main.c` 的 `LOC_REG[]` 只列「各時代 overworld 內 64×64 區實際存在的 landmark tile」
+且目的地檔存在者(以原版 `mapxE0` 掃描 + 上表規則交叉驗證):
+
+| world(時代) | landmark tile → 目的地 mapxNN(類型) |
 |---|---|
-| mapx00 (Legends) | 8→03 · 10→92 · (9→地牢) |
-| mapx10 (9,000,000 B.C.) | 5→11 · 10→93 · (9→地牢) |
-| mapx20 (1423 B.C.) | 5→21 · 6→22 · 7→23 · 8→31 · 10→32 |
-| mapx30 (1990 A.D.) | 5→33 · 6→41 · 7→61 · 8→71 · 10→81 |
-| mapx40 (2112 A.D.) | 5→82 · 10→61 · (9→地牢) |
+| mapx00 (Legends) | 8→03(城堡=Minax 巢穴,走 minax_encounter 攔截) |
+| mapx10 (9,000,000 B.C.) | 5→11(村莊) |
+| mapx20 (1423 B.C.) | 5→21 村 · 6→22 鎮 · 8→23 堡 · 7→24 塔 · 9→25 地牢 |
+| mapx30 (1990 A.D.) | 5→31 村 · 6→32 鎮 · 8→33 堡 · 7→34 塔 · 9→35 地牢 |
+| mapx40 (2112 A.D.) | 5→41 村 · 9→45 地牢(無 6/7/8 landmark) |
 
-> landmark→城 的「哪個門通哪座城」仍 provisional(待 emulator/oracle 校正);
-> 但**時代↔overworld** 已由 oracle 釘死。
+> tile 10(時間之門)不入表;mapx00/10/40 缺少的 kind 碼目的地檔本就不存在(該時代無該類地點)。
+> **時代↔overworld** 與 **landmark↔地點** 皆已由 oracle 釘死,不再 provisional。
+> 驗證:破關回歸(`tests/regression_winnable.sh`)+ 城鎮正典(`tests/test_town_canon.sh`)PASS。
 
 > 驗證:以 `mapx20` / `mapx30` 為 overworld headless 進城,各自載入對應城鎮(不同地圖)。
 > 改 landmark→map 對應只需編輯 `LOC_REG[]`,無需動進入邏輯。

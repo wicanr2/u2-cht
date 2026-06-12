@@ -158,7 +158,15 @@ enum { VEH_WALK=0, VEH_HORSE=1, VEH_SHIP=2, VEH_PLANE=3, VEH_ROCKET=4 };
 #define SHIP_TILE  18
 #define PLANE_TILE 19
 #define ROCKET_TILE 20
-/* 物品旗標(對應 oracle save offset) */
+/* 物品旗標(對應 oracle save offset)。★ 2026-06-13 oracle 校正(已釘死):
+ *   0x140 ANKH:BOARD rocket 檢查(oracle 4455「YOU MUST HAVE AN ANKH」)
+ *   0x148 SKULL KEY:BOARD plane 檢查(4436「STRANGE YOU CAN'T GET IN」)
+ *   0x150 BRASS BUTTON:LAUNCH plane 檢查(5343「MISSING A BRASS BUTTON」)
+ *   0x154 BLUE TASSLE:BOARD ship/frigate(4405「CREW…WILL NOT LET YOU BOARD」)
+ *   0x160 TRI-LITHIUM:火箭燃料(5181 取得 +1 / 5377 發射檢查)
+ *   0x130 BOOTS / 0x134 CLOAK / 0x15c IDOL / 0x138 HELM:麻痺/睡眠抵擋
+ *     (oracle 8837/8855/8873「SAVED BY MAGICAL BOOTS/CLOAK/IDOL」)
+ *   註:0x158 = STRANGE COIN(NEGATE TIME),非載具道具,不入此旗標集。 */
 #define ITEM_ANKH        (1u<<0)   /* 0x140:火箭登艦 */
 #define ITEM_SKULL_KEY   (1u<<1)   /* 0x148:飛機登艦 */
 #define ITEM_BRASS_BUTTON (1u<<2)  /* 0x150:飛機起飛 */
@@ -783,16 +791,27 @@ static void exit_dungeon(Game *g)
 
 /* 地點登記表(world 編號 + landmark tile → 目的地 + 類型)。
  * world-aware:不同世代 overworld 的 landmark 對到該世代的地點。
- * provisional:精確對應/類型待 oracle/Codex 校正(見 docs/MAP_REGISTRY.md)。
- * kind(oracle ENTER 類型):'v'村莊 't'城鎮 'c'城堡 'T'塔(倒置地牢)'d'地牢。 */
+ *
+ * ★ Oracle 校正(2026-06-13):原版 ENTER 派發 FUN_004064d0(oracle 行 4916-5056)以
+ *   landmark tile id 直接決定地點類型,並把目的地 mapxNN 第 2 碼(kind 碼)寫死:
+ *     tile 5 村莊→'1' · 6 城鎮→'2' · 8 城堡→'3' · 7 塔→'4' · 9 地牢→'5'(FUN_00427a50)。
+ *   第 1 碼 = 當前 overworld 時代數字(byte0 of mapname)。
+ *   ⇒ 目的地 = mapx<時代碼><kind碼>(deterministic rule,非逐 landmark 推定)。
+ *   下表只列「該時代 overworld 實際存在的 landmark tile」(以原版 mapxE0 內 64×64 區掃描為準)
+ *   且目的地 mapxNN 確實存在;tile 10 = 時間之門(FUN_0040c270 招牌),不入表。
+ * kind:'v'村莊 't'城鎮 'c'城堡 'T'塔(倒置地牢)'d'地牢。 */
 typedef struct { const char *world; unsigned char tile; const char *dest; char kind; } LocReg;
 static const LocReg LOC_REG[] = {
-    /* 5 個地球時代 overworld(oracle 首位數字定);landmark → 地點(kind/dest 為 provisional)*/
-    {"00",8,"03",'t'},{"00",10,"92",'c'},{"00",9,"15",'d'},                 /* Legends */
-    {"10",5,"11",'v'},{"10",10,"93",'c'},{"10",9,"15",'d'},                 /* 9,000,000 B.C. */
-    {"20",5,"21",'t'},{"20",6,"22",'v'},{"20",7,"23",'c'},{"20",8,"31",'t'},{"20",10,"32",'t'},{"20",9,"15",'d'}, /* 1423 B.C. */
-    {"30",5,"33",'t'},{"30",6,"41",'v'},{"30",7,"61",'c'},{"30",8,"15",'T'},{"30",10,"81",'t'},{"30",9,"15",'d'}, /* 1990 A.D.(8=塔示範,用 15 地牢格式)*/
-    {"40",5,"82",'t'},{"40",10,"61",'c'},{"40",9,"15",'d'},                 /* 2112 A.D. */
+    /* mapx00 Legends:tile 8 城堡→mapx03(Minax 巢穴,實際走 minax_encounter 攔截)*/
+    {"00",8,"03",'c'},                                                      /* Legends */
+    /* mapx10 9,000,000 B.C.:tile 5 村莊→mapx11 */
+    {"10",5,"11",'v'},                                                      /* 9,000,000 B.C. */
+    /* mapx20 1423 B.C.:5→21 村 · 6→22 鎮 · 8→23 堡 · 7→24 塔 · 9→25 地牢 */
+    {"20",5,"21",'v'},{"20",6,"22",'t'},{"20",8,"23",'c'},{"20",7,"24",'T'},{"20",9,"25",'d'}, /* 1423 B.C. */
+    /* mapx30 1990 A.D.:5→31 · 6→32 · 8→33 · 7→34 · 9→35 */
+    {"30",5,"31",'v'},{"30",6,"32",'t'},{"30",8,"33",'c'},{"30",7,"34",'T'},{"30",9,"35",'d'}, /* 1990 A.D. */
+    /* mapx40 2112 A.D.:5→41 村 · 9→45 地牢(該圖無 6/7/8 landmark)*/
+    {"40",5,"41",'v'},{"40",9,"45",'d'},                                    /* 2112 A.D. */
 };
 static const LocReg *loc_lookup(const char *world, unsigned char tile)
 {
@@ -1320,7 +1339,13 @@ static const char *era_name(const char *world)
     }
     return "未知時代";
 }
-/* 時間門循環:5 個時代 overworld(mapx00/10/20/30/40)依序。 */
+/* 時間門循環:5 個時代 overworld(mapx00/10/20/30/40)依序。
+ * ⚠ provisional(2026-06-13 評估):原版非自由循環。oracle FUN_0040cd20 + 踏門邏輯
+ *   (行 5705-5727)為月相驅動:phase = (this+0xa8)>>1 週期 0..3,每 8 回合 (this+0xac)
+ *   前進 (0xa8+2)&7;踏門目的地 dest_era = (cur_era<=phase)?phase+1:phase。
+ *   落地/門座標來自 DAT_0043e260/e261 表,但該 .data 不在 Ghidra dump → 無法還原。
+ *   忠實移植需 (a) 座標表(未解)(b) 會破壞 headless 破關鏈 PPPM 決定性。
+ *   ⇒ 暫保留自由循環(可達 5 時代),機制詳見 docs/ORACLE_MECHANICS.md。 */
 static const char *next_era_world(const char *world)
 {
     switch (world[0]){
@@ -1389,17 +1414,26 @@ static void time_travel(Game *g)
 }
 
 /* ---- 太空飛行(M2 Step 2)---- */
-/* 行星表(手冊 GALACTIC MAP;Xeno/Yako/Zabo 座標)。mapnum 為 provisional 行星表面圖。 */
+/* 行星表(手冊 GALACTIC MAP;Xeno/Yako/Zabo 座標)。
+ * ★ Oracle 校正(2026-06-13):降落 FUN_00409320 case 0x4c(LANDING REQUESTED)以
+ *   FUN_0040e210(行 9796)由軌道座標(Xeno=0x74d0/Yako=0x74d4/Zabo=0x74d8)回傳**行星 index**,
+ *   並設 mapname[0]=index+'0'、mapname[1]='0' ⇒ **行星表面 = mapx<index>0**:
+ *     0 地球(特例,DAT_0043f5c4 = Sosaria overworld) · 1 水星 mapx10 · 2 金星 mapx20 ·
+ *     3 火星 mapx30 · 4 木星 mapx40 · 5 土星 mapx50 · 6 天王星 mapx60 · 7 海王星 mapx70 ·
+ *     8 冥王星 mapx80 · 9 (9,9,9)mapx90 · 10 (4,4,4)= 太陽 YOU HIT THE SUN(不可降)。
+ *   座標 xe/ya/za 即 FUN_0040e210 的比對值;index 順序與本表一致(0..8)。
+ *   ⚠ 注意:行星表面 mapx10..40 與地球時代 overworld 同檔名,原版以「在行星」旗標
+ *   (0x74dc!=0)區分行為,非以檔名;本引擎重用同檔,語意對齊待 emulator 截圖最終確認。 */
 static const struct { const char *zh, *en, *mapnum; int xe, ya, za; } PLANETS[] = {
-    {"地球 Earth",  "Earth",   "20", 6,6,6},
-    {"水星 Mercury","Mercury", "50", 5,4,5},
-    {"金星 Venus",  "Venus",   "60", 3,3,4},
-    {"火星 Mars",   "Mars",    "70", 6,2,3},
-    {"木星 Jupiter","Jupiter", "80", 1,3,4},
-    {"土星 Saturn", "Saturn",  "90", 2,8,5},
-    {"天王星 Uranus","Uranus", "85", 9,4,6},
-    {"海王星 Neptune","Neptune","82", 4,0,5},
-    {"冥王星 Pluto","Pluto",   "45", 0,1,4},
+    {"地球 Earth",  "Earth",   "00", 6,6,6},  /* index 0:特例,Sosaria overworld */
+    {"水星 Mercury","Mercury", "10", 5,4,5},  /* index 1 → mapx10 */
+    {"金星 Venus",  "Venus",   "20", 3,3,4},  /* index 2 → mapx20 */
+    {"火星 Mars",   "Mars",    "30", 6,2,3},  /* index 3 → mapx30 */
+    {"木星 Jupiter","Jupiter", "40", 1,3,4},  /* index 4 → mapx40 */
+    {"土星 Saturn", "Saturn",  "50", 2,8,5},  /* index 5 → mapx50 */
+    {"天王星 Uranus","Uranus", "60", 9,4,6},  /* index 6 → mapx60 */
+    {"海王星 Neptune","Neptune","70", 4,0,5}, /* index 7 → mapx70 */
+    {"冥王星 Pluto","Pluto",   "80", 0,1,4},  /* index 8 → mapx80 */
 };
 #define NPLANET ((int)(sizeof PLANETS/sizeof PLANETS[0]))
 static const char *planet_name(int i){ return (u2_lang==U2_EN)?PLANETS[i].en:PLANETS[i].zh; }
