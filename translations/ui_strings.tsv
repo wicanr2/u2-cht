@@ -167,6 +167,9 @@ N 前進 · S 後退 · W/E 轉向 · J 下樓 · K 上樓 · 1-9 施法 · X �
 你的手臂被麻痺了!	Your arms are paralyzed!	腕が痺れてしまった!
 綠色神像擋下了睡眠!	Saved by the idol!	緑の神像が睡眠を防いだ!
 你陷入了沉睡!	You fall asleep!	眠りに落ちてしまった!
+惡魔的法術麻痺了你的雙腿!	The Daemon's spell paralyzes your legs!	デーモンの呪文が君の脚を麻痺させた!
+魔鬼的法術麻痺了你的手臂!	The Devil's spell paralyzes your arms!	デビルの呪文が君の腕を麻痺させた!
+炎魔的咒語讓你陷入沉睡!	The Balron's incantation puts you to sleep!	バルロンの呪文が君を眠りに落とした!
 哥布林偷走了 %d 份食物!	A gremlin steals %d food!	グレムリンが食料を %d 奪った!
 盜賊偷走了 %d 金幣!	A thief steals %d gold!	シーフがゴールドを %d 奪った!
 深太空	Deep Space	深宇宙
