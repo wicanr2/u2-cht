@@ -1731,17 +1731,38 @@ static void town_attack_guard(Game *g, int slot)
     g->php-=back; if(g->php<1)g->php=1;
     snprintf(g->msg,sizeof g->msg,tr("你砍向守衛(剩 %d)── 他反手回擊,你失去 %d 點生命。"),hp,back);
 }
-/* 城鎮回合:與玩家相鄰的敵對守衛各打一下(無尋路,僅鄰格)。 */
+/* 城鎮格是否不可踏入(出界/牆/玩家/其他實體占用)。 */
+static int town_cell_blocked(Game *g, int x, int y)
+{
+    if (x<0||y<0||x>=U2_MAP_W||y>=U2_MAP_H) return 1;
+    if (!u2_passable(u2_map_tile(&g->town,x,y))) return 1;
+    if (x==g->player.x && y==g->player.y) return 1;
+    for (int j=0;j<g->tmon.count && j<U2_MON_SLOTS;j++)
+        if (g->tmon.ent[j].tile && g->tmon.ent[j].x==x && g->tmon.ent[j].y==y) return 1;
+    return 0;
+}
+/* 城鎮回合:敵對守衛相鄰則攻擊,否則朝玩家移動一步(貪婪追擊,避牆/占用)。 */
 static void step_town_guards(Game *g)
 {
     if (!g->tent_hostile) return;
     for (int i=0;i<g->tmon.count && i<U2_MON_SLOTS;i++){
         if (!(g->tent_hostile&(1u<<i)) || g->tent_hp[i]==0) continue;
         U2Entity *e=&g->tmon.ent[i];
-        if (abs(e->x-g->player.x)+abs(e->y-g->player.y)!=1) continue;   /* 僅鄰格 */
-        int d=8+(rng_next(g)%10)-g->armour*2; if(d<1)d=1;
-        g->php-=d; if(g->php<1)g->php=1;
-        snprintf(g->msg,sizeof g->msg,tr("敵對守衛攻擊你!失去 %d 點生命。"),d);
+        int adx=g->player.x-e->x, ady=g->player.y-e->y;
+        if (abs(adx)+abs(ady)==1){                           /* 鄰格 → 攻擊 */
+            int d=8+(rng_next(g)%10)-g->armour*2; if(d<1)d=1;
+            g->php-=d; if(g->php<1)g->php=1;
+            snprintf(g->msg,sizeof g->msg,tr("敵對守衛攻擊你!失去 %d 點生命。"),d);
+        } else {                                             /* 追擊:朝玩家移動一步 */
+            int sx=adx>0?1:adx<0?-1:0, sy=ady>0?1:ady<0?-1:0;
+            if (abs(adx) >= abs(ady)){                        /* 優先較大軸向 */
+                if (sx && !town_cell_blocked(g,e->x+sx,e->y)) e->x+=sx;
+                else if (sy && !town_cell_blocked(g,e->x,e->y+sy)) e->y+=sy;
+            } else {
+                if (sy && !town_cell_blocked(g,e->x,e->y+sy)) e->y+=sy;
+                else if (sx && !town_cell_blocked(g,e->x+sx,e->y)) e->x+=sx;
+            }
+        }
     }
 }
 
