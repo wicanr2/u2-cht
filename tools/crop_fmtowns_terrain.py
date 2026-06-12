@@ -18,6 +18,8 @@ OX, OY, TS = 8, 48, 32
 TILES = [("water", 8, 0), ("grass", 2, 2), ("forest", 0, 2)]
 # 山:U2FMTowns31.jpg 的綠山格(col9 row4,綠帶紅紋,與黃橘螺旋的樹區隔)。
 MTN = ("mountain", 9, 4)
+# 城鎮紅磚牆:FMtownsu210.jpg 的紅磚格(col6 row4,紅磚+青縫)→ 城鎮 tile 31。
+BRICK = ("brick", 6, 4)
 
 
 def crop(im, outdir, name, col, row):
@@ -35,6 +37,9 @@ def main():
     mtn = sys.argv[3] if len(sys.argv) > 3 else None
     if mtn and os.path.exists(mtn):
         crop(Image.open(mtn).convert("RGB"), outdir, *MTN)
+    brick = sys.argv[4] if len(sys.argv) > 4 else None   # 城鎮磚牆截圖(FMtownsu210.jpg)
+    if brick and os.path.exists(brick):
+        crop(Image.open(brick).convert("RGB"), outdir, *BRICK)
 
 
 if __name__ == "__main__":

@@ -76,17 +76,23 @@ def main():
     base.save(out)
     print(f"built {out} {base.size} (tile {TS}px)")
 
-    # 城鎮專用變體:tile 3(城鎮主體綠地,overworld 是森林)→ 草;tile 30(白 floor)→ 草。
-    # 讓城鎮不再滿是樹/白方塊;引擎 in_town 時用此 tileset(--town-tiles)。
+    # 城鎮專用變體(引擎 in_town 時用,--town-tiles):
+    #   tile 3=城鎮戶外綠地(overworld 是森林)→ 草;30=建築內地板→ 草;
+    #   31=建築磚牆 → 紅磚(mapx21 結構:31 紅牆 + 30 地板 + 3 草)。
     gp = os.path.join(tdir, "fmt_grass.png")
     if os.path.exists(gp):
         town = base.copy()
         grass32 = Image.open(gp).convert("RGB").resize((TS, TS), Image.NEAREST)
         for tid in (3, 30):
             town.paste(grass32, (tid*TS, 0))
+        bp = os.path.join(tdir, "fmt_brick.png")
+        if os.path.exists(bp):
+            brick32 = Image.open(bp).convert("RGB").resize((TS, TS), Image.NEAREST)
+            for tid in (31, 58, 59):     # 31 牆 + 58/59 商店建築 → 紅磚(消除黑塊)
+                town.paste(brick32, (tid*TS, 0))
         tout = out.replace(".png", "_town.png") if out.endswith(".png") else out + "_town"
         town.save(tout)
-        print(f"built {tout} (城鎮變體:tile 3/30→草)")
+        print(f"built {tout} (城鎮變體:tile 3/30→草,31→紅磚)")
 
 
 if __name__ == "__main__":
