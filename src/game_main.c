@@ -2099,6 +2099,29 @@ static void save_meta(const Game *g, const char *save_path){
     unsigned int v[3]={g->items,(unsigned)g->weapon,(unsigned)g->armour}; fwrite(v,sizeof(unsigned int),3,f); fclose(f);
 }
 
+#ifdef HAVE_SDL_MIXER
+/* 場景 → FM Towns CDDA 音軌(對應為合理推測,待反組譯 FM Towns exe 校正):
+   0 標題 / 1 地面 / 2 城鎮 / 3 地牢 / 4 太空 / 5 結局 */
+static const char *MUS_TRACK[6] = {"track02","track03","track04","track05","track06","track08"};
+static void mus_play(int audio_ok, const char *dir, int ctx, Mix_Music **bgm, int *cur)
+{
+    if (!audio_ok || !dir || ctx==*cur || ctx<0 || ctx>5) return;
+    *cur = ctx;
+    if (*bgm){ Mix_HaltMusic(); Mix_FreeMusic(*bgm); *bgm=NULL; }
+    char p[600]; snprintf(p,sizeof p,"%s/%s.ogg",dir,MUS_TRACK[ctx]);
+    *bgm = Mix_LoadMUS(p);
+    if (*bgm) Mix_PlayMusic(*bgm,-1);
+}
+static int mus_ctx(const Game *g)
+{
+    if (g->won) return 5;
+    if (g->mode==MODE_DUNGEON) return 3;
+    if (g->mode==MODE_SPACE) return 4;
+    if (g->in_town) return 2;
+    return 1;   /* overworld */
+}
+#endif
+
 int main(int argc, char **argv)
 {
     if (argc < 5){
@@ -2126,12 +2149,9 @@ int main(int argc, char **argv)
     }
 #ifdef HAVE_SDL_MIXER
     /* FM Towns CDDA 音樂(互動模式;--music <dir> 指向 track*.ogg 目錄)*/
-    Mix_Music *bgm=NULL;
-    if (!headless && music_dir && Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048)==0){
-        char mp[600]; snprintf(mp,sizeof mp,"%s/track03.ogg",music_dir);  /* 遊戲 BGM */
-        bgm = Mix_LoadMUS(mp);
-        if (bgm){ Mix_VolumeMusic(MIX_MAX_VOLUME*3/5); Mix_PlayMusic(bgm,-1); }  /* 循環 */
-    }
+    Mix_Music *bgm=NULL; int bgm_ctx=-1;
+    int audio_ok = (!headless && music_dir && Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048)==0);
+    if (audio_ok){ Mix_VolumeMusic(MIX_MAX_VOLUME*3/5); mus_play(audio_ok,music_dir,0,&bgm,&bgm_ctx); }  /* 標題曲 */
 #else
     (void)music_dir;
 #endif
@@ -2414,6 +2434,9 @@ int main(int argc, char **argv)
             g.php=(g.save.ok && g.save.has_character)?g.save.hp:400;
         }
         while (running){
+#ifdef HAVE_SDL_MIXER
+            mus_play(audio_ok, music_dir, mus_ctx(&g), &bgm, &bgm_ctx);  /* 依場景換曲 */
+#endif
             SDL_Event e;
             while (SDL_PollEvent(&e)){
                 if (e.type==SDL_QUIT) running=0;
@@ -2483,7 +2506,7 @@ int main(int argc, char **argv)
     if (titleimg) SDL_FreeSurface(titleimg);
     SDL_FreeSurface(cv);
 #ifdef HAVE_SDL_MIXER
-    if (bgm){ Mix_HaltMusic(); Mix_FreeMusic(bgm); Mix_CloseAudio(); }
+    if (audio_ok){ Mix_HaltMusic(); if (bgm) Mix_FreeMusic(bgm); Mix_CloseAudio(); }
 #endif
     TTF_Quit(); IMG_Quit(); SDL_Quit();
     return 0;
