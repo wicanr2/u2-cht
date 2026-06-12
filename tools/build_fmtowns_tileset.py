@@ -64,6 +64,15 @@ def main():
     put(24, sprite(f"{graph}/ENEMY.TIF", 8))          # 守衛=E4(s8 全甲戰士)
     put(26, sprite(f"{graph}/ENEMY.TIF", 12))         # NPC=E6(s12 便裝市民)
 
+    # 地形 tile(從 FM Towns overworld 截圖裁的 32×32,放在輸出同目錄 fmt_*.png):
+    #   id 0=水 · 2=草 · 3=林(u2_passable/mapx 直方確認)。有檔才疊。
+    import os
+    tdir = os.path.dirname(out) or "."
+    for tid, nm in ((0, "water"), (2, "grass"), (3, "forest")):
+        p = os.path.join(tdir, f"fmt_{nm}.png")
+        if os.path.exists(p):
+            put(tid, Image.open(p).convert("RGB").resize((TS, TS), Image.NEAREST))
+
     base.save(out)
     print(f"built {out} {base.size} (tile {TS}px)")
 
