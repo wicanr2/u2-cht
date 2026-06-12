@@ -137,8 +137,10 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 ### M4 — 戰鬥深化 + 地牢實體化
 - ✅ **法術系統(原列 M4,已提前實作;commit 標 M6)**:9 法術(手冊 MAGIC SPELLS)、職業限制、
   限地牢/塔施放、消耗制、地牢 HUD、商店習得/建角起始。LIGHT/PASSWALL/SURFACE/上下梯/MISSILE/BLINK/KILL/PRAYER 全可用。
-- ❌ 命中/傷害/EXP 對齊 oracle;狀態效果(麻痺/睡眠/偷食/偷物)+ BOOTS/CLOAK/IDOL 防護。
-- ❌ 地牢改 tile 實體(取代線框):怪物實體、陷阱、火把(目前線框 + 隨機遭遇 + 法術)。
+- ✅ **地牢戰鬥對齊 oracle**:DIRECT 必中、dmg=rng&0x3f|0x20(32..95)、EXP=rng&7+1、金=rng%0x11+1(`dungeon_fight`)。
+- ✅ **地牢實體化**:怪物實體(低 nibble 類型/上色)、寶箱(BOOTS/CLOAK/IDOL/HELM/三鋰)、
+  **寶箱陷阱**(ARGH_A_TRAP / ESCAPED_BY_USE_OF_TOOLS,AGI 決定解除)、火把光照/視野受限(LIGHT 法術)。
+- 🟡 overworld 戰鬥仍為撞擊制(戰術戰鬥地圖未實作);狀態效果(麻痺/睡眠/偷食/偷物)部分。
 - 🟡 攻擊法術(MISSILE/KILL/PRAYER)目前接隨機遭遇模型(無持久怪物實體),待地牢實體化後深化。
 - **驗收**:✅ 法術可用(headless 巫師施法驗證);❌ 戰鬥數值對 oracle、地牢實體化。
 
