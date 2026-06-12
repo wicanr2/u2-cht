@@ -218,3 +218,5 @@ E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表	E/W HYPERWARP · Y land · F1 h
 沒得手!守衛逮到你,給了你一記教訓(失去 %d 點生命)。	No luck! A guard catches you and teaches you a lesson (lose %d HP).	運がない!衛兵に捕まり、お仕置きされた(%d ダメージ)。
 寶箱有陷阱 ── 你機警地用工具解除了它。	The chest is trapped — you deftly disarm it with tools.	宝箱には罠が ── 道具で巧みに解除した。
 啊!陷阱!機關傷了你(失去 %d 點生命)。	Argh! A trap! The mechanism wounds you (lose %d HP).	うわ!罠だ!仕掛けに傷つけられた(%d ダメージ)。
+守衛攔住你:「繳你的稅!」你交了 %d 金,守衛揮手放行。	A guard stops you: 'Pay your taxes!' You hand over %d gold and the guard waves you on.	衛兵が止める:「税を払え!」%d ゴールドを渡すと、衛兵は通してくれた。
+守衛攔住你:「繳你的稅!」你繳不出 ── 守衛動怒,給了你一記教訓(失去 %d 點生命)。	A guard stops you: 'Pay your taxes!' You cannot pay — the guard grows angry and teaches you a lesson (lose %d HP).	衛兵が止める:「税を払え!」払えず ── 衛兵が怒り、お仕置きした(%d ダメージ)。

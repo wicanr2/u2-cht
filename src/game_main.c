@@ -81,6 +81,7 @@ static const char *lang_label(void)
 #define MAP_OY     (HDR_H + 8)
 #define PLAYER_TILE 16
 #define WORLD_DUNGEON_TILE 9      /* 地面上的地牢入口 tile id */
+#define TILE_GUARD 24             /* 城鎮守衛 NPC tile(monx status=255;MONSTERS.md Guard)*/
 #define WORLD_TOWN_TILE 5         /* 地面上的城鎮入口 tile id */
 #define DVIEW 520                 /* 地牢線框視區邊長 */
 
@@ -910,6 +911,18 @@ static void do_talk(Game *g)
         for (int i=0;i<g->tmon.count;i++){
             U2Entity *e=&g->tmon.ent[i];
             if (!e->tile || e->x!=nx || e->y!=ny) continue;
+            /* 守衛(tile 24 / status 255)→ 索稅([正典] FUN_00409990 A_GUARD_SAYS / PAY_YOUR_TAXES)*/
+            if (e->tile == TILE_GUARD){
+                int tax = 30;
+                if (g->save.gold >= tax){
+                    g->save.gold -= tax;
+                    snprintf(g->msg,sizeof g->msg,tr("守衛攔住你:「繳你的稅!」你交了 %d 金,守衛揮手放行。"),tax);
+                } else {
+                    int dmg = 10+(int)(rng_next(g)%16); g->php-=dmg; if(g->php<1)g->php=1;
+                    snprintf(g->msg,sizeof g->msg,tr("守衛攔住你:「繳你的稅!」你繳不出 ── 守衛動怒,給了你一記教訓(失去 %d 點生命)。"),dmg);
+                }
+                return;
+            }
             /* dlg & 0x80 = 可交談;行索引 = (dlg&0x7f)-1 (1-based 進 tlkx) */
             if (!(e->dlg & 0x80)){ snprintf(g->msg,sizeof g->msg,tr("對方沉默不語。")); return; }
             int k=(e->dlg & 0x7f) - 1;

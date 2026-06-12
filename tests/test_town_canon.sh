@@ -81,5 +81,14 @@ assert_grep "$G" "機警地用工具解除" "G 寶箱陷阱解除(ESCAPED BY TOO
 assert_grep "$G" "機關傷了你"        "G 寶箱陷阱觸發(ARGH A TRAP)"
 assert_grep "$G" "你找到一個寶箱"    "G 開箱仍給獎勵(陷阱+獎勵組合)"
 
+# 情境 H:守衛索稅(oracle FUN_00409990 A_GUARD_SAYS / PAY_YOUR_TAXES)— tile 24 守衛
+#   巡走城鎮交談,固定 seed 下必遇守衛;$ 先給金 → 繳稅放行,無金 → 繳不出挨揍
+SWEEP=""; for dir in d s a w d s a w; do for i in $(seq 1 30); do SWEEP="${SWEEP}T${dir}"; done; done
+GOLD='$$$$$'
+H1="$(run guard_pay "O${GOLD}${SWEEP}")"
+assert_grep "$H1" "揮手放行" "H 守衛索稅·繳稅放行(有金)"
+H2="$(run guard_poor "O${SWEEP}")"
+assert_grep "$H2" "繳不出"   "H 守衛索稅·繳不出挨揍(無金)"
+
 echo "== 4) 判定 =="
-echo "PASS: 城鎮/地牢正典玩法 7 情境全數通過(輸出 $OUT)"
+echo "PASS: 城鎮/地牢正典玩法 8 情境全數通過(輸出 $OUT)"
