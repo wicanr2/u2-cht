@@ -76,6 +76,18 @@ def main():
     base.save(out)
     print(f"built {out} {base.size} (tile {TS}px)")
 
+    # 城鎮專用變體:tile 3(城鎮主體綠地,overworld 是森林)→ 草;tile 30(白 floor)→ 草。
+    # 讓城鎮不再滿是樹/白方塊;引擎 in_town 時用此 tileset(--town-tiles)。
+    gp = os.path.join(tdir, "fmt_grass.png")
+    if os.path.exists(gp):
+        town = base.copy()
+        grass32 = Image.open(gp).convert("RGB").resize((TS, TS), Image.NEAREST)
+        for tid in (3, 30):
+            town.paste(grass32, (tid*TS, 0))
+        tout = out.replace(".png", "_town.png") if out.endswith(".png") else out + "_town"
+        town.save(tout)
+        print(f"built {tout} (城鎮變體:tile 3/30→草)")
+
 
 if __name__ == "__main__":
     main()
