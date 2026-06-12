@@ -147,7 +147,8 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
   - **RING**:非 Antos 市民兩段線索(`quest_clue`)→ Antos(mapx93)`EARN_THE_RING`(需 `quest_clue≥1`)→ 賜戒;線索詩對齊 oracle FUN_00402a90(「水流自由的城鎮、樹下無名老人握線索」)。
   - **ENILNO**:King 收 **≥500 金**貢禮才賜劍,不足回絕(對齊 oracle FUN_00408e50 `0x81` 分支);非持戒者仍走一般貢禮(療傷+最低屬性+1)。
   - Legends(mapx00)landmark tile 8 = Minax 巢穴 → 踏入觸發;戒指+ENILNO 殺 Minax → **勝利結局**(`render_ending`,oracle FUN_0040eb60)。
-  - 🟡 殘:酒館付金線索(本引擎無建築模型,已由市民對話線索等價覆蓋)、賢者隨機賜物(0x83)、Antos/King 完整對話分支。
+  - ✅ **ALAKAZAM 慷慨市民**(FUN_00408e50 else 分支):clue 鏈過後交談有 1/6 機率提升隨機屬性。
+  - 🟡 殘:酒館付金線索(本引擎無建築模型,已由市民對話線索等價覆蓋)、`0x83` 隨機賜物(對應 8 個 reagent counter,與本引擎 quest-item bitmask 不合,不採)、Antos/King 完整對話分支。
 - ✅ **任務目標引導**(角色表 quest_hint:依持有道具推進)。
 - ✅ **完整破關回歸腳本**(`tests/regression_winnable.sh`):固定 seed 走建角存檔→商店→地牢(含施法)
   →時空旅行→道具→傳說時代→米娜克斯→結局,grep `GAME WON` 判 pass/fail。
