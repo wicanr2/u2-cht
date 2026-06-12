@@ -355,7 +355,7 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body)
     SDL_FillRect(cv,&t,col);SDL_FillRect(cv,&b,col);SDL_FillRect(cv,&l,col);SDL_FillRect(cv,&rr,col);
 
     int by=MAP_OY+VIEW_ROWS*TILE_PX+10;
-    u2_text_draw(cv,body, g->in_town ? tr("方向鍵/WASD 移動 · T 交談 · Z 商店 · C 角色表 · X 離開 · F1 指令表")
+    u2_text_draw(cv,body, g->in_town ? tr("方向鍵/WASD 移動 · T 交談 · Z 商店 · F 偷竊 · Y 大喊 · C 角色表 · X 離開")
                                      : tr("方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q"),
                  MAP_OX,by,150,175,205);
     u2_text_draw(cv,body,g->msg,MAP_OX,by+30,210,225,205);
@@ -874,6 +874,30 @@ static void do_yell(Game *g)
     };
     int n=(int)(sizeof REACT/sizeof REACT[0]);
     snprintf(g->msg,sizeof g->msg,"%s",tr(REACT[rng_next(g)%n]));
+}
+
+/* 城內行竊 → 向商店下手([正典] oracle FUN_00409660 STEAL:武器/防具/食物;
+   敏捷決定得手率,失敗 NO LUCK 引守衛挨揍。clamp≥1,不走死亡路徑)*/
+static void do_steal(Game *g)
+{
+    if (!g->in_town){ snprintf(g->msg,sizeof g->msg,tr("這裡沒有東西可偷。")); return; }
+    int target = rng_next(g)%3;   /* 0 武器 1 防具 2 食物 */
+    int agi = g->save.has_character ? g->save.stats[1] : 15;
+    int chance = 30 + agi; if (chance>85) chance=85;   /* AGI 15→45% · 30→60%,上限 85% */
+    if ((int)(rng_next(g)%100) < chance){
+        switch (target){
+            case 0: if(g->weapon<8){ g->weapon++; snprintf(g->msg,sizeof g->msg,tr("你順手牽羊,偷得一件更好的武器!")); }
+                    else snprintf(g->msg,sizeof g->msg,tr("你下手了,但架上已無更好的武器。")); break;
+            case 1: if(g->armour<5){ g->armour++; snprintf(g->msg,sizeof g->msg,tr("你順手牽羊,偷得一件更好的防具!")); }
+                    else snprintf(g->msg,sizeof g->msg,tr("你下手了,但架上已無更好的防具。")); break;
+            default: g->save.food+=150; if(g->save.food>9999)g->save.food=9999;
+                    snprintf(g->msg,sizeof g->msg,tr("你摸走了一些食物(+150)。")); break;
+        }
+        return;
+    }
+    int dmg = 10 + (int)(rng_next(g)%21);   /* 10..30 */
+    g->php -= dmg; if(g->php<1)g->php=1;
+    snprintf(g->msg,sizeof g->msg,tr("沒得手!守衛逮到你,給了你一記教訓(失去 %d 點生命)。"),dmg);
 }
 
 /* 交談:鄰格若有 NPC 實體,顯示其 tlkx 對話(查翻譯覆蓋層) */
@@ -2073,6 +2097,7 @@ int main(int argc, char **argv)
             else if (c=='$'){ g.save.gold+=300; if(g.save.gold>9999)g.save.gold=9999;
                 snprintf(g.msg,sizeof g.msg,tr("(除錯)黃金 +300。")); }  /* 測試金幣閘門用:精確控金 */
             else if (c=='Y'||c=='y'){ if (g.in_town) do_yell(&g); else if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); }
+            else if (c=='F'||c=='f'){ do_steal(&g); }   /* 城內行竊(STEAL) */
             else if (c=='V'||c=='v') do_view(&g);   /* VIEW 鳥瞰 */
             else if (c=='U'){ g.items=~0u; g.vehicle=VEH_ROCKET; launch_rocket(&g); }  /* 除錯:直接發射 */
             else if (c=='M') minax_encounter(&g);   /* Minax 對決(傳說時代)*/
@@ -2207,6 +2232,7 @@ int main(int argc, char **argv)
                         case SDLK_b: board_vehicle(&g); break;
                         case SDLK_i: g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); break;
                         case SDLK_y: if (g.in_town) do_yell(&g); else if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); break;
+                        case SDLK_f: do_steal(&g); break;   /* 城內行竊(STEAL) */
                         case SDLK_v: do_view(&g); break;   /* VIEW 鳥瞰 */
                         case SDLK_m: minax_encounter(&g); break;
                         case SDLK_z: if (g.in_town) g.show_shop=!g.show_shop; break;

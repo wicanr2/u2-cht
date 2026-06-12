@@ -69,5 +69,10 @@ assert_grep "$D" "你大喊一聲" "D YELL 市民反應"
 E="$(run alakazam "OTTTTTTTTTTTTTTTTTTTT")"
 assert_grep "$E" "阿拉卡贊" "E ALAKAZAM 慷慨市民"
 
+# 情境 F:STEAL 行竊(oracle FUN_00409660)— 固定 seed 下 10 次必同時出現成功與失敗
+F="$(run steal "OFFFFFFFFFF")"
+assert_grep "$F" "沒得手"        "F STEAL 失敗(守衛逮到)"
+assert_grep "$F" "摸走\|偷得"    "F STEAL 成功(白拿武/防/食)"
+
 echo "== 4) 判定 =="
-echo "PASS: 城鎮正典玩法 5 情境全數通過(輸出 $OUT)"
+echo "PASS: 城鎮正典玩法 6 情境全數通過(輸出 $OUT)"

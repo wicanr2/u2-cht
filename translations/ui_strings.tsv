@@ -208,3 +208,11 @@ E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表	E/W HYPERWARP · Y land · F1 h
 你大喊一聲 ── 巫師朝你比畫:「黑克 厄 普 ── 對你下咒!」	You shout aloud — a wizard gestures: 'Hex-e-poo, hex on you!'	大声で叫ぶと ── 魔術師が手を振る:「ヘクス・エ・プー、お前に呪いを!」
 你大喊一聲 ── 竊賊壓低嗓音:「噓……想買支錶嗎?」	You shout aloud — a thief whispers: 'Psst... wanna buy a watch?'	大声で叫ぶと ── 盗賊が囁く:「シッ…時計はいらんか?」
 「阿拉卡贊!」對方為你祝福,%s 提升了。	'Alakazam!' A stranger blesses you — your %s rises.	「アラカザム!」見知らぬ者が祝福し、%s が上がった。
+方向鍵/WASD 移動 · T 交談 · Z 商店 · F 偷竊 · Y 大喊 · C 角色表 · X 離開	Arrows/WASD move · T Talk · Z Shop · F Steal · Y Yell · C Sheet · X Exit	矢印/WASD 移動 · T 会話 · Z 店 · F 盗み · Y 叫ぶ · C ステータス · X 退出
+這裡沒有東西可偷。	Nothing to steal here.	ここに盗む物はない。
+你順手牽羊,偷得一件更好的武器!	You filch a better weapon!	よりよい武器をくすねた!
+你下手了,但架上已無更好的武器。	You strike, but no better weapon is on the rack.	手を出したが、棚にこれ以上の武器はない。
+你順手牽羊,偷得一件更好的防具!	You filch a better armour!	よりよい防具をくすねた!
+你下手了,但架上已無更好的防具。	You strike, but no better armour is on the rack.	手を出したが、棚にこれ以上の防具はない。
+你摸走了一些食物(+150)。	You swipe some food (+150).	食料をくすねた(+150)。
+沒得手!守衛逮到你,給了你一記教訓(失去 %d 點生命)。	No luck! A guard catches you and teaches you a lesson (lose %d HP).	運がない!衛兵に捕まり、お仕置きされた(%d ダメージ)。
