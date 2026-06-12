@@ -107,5 +107,10 @@ assert_grep "$J2" "鑰匙打開"        "J 上鎖門·守衛鑰匙自動開"
 K="$(run owkill "&w&w&w")"
 assert_grep "$K" "你擊敗了.*經驗.*金" "K overworld 擊殺給 gold+exp"
 
+# 情境 L:地牢攻擊法術打真實實體(MISSILE/KILL 命中前方 dgent,對齊 M4 實體化)
+#   D 進地牢,交替 KILL(9)/MISSILE(7)+前進(N);固定 seed 下必命中前方怪
+L="$(run atkspell "D9N7N9N7N9N7N")"
+assert_grep "$L" "灰飛煙滅\|擊潰了" "L 地牢攻擊法術命中實體"
+
 echo "== 4) 判定 =="
-echo "PASS: 城鎮/地牢/overworld 正典玩法 11 情境全數通過(輸出 $OUT)"
+echo "PASS: 城鎮/地牢/overworld 正典玩法 12 情境全數通過(輸出 $OUT)"

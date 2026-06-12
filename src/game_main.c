@@ -1656,9 +1656,16 @@ static void cast_spell(Game *g, int idx)
             g->php = g->maxhp;                           /* 神聖干預:治癒(results simulate reality)*/
             snprintf(g->msg,sizeof g->msg,tr("你祈禱,神聖之力湧入,傷勢盡復。")); break;
         case SP_MISSILE: {
-            int xp=(rng_next(g)&3)+2, gold=4+(rng_next(g)%16);
-            g->save.exp+=xp; g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
-            snprintf(g->msg,sizeof g->msg,tr("魔法飛彈轟向前方,擊潰擋路之敵(+%d 經驗)。"),xp); check_levelup(g); break;
+            int ei=-1; for(int i=0;i<g->ndgent;i++) if(g->dgent[i].kind=='M'&&g->dgent[i].x==fx&&g->dgent[i].y==fy){ei=i;break;}
+            if (ei<0){ snprintf(g->msg,sizeof g->msg,tr("魔法飛彈射向前方,但無敵可擊。")); break; }
+            int dmg=30+(rng_next(g)%30); g->dgent[ei].hp-=dmg;
+            if (g->dgent[ei].hp<=0){
+                int xp=(rng_next(g)&7)+1, gold=(rng_next(g)%0x11)+1;
+                g->save.exp+=xp; g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
+                snprintf(g->msg,sizeof g->msg,tr("魔法飛彈擊潰了%s!(+%d 經驗,+%d 金)"),tr(g->dgent[ei].name),xp,gold);
+                g->dgent[ei]=g->dgent[--g->ndgent]; check_levelup(g);
+            } else snprintf(g->msg,sizeof g->msg,tr("魔法飛彈擊中%s,造成 %d 傷害。"),tr(g->dgent[ei].name),dmg);
+            break;
         }
         case SP_BLINK: {
             for (int t=0;t<16;t++){
@@ -1669,9 +1676,12 @@ static void cast_spell(Game *g, int idx)
             snprintf(g->msg,sizeof g->msg,tr("瞬移!你閃現到地牢另一處。")); break;
         }
         case SP_KILL: {
+            int ei=-1; for(int i=0;i<g->ndgent;i++) if(g->dgent[i].kind=='M'&&g->dgent[i].x==fx&&g->dgent[i].y==fy){ei=i;break;}
+            if (ei<0){ snprintf(g->msg,sizeof g->msg,tr("擊殺術迸發,但前方無敵可擊。")); break; }
             int xp=(rng_next(g)&7)+4, gold=8+(rng_next(g)%24);
             g->save.exp+=xp; g->save.gold+=gold; if(g->save.gold>9999)g->save.gold=9999;
-            snprintf(g->msg,sizeof g->msg,tr("擊殺術迸發,前方之敵灰飛煙滅(+%d 經驗,+%d 金)。"),xp,gold); check_levelup(g); break;
+            snprintf(g->msg,sizeof g->msg,tr("擊殺術迸發,%s 灰飛煙滅!(+%d 經驗,+%d 金)"),tr(g->dgent[ei].name),xp,gold);
+            g->dgent[ei]=g->dgent[--g->ndgent]; check_levelup(g); break;
         }
     }
 }
