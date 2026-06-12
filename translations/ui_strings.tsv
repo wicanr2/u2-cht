@@ -233,3 +233,6 @@ E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表	E/W HYPERWARP · Y land · F1 h
 魔法飛彈擊中%s,造成 %d 傷害。	The magic missile hits the %s for %d damage.	魔法のミサイルが%sに%dダメージ。
 擊殺術迸發,但前方無敵可擊。	The kill spell flares, but there is no foe ahead.	キルの呪文が放たれたが、前方に敵はいない。
 擊殺術迸發,%s 灰飛煙滅!(+%d 經驗,+%d 金)	The kill spell erupts — the %s is annihilated! (+%d EXP, +%d gold)	キルの呪文が炸裂し、%sは消し飛んだ!(+%d 経験、+%d ゴールド)
+時間凝結術?你又不是愛因斯坦。	Negate time? You are no Einstein.	時間停止?お前はアインシュタインではない。
+你擲出一枚奇異硬幣 ── 時間凝結了!(20 回合)	You toss a strange coin — time freezes! (20 turns)	奇妙なコインを投げた ── 時が凍りついた!(20ターン)
+寶箱中有一枚奇異硬幣!(n 凝結時間)	The chest holds a strange coin! (n to freeze time)	宝箱に奇妙なコインが!(n で時間停止)

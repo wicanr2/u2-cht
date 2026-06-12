@@ -112,5 +112,11 @@ assert_grep "$K" "你擊敗了.*經驗.*金" "K overworld 擊殺給 gold+exp"
 L="$(run atkspell "D9N7N9N7N9N7N")"
 assert_grep "$L" "灰飛煙滅\|擊潰了" "L 地牢攻擊法術命中實體"
 
+# 情境 M:NEGATE TIME 時間凝結(oracle:奇異硬幣凍結 20 回合,無幣失敗)
+M1="$(run negate_fail "n")"
+assert_grep "$M1" "愛因斯坦"     "M NEGATE 無幣失敗(YOU RE NOT EINSTEIN)"
+M2="$(run negate_ok "@n")"
+assert_grep "$M2" "時間凝結了"   "M NEGATE 有幣凍結(@ 給幣 → 凝結)"
+
 echo "== 4) 判定 =="
-echo "PASS: 城鎮/地牢/overworld 正典玩法 12 情境全數通過(輸出 $OUT)"
+echo "PASS: 城鎮/地牢/overworld 正典玩法 13 情境全數通過(輸出 $OUT)"
