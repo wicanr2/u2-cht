@@ -4,11 +4,12 @@
 格式(本機逆向,見 docs/FMTOWNS_TILESET.md):
   - 容器是 little-endian TIFF(II*),但 **header 謊報 ImageWidth/Height=32**;
     真實像素資料從 StripOffsets=512 起,到檔尾。
-  - 像素:**4bpp chunky,每列寬 32px(= 16 byte/列),高 nibble = 左 px**。
-    (自相關:stride 16 byte 最強 → 寬 32px;byte 值多為雙 nibble 相同 = 純色區。)
-  - 物件多為 **32×32 sprite**(怪物/人物,常成對 = 2 幀動畫)。
-  - ⚠️ TIFF 內無 ColorMap;真實 16 色 palette 在遊戲 EXP / FM Towns 執行期設定,
-    本工具用佔位 palette(EGA 或灰階)出圖看形狀;正式上色需取得真 palette。
+  - 像素:**4bpp chunky,每列寬 32px(= 16 byte/列)**。
+  - ⚠️ **關鍵:TIFF tag FillOrder=2(LSB-first)** → 每 byte 8 bits 須先反序再取 nibble,
+    否則得滿版雜色(PIL 因尊重此 tag 而解得乾淨,但只讀 header 謊報的 32×32 首格;
+    raw 讀 offset 512 才得完整 sprite,故本工具自行套 REV 反序表)。
+  - 物件多為 **32×32 sprite**(怪物/人物,常成對 = 2 幀動畫);ENEMY=64 隻、PLAYER 等。
+  - palette:EGA-16,對齊 ref_u2_play.jpg(FM Towns overworld 實機截圖)。index 順序可再微調。
 
 用法:
   fmtowns_decode.py <file.TIF> <out.png> [sprite32|strip|raw] [--pal ega|gray]
@@ -21,11 +22,14 @@ from PIL import Image
 
 # FM Towns U2 真實 palette 暫存器順序(由 U2TITLE1.TIF 與模擬器標題 100% 吻合驗證)
 # UT1TILE0 等 sprite 只用 index 0-7。
-FMT = [(0,0,0),(0,255,0),(255,0,0),(255,0,255),(0,0,255),(0,255,255),(255,255,0),(255,255,255),
-       (0,0,0)]*1 + [(85,85,85)]*8   # 8-15 未觀測(sprite 未用),填灰佔位
-FMT = FMT[:16]
-EGA16 = FMT  # 預設用驗證過的 FM Towns palette
+# 標準 EGA-16 palette,對齊 ref_u2_play.jpg 的 FM Towns 實機色。
+EGA16 = [(0,0,0),(0,0,170),(0,170,0),(0,170,170),(170,0,0),(170,0,170),(170,85,0),(170,170,170),
+         (85,85,85),(85,85,255),(85,255,85),(85,255,255),(255,85,85),(255,85,255),(255,255,85),(255,255,255)]
 GRAY = [(i*17,i*17,i*17) for i in range(16)]
+
+# FillOrder=2(LSB-first)位元反序表:TIFF tag FillOrder=2 → 每 byte 8 bits 反轉後再取 nibble。
+# (關鍵修正:不反序會得到滿版雜色;PIL 因尊重此 tag 而解得乾淨。)
+REV = [int(f"{b:08b}"[::-1], 2) for b in range(256)]
 
 DATA_OFF = 512
 WIDTH = 32
@@ -39,7 +43,7 @@ def render_strip(path, pal):
     p = 0
     for y in range(h):
         for xb in range(bpr):
-            b = d[p]; p += 1
+            b = REV[d[p]]; p += 1          # FillOrder=2:先反序
             im.putpixel((xb*2, y), pal[(b >> 4) & 0xF])
             im.putpixel((xb*2+1, y), pal[b & 0xF])
     return im
@@ -67,7 +71,7 @@ def main():
         grid, n = to_sprites(strip)
         grid = grid.resize((grid.width*2, grid.height*2), Image.NEAREST)
         grid.save(out)
-        print(f"wrote {out}: {n} sprites (32x32, 佔位 palette)")
+        print(f"wrote {out}: {n} sprites (32x32, EGA-16 FillOrder=2)")
     else:
         strip.save(out)
         print(f"wrote {out}: 32x{strip.height} strip")
