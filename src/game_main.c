@@ -129,6 +129,7 @@ typedef struct {
     U2Save save;
     /* 可切換 tileset(參考 u3-cht 多平台 tileset 清單) */
     SDL_Surface *tset[8]; char tname[8][24]; int ntset, curset;
+    SDL_Surface *town_tset[8]; int n_town_tset;   /* 城鎮專用 tileset(平行 curset;in_town 時優先,空槽 fallback 主 tileset)*/
     /* 地面隨機遭遇 / 戰鬥(U2 overworld 怪物動態生成) */
     struct { int x, y, hp, maxhp, atk; unsigned char tile; const char *name; } mob[MOB_MAX];
     int nmob, php, turn;
@@ -301,6 +302,9 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, 
     (void)body;   /* 底部 UI 改用 small 後 body 暫未用於本畫面 */
     U2Map *m=amap(g); U2Mon *mon=amon(g);
     SDL_Surface *tiles = g->ntset ? g->tset[g->curset] : NULL;
+    /* 城鎮優先用城鎮專用 tileset(per-context:tile 3 在 overworld=森林、城鎮=磚牆)*/
+    if (g->in_town && g->curset < g->n_town_tset && g->town_tset[g->curset])
+        tiles = g->town_tset[g->curset];
     SDL_FillRect(cv, NULL, SDL_MapRGB(cv->format,0,0,0));
     SDL_Rect hdr={0,0,CANVAS_W,HDR_H};
     SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
@@ -2101,13 +2105,14 @@ int main(int argc, char **argv)
     }
     const char *map_path=argv[1], *font_path=argv[2], *tiles_path=argv[3], *ui_tsv=argv[4];
     const char *player_save=NULL, *script=NULL, *out_prefix=NULL, *splash_path=NULL, *title_path=NULL;
-    const char *save_override=NULL, *screens_prefix=NULL;
+    const char *save_override=NULL, *screens_prefix=NULL, *town_tiles_path=NULL;
     for (int i=5;i<argc;i++){
         if (!strcmp(argv[i],"--script") && i+2<argc){ script=argv[i+1]; out_prefix=argv[i+2]; i+=2; }
         else if (!strcmp(argv[i],"--splash") && i+1<argc){ splash_path=argv[i+1]; i+=1; }
         else if (!strcmp(argv[i],"--title") && i+1<argc){ title_path=argv[i+1]; i+=1; }
         else if (!strcmp(argv[i],"--save") && i+1<argc){ save_override=argv[i+1]; i+=1; }
         else if (!strcmp(argv[i],"--screens") && i+1<argc){ screens_prefix=argv[i+1]; i+=1; }
+        else if (!strcmp(argv[i],"--town-tiles") && i+1<argc){ town_tiles_path=argv[i+1]; i+=1; }
         else if (!player_save) player_save=argv[i];
     }
     int headless=(script!=NULL || screens_prefix!=NULL);
@@ -2149,6 +2154,14 @@ int main(int argc, char **argv)
             g.ntset++;
         }
         g.curset=0;
+    }
+    /* 城鎮專用 tileset(平行 curset;token "-" = 該槽無城鎮變體,城鎮沿用主 tileset)*/
+    if (town_tiles_path){
+        char buf[1024]; snprintf(buf,sizeof buf,"%s",town_tiles_path);
+        int idx=0;
+        for (char *tok=strtok(buf,","); tok && idx<8; tok=strtok(NULL,","), idx++)
+            g.town_tset[idx] = strcmp(tok,"-") ? u2_tileset_load(tok) : NULL;
+        g.n_town_tset=idx;
     }
 
     g.ui = ui_tsv ? u2_strings_load(ui_tsv,2,3) : (U2Strings){0};
@@ -2450,6 +2463,7 @@ int main(int argc, char **argv)
 
     u2_text_close(&title); u2_text_close(&body); u2_text_close(&small);
     for (int i=0;i<g.ntset;i++) SDL_FreeSurface(g.tset[i]);
+    for (int i=0;i<g.n_town_tset;i++) if (g.town_tset[i]) SDL_FreeSurface(g.town_tset[i]);
     if (splash) SDL_FreeSurface(splash);
     if (titleimg) SDL_FreeSurface(titleimg);
     SDL_FreeSurface(cv);
