@@ -2049,6 +2049,9 @@ int main(int argc, char **argv)
             else if (c=='X'||c=='x'){ if (g.mode==MODE_DUNGEON) exit_dungeon(&g); else if (g.in_town) exit_town(&g); }
             else if (c=='B'||c=='b') board_vehicle(&g);
             else if (c=='I'||c=='i'){ g.items=~0u; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得所有關鍵道具。")); }
+            else if (c=='R'){ g.items|=ITEM_RING; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得力場之戒。")); }  /* 測試金幣閘門用:單發戒指 */
+            else if (c=='$'){ g.save.gold+=300; if(g.save.gold>9999)g.save.gold=9999;
+                snprintf(g.msg,sizeof g.msg,tr("(除錯)黃金 +300。")); }  /* 測試金幣閘門用:精確控金 */
             else if (c=='Y'||c=='y'){ if (g.in_town) do_yell(&g); else if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); }
             else if (c=='V'||c=='v') do_view(&g);   /* VIEW 鳥瞰 */
             else if (c=='U'){ g.items=~0u; g.vehicle=VEH_ROCKET; launch_rocket(&g); }  /* 除錯:直接發射 */

@@ -198,3 +198,5 @@ E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表	E/W HYPERWARP · Y land · F1 h
 國王說:「迅捷之劍 ENILNO 需獻上 500 黃金 ── 你帶的不夠。」	The King says: 'Quicksword ENILNO requires a tribute of 500 gold — you have not enough.'	王は言う:「クイックソード・エニルノには500ゴールドの貢ぎが要る ── 足りぬな。」
 國王收下 500 金貢禮,賜予迅捷之劍 ENILNO!	The King accepts your 500 gold tribute and grants Quicksword ENILNO!	王は500ゴールドの貢ぎを受け、クイックソード・エニルノを授けた!
 任務:備妥 500 黃金,晉見國王獻禮換取迅捷之劍 ENILNO。	Quest: Gather 500 gold and tribute the King for Quicksword ENILNO.	任務:500ゴールドを蓄え、王に貢いでクイックソード・エニルノを得よ。
+(除錯)取得力場之戒。	(debug) Force Field Ring granted.	(デバッグ)フォースフィールドの指輪を取得。
+(除錯)黃金 +300。	(debug) Gold +300.	(デバッグ)ゴールド +300。
