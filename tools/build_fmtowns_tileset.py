@@ -53,15 +53,16 @@ def main():
         base.paste(img32, (tid*TS, 0))               # FM Towns sprite 原生 32×32
 
     put(16, sprite(f"{graph}/PLAYER.TIF", 0))         # 主角(藍甲騎士)
-    # 怪物 tile → ENEMY sprite(frame-1 偶數 si);視覺對應,可再校正:
-    #   12 蜥蜴人=E13(s26 綠人形) · 13 幽靈=E11(s22 白骷髏) · 14 魔鬼=E20(s40 翼魔)
-    #   15 炎魔=E23(s46 紅龍) · 60 哥布林=E5(s10 綠怪) · 61 盜賊=E7(s14 靈巧人形)
-    #   62 惡魔=E26(s52 石像鬼) · 63 海蛇=E18(s36 盤蛇)
-    mons = {12: 26, 13: 22, 14: 40, 15: 46, 60: 10, 61: 14, 62: 52, 63: 36}
+    # 怪物 tile → ENEMY sprite(frame-1 偶數 si);視覺分析對應(MonsterMap agent,
+    # 配正典 bestiary;官方順序未解故為視覺判斷):
+    #   12 蜥蜴人/Orc=E9(s18 持棍綠鱗壯) · 13 幽靈=E11(s22 白骷髏) · 14 魔鬼/Devil=E20(s40 蝙蝠翼魔)
+    #   15 炎魔/Balron=E28(s56 頂級翼魔) · 60 哥布林=E13(s26 瘦綠小兵) · 61 盜賊=E1(s2 輕裝持刀)
+    #   62 惡魔/Daemon=E26(s52 石像鬼) · 63 海蛇=E18(s36 盤蛇)
+    mons = {12: 18, 13: 22, 14: 40, 15: 56, 60: 26, 61: 2, 62: 52, 63: 36}
     for tid, si in mons.items():
         put(tid, sprite(f"{graph}/ENEMY.TIF", si))
-    put(24, sprite(f"{graph}/ENEMY.TIF", 8))          # 守衛=E4(s8 鎧甲戰士)
-    put(26, sprite(f"{graph}/ENEMY.TIF", 2))          # NPC=E1(s2 人物)
+    put(24, sprite(f"{graph}/ENEMY.TIF", 8))          # 守衛=E4(s8 全甲戰士)
+    put(26, sprite(f"{graph}/ENEMY.TIF", 12))         # NPC=E6(s12 便裝市民)
 
     base.save(out)
     print(f"built {out} {base.size} (tile {TS}px)")
