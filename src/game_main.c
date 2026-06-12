@@ -596,6 +596,10 @@ static void shop_buy(Game *g, int idx)
         case 4: {
                   /* 持戒者求劍:[正典] FUN_00408e50 0x81 分支 ── ENILNO 需獻 ≥500 金,不足回絕 */
                   if ((g->items&ITEM_RING) && !(g->items&ITEM_QUICKSWORD)){
+                      int agi = g->save.has_character ? g->save.stats[1] : 15;
+                      if (agi < 49){   /* [正典] ENILNO 需敏捷 49 方能駕馭 */
+                          snprintf(g->msg,sizeof g->msg,tr("國王說:「迅捷之劍 ENILNO 需敏捷達 49 方能駕馭 ── 你還不夠。」")); return;
+                      }
                       if (g->save.gold < 500){
                           snprintf(g->msg,sizeof g->msg,tr("國王說:「迅捷之劍 ENILNO 需獻上 500 黃金 ── 你帶的不夠。」")); return;
                       }
@@ -652,7 +656,7 @@ static const char *quest_hint(const Game *g)
         if (g->quest_clue < 2) return tr("任務:破米娜克斯需力場之戒;傳聞樹下老人知其下落,繼續打聽。");
         return tr("任務:尋找安托斯神父(盤古大陸的城堡)取得力場之戒。");
     }
-    if (!(g->items & ITEM_QUICKSWORD)) return tr("任務:備妥 500 黃金,晉見國王獻禮換取迅捷之劍 ENILNO。");
+    if (!(g->items & ITEM_QUICKSWORD)) return tr("任務:練敏捷至 49、備妥 500 黃金,晉見國王換取迅捷之劍 ENILNO。");
     return tr("任務:前往傳說時代,於巢穴擊敗米娜克斯!");
 }
 
