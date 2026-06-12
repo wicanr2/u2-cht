@@ -860,9 +860,20 @@ static void do_view(Game *g)
     if (g->show_view) snprintf(g->msg,sizeof g->msg,tr("你戴上魔法頭盔,俯瞰四周。"));
 }
 /* YELL 發洩(手冊 Y)ell):純情緒宣洩,不影響遊戲(原版梗)。 */
+/* 城內放聲大喊 → 引來附近市民的反應([正典] oracle FUN_00409990 市民台詞)*/
 static void do_yell(Game *g)
 {
-    snprintf(g->msg,sizeof g->msg,tr("你放聲大喊,發洩了情緒……但什麼也沒改變。"));
+    static const char *REACT[] = {
+        "你大喊一聲 ── 一名守衛瞪過來:「乖乖繳你的稅!」",
+        "你大喊一聲 ── 弄臣跟著哼唱:「呵 呵 呵!」",
+        "你大喊一聲 ── 商人湊上來:「要不要買我的蘋果?」",
+        "你大喊一聲 ── 戰士咧嘴:「哼!老子很強!」",
+        "你大喊一聲 ── 牧師低聲道:「要有信仰。」",
+        "你大喊一聲 ── 巫師朝你比畫:「黑克 厄 普 ── 對你下咒!」",
+        "你大喊一聲 ── 竊賊壓低嗓音:「噓……想買支錶嗎?」",
+    };
+    int n=(int)(sizeof REACT/sizeof REACT[0]);
+    snprintf(g->msg,sizeof g->msg,"%s",tr(REACT[rng_next(g)%n]));
 }
 
 /* 交談:鄰格若有 NPC 實體,顯示其 tlkx 對話(查翻譯覆蓋層) */

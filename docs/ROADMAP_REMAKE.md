@@ -4,7 +4,7 @@
 > 舊 [`PLAN.md`](../PLAN.md) 是「逆向 + 中文化引擎重寫」的策略計畫(歷史);本檔是
 > 從**現況 demo → 可從建角破關到結局的完整重製**的前瞻路線。
 > 所有里程碑以 oracle(`docs/ORACLE_MECHANICS.md`、`oracle_string_map.txt`、
-> `decompile/out/ultima2_decompiled.c`)為行為真值,不憑空設計。
+> `oracle/ultima2_decompiled.c`)為行為真值,不憑空設計。
 
 ---
 
@@ -32,10 +32,11 @@
 
 **評分(更新)**:作為「中文化 + 引擎重寫地基」約 9/10;作為「可破關 demo」約 8/10;作為
 「完整正典重製」約 **5/10**。
-> **誠實揭露(對齊外部審查)**:可破關鏈雖通,但多處為**簡化實作**而非正典玩法 ——
-> 任務鏈以**旗標短路**觸發(Antos 踩格給戒、King 獻金給劍),非靠對話蒐線索;
-> 城鎮互動指令(STEAL/UNLOCK/VIEW/YELL/NEGATE/guards)、戰鬥狀態效果、角色升級系統、
-> 時間門真值表**尚缺**。詳見 §3 Gap 與 §4 M3/M4 待辦。
+> **誠實揭露(對齊外部審查;2026-06-12 更新)**:可破關鏈已通,任務鏈本 session 由
+> **旗標短路**進化為**對話蒐線索驅動**(Antos 需先打聽 `EARN_THE_RING` 才賜戒、King 收
+> **≥500 金**貢禮才賜 ENILNO,皆對齊 oracle FUN_00408e50/FUN_00402a90);`VIEW`/`YELL`
+> 已實作(YELL 引正典市民台詞)。**仍缺**:`STEAL`/`UNLOCK`/`NEGATE`/guards(稅/ID/KEY)、
+> 戰術 overworld 戰鬥(目前撞擊制)、角色升級系統、時間門真值表。詳見 §3 Gap 與 §4 M3/M4 待辦。
 
 ---
 
@@ -128,7 +129,8 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 ### M3 — 城鎮服務 / 經濟 / 互動指令
 - ✅ 商店(Z 開):升級武器/防具、食物、**載具關鍵道具**(藍流蘇/骷髏鑰/黃銅鈕扣/Ankh/三鋰)、King 獻金(最低屬性+1)。扣黃金。
 - ✅ 戰鬥用上武器/防具(player_dmg 含武器;受擊減防具)→ 經濟閉環。
-- 🟡 guards(稅/ID/KEY)、STEAL/UNLOCK/VIEW/YELL 尚未。
+- ✅ `VIEW`(鳥瞰)、`YELL`(城內引正典市民台詞:guard/jester/merchant/fighter/cleric/wizard/thief)。
+- 🟡 guards(稅/ID/KEY)、`STEAL`/`UNLOCK`/`NEGATE` 尚未。
 - **驗收**:買賣改變金/裝備/屬性(✅ headless OZ.. 驗證)。
 
 ### M4 — 戰鬥深化 + 地牢實體化
@@ -141,10 +143,11 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 
 ### M5 — 道具 / 任務旗標 / 結局
 - ✅ 道具系統(runtime + sidecar 持久化);RING 破力場(1000 傷)、ENILNO Quicksword。
-- 🟡 **任務鏈(可破關但簡化)**:Antos(mapx93)→RING;King(獻金,持戒指)→ENILNO;
-  Legends(mapx00)landmark tile 8 = Minax 巢穴 → 踏入觸發;戒指+ENILNO 殺 Minax → **勝利結局**(`render_ending`,oracle FUN_0040eb60)。
-  ⚠️ **誠實標註**:以**旗標短路**觸發(踩格/獻金),**非正典對話蒐線索**驅動 ——
-  正典的 Santre 給劍、Antos 賜福+老人兩段給戒、酒館/賢者線索引導**尚未實作**(列入完整重製待辦)。
+- ✅ **任務鏈(對話蒐線索驅動;2026-06-12 改寫)**:
+  - **RING**:非 Antos 市民兩段線索(`quest_clue`)→ Antos(mapx93)`EARN_THE_RING`(需 `quest_clue≥1`)→ 賜戒;線索詩對齊 oracle FUN_00402a90(「水流自由的城鎮、樹下無名老人握線索」)。
+  - **ENILNO**:King 收 **≥500 金**貢禮才賜劍,不足回絕(對齊 oracle FUN_00408e50 `0x81` 分支);非持戒者仍走一般貢禮(療傷+最低屬性+1)。
+  - Legends(mapx00)landmark tile 8 = Minax 巢穴 → 踏入觸發;戒指+ENILNO 殺 Minax → **勝利結局**(`render_ending`,oracle FUN_0040eb60)。
+  - 🟡 殘:酒館付金線索(本引擎無建築模型,已由市民對話線索等價覆蓋)、賢者隨機賜物(0x83)、Antos/King 完整對話分支。
 - ✅ **任務目標引導**(角色表 quest_hint:依持有道具推進)。
 - ✅ **完整破關回歸腳本**(`tests/regression_winnable.sh`):固定 seed 走建角存檔→商店→地牢(含施法)
   →時空旅行→道具→傳說時代→米娜克斯→結局,grep `GAME WON` 判 pass/fail。
