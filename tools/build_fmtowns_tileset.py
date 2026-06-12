@@ -52,13 +52,16 @@ def main():
     def put(tid, img32):
         base.paste(img32, (tid*TS, 0))               # FM Towns sprite 原生 32×32
 
-    put(16, sprite(f"{graph}/PLAYER.TIF", 0))         # 主角
-    # 8 個怪物 tile ← ENEMY 前 8 隻(frame-1,偶數 sprite);provisional
-    mons = {12: 0, 60: 2, 13: 4, 61: 6, 14: 8, 62: 10, 15: 12, 63: 14}
+    put(16, sprite(f"{graph}/PLAYER.TIF", 0))         # 主角(藍甲騎士)
+    # 怪物 tile → ENEMY sprite(frame-1 偶數 si);視覺對應,可再校正:
+    #   12 蜥蜴人=E13(s26 綠人形) · 13 幽靈=E11(s22 白骷髏) · 14 魔鬼=E20(s40 翼魔)
+    #   15 炎魔=E23(s46 紅龍) · 60 哥布林=E5(s10 綠怪) · 61 盜賊=E7(s14 靈巧人形)
+    #   62 惡魔=E26(s52 石像鬼) · 63 海蛇=E18(s36 盤蛇)
+    mons = {12: 26, 13: 22, 14: 40, 15: 46, 60: 10, 61: 14, 62: 52, 63: 36}
     for tid, si in mons.items():
         put(tid, sprite(f"{graph}/ENEMY.TIF", si))
-    put(24, sprite(f"{graph}/HITO.TIF", 0))           # 守衛
-    put(26, sprite(f"{graph}/HITO.TIF", 2))           # NPC
+    put(24, sprite(f"{graph}/ENEMY.TIF", 8))          # 守衛=E4(s8 鎧甲戰士)
+    put(26, sprite(f"{graph}/ENEMY.TIF", 2))          # NPC=E1(s2 人物)
 
     base.save(out)
     print(f"built {out} {base.size} (tile {TS}px)")
