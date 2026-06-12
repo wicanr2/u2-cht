@@ -52,9 +52,13 @@ echo "== 3) 城鎮正典情境 =="
 A="$(run gate_lo "OR\$Z9")"
 assert_grep "$A" "需獻上 500 黃金" "A 金幣閘門回絕(金<500)"
 
-# 情境 B:ENILNO 金幣閘門 — 金600(≥500)→ 賜劍
-B="$(run gate_hi "OR\$\$Z9")"
-assert_grep "$B" "收下 500 金貢禮" "B 金幣閘門賜劍(金≥500)"
+# 情境 B:ENILNO 金幣閘門 — 金600(≥500)+ 敏捷50(% 設)→ 賜劍
+B="$(run gate_hi "OR\$\$%Z9")"
+assert_grep "$B" "收下 500 金貢禮" "B 金幣閘門賜劍(金≥500+敏捷49)"
+
+# 情境 B2:敏捷閘門 — 金夠但敏捷<49 → 回絕(正典 ENILNO 需敏捷 49)
+B2="$(run agi_gate "OR\$\$Z9")"
+assert_grep "$B2" "需敏捷達 49" "B2 敏捷閘門回絕(敏捷<49)"
 
 # 情境 C:對話蒐線索 clue 鏈兩段
 C="$(run clue "OTT")"

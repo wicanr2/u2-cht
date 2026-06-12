@@ -596,12 +596,12 @@ static void shop_buy(Game *g, int idx)
         case 4: {
                   /* 持戒者求劍:[正典] FUN_00408e50 0x81 分支 ── ENILNO 需獻 ≥500 金,不足回絕 */
                   if ((g->items&ITEM_RING) && !(g->items&ITEM_QUICKSWORD)){
-                      int agi = g->save.has_character ? g->save.stats[1] : 15;
-                      if (agi < 49){   /* [正典] ENILNO 需敏捷 49 方能駕馭 */
-                          snprintf(g->msg,sizeof g->msg,tr("國王說:「迅捷之劍 ENILNO 需敏捷達 49 方能駕馭 ── 你還不夠。」")); return;
-                      }
                       if (g->save.gold < 500){
                           snprintf(g->msg,sizeof g->msg,tr("國王說:「迅捷之劍 ENILNO 需獻上 500 黃金 ── 你帶的不夠。」")); return;
+                      }
+                      int agi = g->save.has_character ? g->save.stats[1] : 15;
+                      if (agi < 49){   /* [正典] ENILNO 需敏捷 49 方能駕馭(金足後才檢查)*/
+                          snprintf(g->msg,sizeof g->msg,tr("國王說:「迅捷之劍 ENILNO 需敏捷達 49 方能駕馭 ── 你還不夠。」")); return;
                       }
                       g->save.gold -= 500;
                       g->items|=ITEM_QUICKSWORD;
@@ -2368,6 +2368,8 @@ int main(int argc, char **argv)
             else if (c=='R'){ g.items|=ITEM_RING; snprintf(g.msg,sizeof g.msg,tr("(除錯)取得力場之戒。")); }  /* 測試金幣閘門用:單發戒指 */
             else if (c=='$'){ g.save.gold+=300; if(g.save.gold>9999)g.save.gold=9999;
                 snprintf(g.msg,sizeof g.msg,tr("(除錯)黃金 +300。")); }  /* 測試金幣閘門用:精確控金 */
+            else if (c=='%'){ g.save.has_character=1; g.save.stats[1]=50;
+                snprintf(g.msg,sizeof g.msg,"(dbg) agility=50"); }  /* 測試劍敏捷閘門用 */
             else if (c=='Y'||c=='y'){ if (g.in_town) do_yell(&g); else if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); }
             else if (c=='F'||c=='f'){ do_steal(&g); }   /* 城內行竊(STEAL) */
             else if (c=='n'){ do_negate(&g); }           /* NEGATE TIME 時間凝結 */
