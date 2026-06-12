@@ -13,8 +13,16 @@ TITLE=/work/docs/screenshots/fmtowns_title_decoded.png
 cmake -S /work -B /work/build -DCMAKE_BUILD_TYPE=Release >/dev/null 2>&1
 cmake --build /work/build --target u2_game -j >/dev/null 2>&1
 python3 /work/tools/decode_u2upgrade_tiles.py /work/tileset/EGATILES /work/build/ts/ega.png ega strip >/dev/null 2>&1 || true
-python3 /work/tools/build_fmtowns_strip.py /work/build/ts/ega.png /work/tileset/fmtowns /work/build/ts/fmtowns.png >/dev/null 2>&1 || true
-TS=/work/build/ts/ega.png,/work/build/ts/fmtowns.png
+# FM Towns tileset:優先用預建的完整版(build_fmtowns_tileset.py;含 sprite/地形 + 城鎮變體),
+# 否則 fallback 舊 5-tile strip。城鎮變體經 --town-tiles 帶入(slot0 EGA 用 '-' fallback)。
+TOWN=""
+if [ -f /work/build/fmtowns_full.png ]; then
+    TS=/work/build/ts/ega.png,/work/build/fmtowns_full.png
+    [ -f /work/build/fmtowns_full_town.png ] && TOWN="--town-tiles -,/work/build/fmtowns_full_town.png"
+else
+    python3 /work/tools/build_fmtowns_strip.py /work/build/ts/ega.png /work/tileset/fmtowns /work/build/ts/fmtowns.png >/dev/null 2>&1 || true
+    TS=/work/build/ts/ega.png,/work/build/ts/fmtowns.png
+fi
 
 export DISPLAY=:99
 Xvfb :99 -screen 0 960x600x24 >/tmp/xvfb.log 2>&1 &
@@ -23,7 +31,7 @@ rm -f /root/.local/share/LairWare-cht/Ultima2/player 2>/dev/null || true
 
 # 啟動遊戲(不帶 --splash)
 /work/build/u2_game "$MAP" "$FONT" "$TS" /work/translations/exe_translatable_strings.tsv \
-    /work/tests/fixtures/player_sample_abcd --title "$TITLE" \
+    /work/tests/fixtures/player_sample_abcd --title "$TITLE" $TOWN \
     > /tmp/game_out.log 2>&1 &
 sleep 2
 W=$(xdotool search --name "Ultima" | head -1)
