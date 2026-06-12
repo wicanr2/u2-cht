@@ -110,6 +110,7 @@ typedef struct {
     char world_num[8];            /* 目前 overworld 編號(如 "20"),供地點登記表查詢 */
     int td_x, td_y;               /* 時間之門座標(overworld;-1=消散中) */
     int td_timer;                 /* 時間之門可見/隱沒週期計數(回合) */
+    int moon_phase;               /* 月相計數(0..3;每次穿門推進,選正典目的地)*/
     char town_loaded[8];          /* 目前已載入的城鎮編號(偵測換城重載) */
     unsigned char tent_hp[U2_MON_SLOTS]; /* 城鎮實體戰鬥 HP(守衛;進城初始化)*/
     unsigned int tent_hostile;    /* 城鎮實體敵對 bitset(slot i)*/
@@ -1385,23 +1386,33 @@ static const char *era_name(const char *world)
     }
     return "未知時代";
 }
-/* 時間門循環:5 個時代 overworld(mapx00/10/20/30/40)依序。
- * ⚠ provisional(2026-06-13 評估):原版非自由循環。oracle FUN_0040cd20 + 踏門邏輯
- *   (行 5705-5727)為月相驅動:phase = (this+0xa8)>>1 週期 0..3,每 8 回合 (this+0xac)
- *   前進 (0xa8+2)&7;踏門目的地 dest_era = (cur_era<=phase)?phase+1:phase。
- *   落地/門座標來自 DAT_0043e260/e261 表,但該 .data 不在 Ghidra dump → 無法還原。
- *   忠實移植需 (a) 座標表(未解)(b) 會破壞 headless 破關鏈 PPPM 決定性。
- *   ⇒ 暫保留自由循環(可達 5 時代),機制詳見 docs/ORACLE_MECHANICS.md。 */
-static const char *next_era_world(const char *world)
+/* 時代 index:mapxNN 首位 → 0 傳說 / 1 盤古 / 2 1423BC / 3 1990 / 4 2112 */
+static int era_index(const char *world)
 {
-    switch (world[0]){
-        case '0': return "10";
-        case '1': return "20";
-        case '2': return "30";
-        case '3': return "40";
-        case '4': return "00";
-    }
-    return "20";
+    switch (world[0]){ case '0':return 0; case '1':return 1; case '2':return 2;
+                       case '3':return 3; case '4':return 4; } return 2;
+}
+/* [正典] 時間之門目的地拓樸(strategywiki C64 port「Time Gates」表)。
+ * 每時代有 4 道門,各通往不同時代 ── 非線性循環。索引以月相(0..3)選門。
+ * 來源整理(2026-06-13 抓 strategywiki):
+ *   傳說(0): →盤古/1423BC/1990/2112        (Legends 4 門各通一時代)
+ *   盤古(1): Eurasia→1423BC · Greenland→傳說 · Africa→2112 · Antarctica→1990
+ *   1423BC(2): Europe→1990 · S.America→2112 · Asia→盤古 · N.America→傳說
+ *   1990(3): GreatBritain→1423BC · S.America→2112 · Greenland→盤古 · Australia→傳說
+ *   2112(4): NWAmerica→1990 · NEAmerica→傳說 · Asia→1423BC · India→盤古
+ * 座標(各門 X,Y)仍缺(Ghidra .data dump 無 DAT_0043e260;strategywiki 僅給地名)。
+ * ⇒ 拓樸已對齊正典,落點座標保留近似(玩家附近升門);機制詳見 docs/ORACLE_MECHANICS.md。 */
+static const char *ERA_GATE_DEST[5][4] = {
+    /* 0 傳說   */ {"10","20","30","40"},
+    /* 1 盤古   */ {"20","00","40","30"},
+    /* 2 1423BC */ {"30","40","10","00"},
+    /* 3 1990   */ {"20","40","10","00"},
+    /* 4 2112   */ {"30","00","20","10"},
+};
+/* 依當前時代 + 月相選正典目的地 mapxNN。 */
+static const char *next_era_world(const char *world, int phase)
+{
+    return ERA_GATE_DEST[era_index(world)][phase & 3];
 }
 
 /* 時間之門可見週期(回合;手冊:定時升起、很快消散)。 */
@@ -1442,7 +1453,8 @@ static void tick_time_door(Game *g)
 static void time_travel(Game *g)
 {
     if (g->in_town || g->mode!=MODE_WORLD){ snprintf(g->msg,sizeof g->msg,tr("這裡沒有時間之門。")); return; }
-    const char *nw=next_era_world(g->world_num);
+    const char *nw=next_era_world(g->world_num, g->moon_phase);
+    g->moon_phase=(g->moon_phase+1)&3;   /* 月相推進(下道門通往不同時代)*/
     char mp[600];
     snprintf(mp,sizeof mp,"%s/mapx%s",g->data_dir,nw);
     U2Map nm=u2_map_load(mp);
