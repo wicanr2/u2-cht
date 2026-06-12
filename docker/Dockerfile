@@ -4,7 +4,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake pkg-config \
-        libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev \
+        libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev libsdl2-mixer-dev \
         fonts-wqy-zenhei \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*

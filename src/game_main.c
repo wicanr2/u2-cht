@@ -15,6 +15,9 @@
  */
 #include <SDL.h>
 #include <SDL_image.h>
+#ifdef HAVE_SDL_MIXER
+#include <SDL_mixer.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -2105,8 +2108,9 @@ int main(int argc, char **argv)
     }
     const char *map_path=argv[1], *font_path=argv[2], *tiles_path=argv[3], *ui_tsv=argv[4];
     const char *player_save=NULL, *script=NULL, *out_prefix=NULL, *splash_path=NULL, *title_path=NULL;
-    const char *save_override=NULL, *screens_prefix=NULL, *town_tiles_path=NULL;
+    const char *save_override=NULL, *screens_prefix=NULL, *town_tiles_path=NULL, *music_dir=NULL;
     for (int i=5;i<argc;i++){
+        if (!strcmp(argv[i],"--music") && i+1<argc){ music_dir=argv[i+1]; i+=1; continue; }
         if (!strcmp(argv[i],"--script") && i+2<argc){ script=argv[i+1]; out_prefix=argv[i+2]; i+=2; }
         else if (!strcmp(argv[i],"--splash") && i+1<argc){ splash_path=argv[i+1]; i+=1; }
         else if (!strcmp(argv[i],"--title") && i+1<argc){ title_path=argv[i+1]; i+=1; }
@@ -2117,9 +2121,20 @@ int main(int argc, char **argv)
     }
     int headless=(script!=NULL || screens_prefix!=NULL);
 
-    if (SDL_Init(headless?0:SDL_INIT_VIDEO)!=0 || IMG_Init(IMG_INIT_PNG)==0){
+    if (SDL_Init(headless?0:(SDL_INIT_VIDEO|SDL_INIT_AUDIO))!=0 || IMG_Init(IMG_INIT_PNG)==0){
         fprintf(stderr,"SDL init: %s\n",SDL_GetError()); return 1;
     }
+#ifdef HAVE_SDL_MIXER
+    /* FM Towns CDDA 音樂(互動模式;--music <dir> 指向 track*.ogg 目錄)*/
+    Mix_Music *bgm=NULL;
+    if (!headless && music_dir && Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048)==0){
+        char mp[600]; snprintf(mp,sizeof mp,"%s/track03.ogg",music_dir);  /* 遊戲 BGM */
+        bgm = Mix_LoadMUS(mp);
+        if (bgm){ Mix_VolumeMusic(MIX_MAX_VOLUME*3/5); Mix_PlayMusic(bgm,-1); }  /* 循環 */
+    }
+#else
+    (void)music_dir;
+#endif
     Game g; memset(&g,0,sizeof g);
     g.map=u2_map_load(map_path);
     if (!g.map.ok){ fprintf(stderr,"無法載入地圖: %s\n",map_path); return 1; }
@@ -2467,6 +2482,9 @@ int main(int argc, char **argv)
     if (splash) SDL_FreeSurface(splash);
     if (titleimg) SDL_FreeSurface(titleimg);
     SDL_FreeSurface(cv);
+#ifdef HAVE_SDL_MIXER
+    if (bgm){ Mix_HaltMusic(); Mix_FreeMusic(bgm); Mix_CloseAudio(); }
+#endif
     TTF_Quit(); IMG_Quit(); SDL_Quit();
     return 0;
 }
