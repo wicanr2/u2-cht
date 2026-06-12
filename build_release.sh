@@ -46,7 +46,7 @@ stage_data(){  # $1 = 目標 share 目錄
   # FM Towns CDDA 音樂(預抽的 build/music/*.ogg;extract_fmtowns_cdda.py 產;版權,使用者自備)
   if ls build/music/*.ogg >/dev/null 2>&1; then mkdir -p "$S/music"; cp build/music/*.ogg "$S/music/"; fi
   cp translations/exe_translatable_strings.tsv translations/talk_dialogue.tsv translations/ui_strings.tsv "$S/translations/"
-  [ -f /work/build/splash.png ] && cp /work/build/splash.png "$S/splash.png" || true   # 開場全家福
+# (開場全家福已移除:不打包 splash)
   [ -f docs/screenshots/fmtowns_title_decoded.png ] && cp docs/screenshots/fmtowns_title_decoded.png "$S/title.png" || true  # 原版開場標題
 }
 
@@ -91,7 +91,7 @@ HERE="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="$HERE/usr/lib:$LD_LIBRARY_PATH"
 S="$HERE/usr/share/u2cht"
 TS="$S/tileset/ega.png,$S/tileset/fmtowns.png,$S/tileset/vivid.png,$S/tileset/cga.png,$S/tileset/ega_alt.png,$S/tileset/ega_c64.png"
-SPL=""; [ -f "$S/splash.png" ] && SPL="--splash $S/splash.png"
+SPL=""   # 開場全家福已移除
 TTL=""; [ -f "$S/title.png" ] && TTL="--title $S/title.png"
 # FM Towns 城鎮變體(slot1);其餘畫風 '-' fallback 主 tileset
 TWN=""; [ -f "$S/tileset/fmtowns_town.png" ] && TWN="--town-tiles -,$S/tileset/fmtowns_town.png,-,-,-,-"
@@ -131,7 +131,7 @@ build_windows(){
 @echo off
 cd /d "%~dp0"
 set TS=share\tileset\ega.png,share\tileset\fmtowns.png,share\tileset\vivid.png,share\tileset\cga.png,share\tileset\ega_alt.png,share\tileset\ega_c64.png
-Ultima2-cht.exe share\data\mapx20 share\font\wqy-zenhei.ttc %TS% share\translations\exe_translatable_strings.tsv share\data\player --title share\title.png --splash share\splash.png
+Ultima2-cht.exe share\data\mapx20 share\font\wqy-zenhei.ttc %TS% share\translations\exe_translatable_strings.tsv share\data\player --title share\title.png
 EOF
   cat > "$M/pkg/README.txt" <<'EOF'
 Ultima II: 女巫的復仇 — 繁體中文化(C/SDL2 重寫引擎)【試玩版 / DEMO】
@@ -141,7 +141,7 @@ Ultima II: 女巫的復仇 — 繁體中文化(C/SDL2 重寫引擎)【試玩版 
 
 雙擊「玩遊戲.bat」開始。
 
-開場:原版標題 → 全家福 → 選單(新遊戲 / 繼續)。
+開場:原版標題 → 選單(新遊戲 / 繼續)。
   新遊戲:建立角色(姓名 → 性別 → 種族 → 職業 → 屬性分配)。
   繼續:載入上次存檔(離開遊戲時自動存檔)。
   存檔位置:%APPDATA%\LairWare-cht\Ultima2\player
