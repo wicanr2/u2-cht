@@ -13,7 +13,7 @@ import os
 from PIL import Image
 
 # (name, 格col, 格row) — 對 640×480 截圖、playfield 原點 (8,48)、格 32px。
-TILES = [("water", 8, 0), ("grass", 2, 2), ("forest", 1, 0)]
+TILES = [("water", 8, 0), ("grass", 2, 2), ("forest", 0, 2)]
 OX, OY, TS = 8, 48, 32
 
 
