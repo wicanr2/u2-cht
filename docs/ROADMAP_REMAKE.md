@@ -180,8 +180,13 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 - **驗收**:✅ headless 完整破關回歸 PASS(GAME WON)+ Minax 閘門 + 結局畫面。
 
 ### M6 — 美術完整化(FM Towns)
-- 船/怪物/城鎮/城堡/地牢 sprite 從 Tsugaru 乾淨截圖 rip(沿用地形/主角流程);避免 raw atlas 雜訊。
-- 時代/行星 tile 變體。
+- ✅ **解碼卡點突破**:`GRAPH/*.TIF` 是 FillOrder=2(LSB-first)TIFF,位元反序後乾淨解出
+  (ENEMY=64 隻怪、PLAYER、HITO=人、DUNMON 地牢怪…)。`tools/fmtowns_decode.py` 已修正。
+- ✅ **第一階段整合**:`tools/build_fmtowns_tileset.py` 把 FM Towns sprite(主角/8 怪物/守衛/NPC)
+  downscale 16×16 疊到 EGA 底圖 → 引擎 G 鍵可切換;overworld + 城鎮主角/怪物已顯示 FM Towns 美術。
+  ⚠️ 衍生 tileset 含版權美術,不入 repo(使用者本地用工具生成,同 EGA tileset 政策)。
+- 🟡 待續:palette index 微調對齊 ref_u2_play.jpg、FM Towns 地形/城鎮/城堡 tile、
+  怪物 tile→sprite 對應校正(目前 provisional 視覺判定)、船/載具 sprite、時代/行星變體。
 
 ### M7 — 音效 / 音樂
 - FM Towns 原創配樂(CD 抽取轉 ogg)+ SFX,SDL_mixer。
