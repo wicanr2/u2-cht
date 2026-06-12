@@ -220,3 +220,8 @@ E/W HYPERWARP 躍遷 · Y 降落 · F1 指令表	E/W HYPERWARP · Y land · F1 h
 啊!陷阱!機關傷了你(失去 %d 點生命)。	Argh! A trap! The mechanism wounds you (lose %d HP).	うわ!罠だ!仕掛けに傷つけられた(%d ダメージ)。
 守衛攔住你:「繳你的稅!」你交了 %d 金,守衛揮手放行。	A guard stops you: 'Pay your taxes!' You hand over %d gold and the guard waves you on.	衛兵が止める:「税を払え!」%d ゴールドを渡すと、衛兵は通してくれた。
 守衛攔住你:「繳你的稅!」你繳不出 ── 守衛動怒,給了你一記教訓(失去 %d 點生命)。	A guard stops you: 'Pay your taxes!' You cannot pay — the guard grows angry and teaches you a lesson (lose %d HP).	衛兵が止める:「税を払え!」払えず ── 衛兵が怒り、お仕置きした(%d ダメージ)。
+守衛攔住你:「繳你的稅!」你繳不出 ── 守衛動怒,拔劍相向(失去 %d 點生命)!	A guard stops you: 'Pay your taxes!' You cannot pay — the guard draws steel on you (lose %d HP)!	衛兵が止める:「税を払え!」払えず ── 衛兵が剣を抜いた(%d ダメージ)!
+你擊倒了守衛!從他身上搜到一把鑰匙。	You strike down the guard! You find a key on him.	衛兵を倒した!鍵を見つけた。
+你擊倒了守衛!	You strike down the guard!	衛兵を倒した!
+你砍向守衛(剩 %d)── 他反手回擊,你失去 %d 點生命。	You slash the guard (%d left) — he strikes back, you lose %d HP.	衛兵に斬りかかる(残り %d)── 反撃を受け、%d ダメージ。
+敵對守衛攻擊你!失去 %d 點生命。	A hostile guard attacks you! Lose %d HP.	敵対した衛兵が攻撃!%d ダメージ。

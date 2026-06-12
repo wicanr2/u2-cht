@@ -90,5 +90,11 @@ assert_grep "$H1" "揮手放行" "H 守衛索稅·繳稅放行(有金)"
 H2="$(run guard_poor "O${SWEEP}")"
 assert_grep "$H2" "繳不出"   "H 守衛索稅·繳不出挨揍(無金)"
 
+# 情境 I:城鎮戰鬥(守衛)— ! 測試鉤攻擊首個守衛 ×6,固定 seed 下擊倒並取得鑰匙
+I="$(run guard_fight "O!!!!!!")"
+assert_grep "$I" "砍向守衛"   "I 城鎮戰鬥·攻擊+守衛反擊"
+assert_grep "$I" "擊倒了守衛" "I 城鎮戰鬥·擊倒守衛"
+assert_grep "$I" "鑰匙"       "I 城鎮戰鬥·守衛掉鑰匙(GUARDS CARRY KEYS)"
+
 echo "== 4) 判定 =="
-echo "PASS: 城鎮/地牢正典玩法 8 情境全數通過(輸出 $OUT)"
+echo "PASS: 城鎮/地牢正典玩法 9 情境全數通過(輸出 $OUT)"

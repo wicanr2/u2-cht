@@ -134,8 +134,11 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 - ✅ `VIEW`(鳥瞰)、`YELL`(城內引正典市民台詞:guard/jester/merchant/fighter/cleric/wizard/thief)。
 - ✅ `STEAL`(oracle FUN_00409660:向商店行竊武/防/食,敏捷定得手率,失敗引守衛挨揍)。
 - ✅ **守衛索稅**(oracle FUN_00409990 A_GUARD_SAYS / PAY_YOUR_TAXES;守衛 = tile 24 / status 255,
-  交談索 30 金,繳不出挨揍)。**substrate**:monx 實體 tile 24 = 守衛(8 個/城,MONSTERS.md Guard 255)。
-- 🟡 guards 進階(ID 查驗、KEY 掉落供 UNLOCK)、`UNLOCK`/`NEGATE` 尚未。
+  交談索 30 金,繳不出挨揍 + 敵對)。**substrate**:monx 實體 tile 24 = 守衛(8 個/城,MONSTERS.md Guard 255)。
+- ✅ **城鎮戰鬥 + 守衛敵對**:撞守衛 = 攻擊(player_dmg vs 守衛 40 HP,守衛反擊);不繳稅/被攻擊 → 敵對
+  (`tent_hostile` bitset),移動經敵對守衛鄰格挨打(`step_town_guards`);擊倒守衛 → 取得鑰匙
+  (`guard_key`,[正典] GUARDS_CARRY_KEYS,供日後 UNLOCK)。
+- 🟡 守衛敵對追擊(目前固定不尋路)、`UNLOCK` 上鎖門(KEY 已就緒)、ID 查驗、`NEGATE` 尚未。
 - **驗收**:買賣改變金/裝備/屬性(✅ headless OZ.. 驗證)。
 
 ### M4 — 戰鬥深化 + 地牢實體化

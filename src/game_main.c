@@ -108,6 +108,9 @@ typedef struct {
     int td_x, td_y;               /* 時間之門座標(overworld;-1=消散中) */
     int td_timer;                 /* 時間之門可見/隱沒週期計數(回合) */
     char town_loaded[8];          /* 目前已載入的城鎮編號(偵測換城重載) */
+    unsigned char tent_hp[U2_MON_SLOTS]; /* 城鎮實體戰鬥 HP(守衛;進城初始化)*/
+    unsigned int tent_hostile;    /* 城鎮實體敵對 bitset(slot i)*/
+    int guard_key;                /* 已從守衛取得鑰匙(供日後 UNLOCK)*/
     /* 地牢 */
     U2Dungeon dg; int dg_ok;
     int dx, dy, ddir, dlevel;     /* 地牢內位置 / 朝向 / 樓層 */
@@ -827,6 +830,10 @@ static void enter_town_tile(Game *g, unsigned char wtile)
         if (g->town_ok) snprintf(g->town_loaded,sizeof g->town_loaded,"%s",num);
     }
     if (!g->town_ok){ snprintf(g->msg,sizeof g->msg,tr("找不到城鎮資料,無法進入。")); return; }
+    /* 初始化城鎮實體戰鬥狀態:守衛(tile 24)給戰鬥 HP,清空敵對 */
+    g->tent_hostile = 0;
+    for (int i=0;i<g->tmon.count && i<U2_MON_SLOTS;i++)
+        g->tent_hp[i] = (g->tmon.ent[i].tile==TILE_GUARD) ? 40 : 0;
     g->tret_x=g->player.x; g->tret_y=g->player.y;
     /* 落點:站在第一個「可交談」NPC 旁的可通行格;否則實體群中心 */
     int sx=U2_MAP_W/2, sy=U2_MAP_H/2, placed=0;
@@ -919,7 +926,8 @@ static void do_talk(Game *g)
                     snprintf(g->msg,sizeof g->msg,tr("守衛攔住你:「繳你的稅!」你交了 %d 金,守衛揮手放行。"),tax);
                 } else {
                     int dmg = 10+(int)(rng_next(g)%16); g->php-=dmg; if(g->php<1)g->php=1;
-                    snprintf(g->msg,sizeof g->msg,tr("守衛攔住你:「繳你的稅!」你繳不出 ── 守衛動怒,給了你一記教訓(失去 %d 點生命)。"),dmg);
+                    if (i<U2_MON_SLOTS) g->tent_hostile |= (1u<<i);   /* 繳不出 → 守衛敵對 */
+                    snprintf(g->msg,sizeof g->msg,tr("守衛攔住你:「繳你的稅!」你繳不出 ── 守衛動怒,拔劍相向(失去 %d 點生命)!"),dmg);
                 }
                 return;
             }
@@ -1694,6 +1702,49 @@ static void minax_encounter(Game *g)
     }
 }
 
+/* ===================== 城鎮戰鬥(守衛) ===================== */
+/* 回傳 (x,y) 上的守衛實體 slot(tile 24 且未陣亡),否則 -1。 */
+static int town_guard_at(Game *g, int x, int y)
+{
+    for (int i=0;i<g->tmon.count && i<U2_MON_SLOTS;i++){
+        U2Entity *e=&g->tmon.ent[i];
+        if (e->tile==TILE_GUARD && g->tent_hp[i]>0 && e->x==x && e->y==y) return i;
+    }
+    return -1;
+}
+/* 玩家攻擊守衛 slot:致其敵對 + 扣 HP;陣亡 → 移除 + 取得鑰匙;存活 → 反擊。 */
+static void town_attack_guard(Game *g, int slot)
+{
+    g->tent_hostile |= (1u<<slot);
+    int dmg=player_dmg(g);
+    int hp=g->tent_hp[slot]-dmg; if(hp<0)hp=0; g->tent_hp[slot]=(unsigned char)hp;
+    if (hp<=0){                                  /* 守衛陣亡 */
+        U2Entity *e=&g->tmon.ent[slot];
+        e->tile=0;                               /* 從場上移除(渲染/交談跳過 tile 0)*/
+        g->tent_hostile &= ~(1u<<slot);
+        int got_key = !g->guard_key; g->guard_key=1;   /* [正典] GUARDS_CARRY_KEYS */
+        if (got_key) snprintf(g->msg,sizeof g->msg,tr("你擊倒了守衛!從他身上搜到一把鑰匙。"));
+        else snprintf(g->msg,sizeof g->msg,tr("你擊倒了守衛!"));
+        return;
+    }
+    int back=8+(rng_next(g)%10)-g->armour*2; if(back<1)back=1;   /* 守衛反擊(受防具減)*/
+    g->php-=back; if(g->php<1)g->php=1;
+    snprintf(g->msg,sizeof g->msg,tr("你砍向守衛(剩 %d)── 他反手回擊,你失去 %d 點生命。"),hp,back);
+}
+/* 城鎮回合:與玩家相鄰的敵對守衛各打一下(無尋路,僅鄰格)。 */
+static void step_town_guards(Game *g)
+{
+    if (!g->tent_hostile) return;
+    for (int i=0;i<g->tmon.count && i<U2_MON_SLOTS;i++){
+        if (!(g->tent_hostile&(1u<<i)) || g->tent_hp[i]==0) continue;
+        U2Entity *e=&g->tmon.ent[i];
+        if (abs(e->x-g->player.x)+abs(e->y-g->player.y)!=1) continue;   /* 僅鄰格 */
+        int d=8+(rng_next(g)%10)-g->armour*2; if(d<1)d=1;
+        g->php-=d; if(g->php<1)g->php=1;
+        snprintf(g->msg,sizeof g->msg,tr("敵對守衛攻擊你!失去 %d 點生命。"),d);
+    }
+}
+
 /* 死亡 → 復活(HP 歸零時不列顛王在城堡復活;回 overworld、滿血、失半數黃金)*/
 static void revive_if_dead(Game *g)
 {
@@ -1724,6 +1775,9 @@ static void handle_dir(Game *g, char dir)
         int tx=g->player.x+FX[di], ty=g->player.y+FY[di];
         if (!g->in_town){ tx&=(U2_WORLD_DIM-1); ty&=(U2_WORLD_DIM-1); }  /* overworld 環形 */
         if (!g->in_town && attack_mob(g,tx,ty)){ step_mobs(g); return; }
+        /* 城鎮:朝守衛移動 = 攻擊(城鎮戰鬥;反擊已內含於 town_attack_guard)*/
+        if (g->in_town){ int gi=town_guard_at(g,tx,ty);
+            if (gi>=0){ town_attack_guard(g,gi); return; } }
         /* 載具感知移動:船=水域可走,步行=陸地;城鎮一律步行 */
         U2Map *am=amap(g);
         int inb = tx>=0&&ty>=0&&tx<U2_MAP_W&&ty<U2_MAP_H;
@@ -1748,6 +1802,7 @@ static void handle_dir(Game *g, char dir)
             else if (!g->in_town && g->world_num[0]=='0' && t==8) { minax_encounter(g); }  /* 傳說時代 Minax 巢穴 */
             else if (L && (L->kind=='d'||L->kind=='T')) { g->nmob=0; enter_dungeon_at(g, L->dest, L->kind=='T'); }
             else if (L) { g->nmob=0; enter_town_tile(g,t); }
+            else if (g->in_town){ step_town_guards(g); }   /* 城鎮回合:敵對守衛攻擊 */
             else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); tick_time_door(g);
                 /* 食物每回合消耗(manual);耗盡則飢餓扣血 */
                 if (g->save.has_character){
@@ -2138,6 +2193,10 @@ int main(int argc, char **argv)
             else if (c=='Y'||c=='y'){ if (g.in_town) do_yell(&g); else if (g.mode==MODE_SPACE) land_planet(&g); else launch_rocket(&g); }
             else if (c=='F'||c=='f'){ do_steal(&g); }   /* 城內行竊(STEAL) */
             else if (c=='*'){ if (g.mode==MODE_DUNGEON) chest_loot(&g); }   /* 測試鉤:直接開箱(驗陷阱)*/
+            else if (c=='!'){ if (g.in_town)               /* 測試鉤:攻擊首個守衛(驗城鎮戰鬥)*/
+                for (int gi=0;gi<g.tmon.count && gi<U2_MON_SLOTS;gi++)
+                    if (g.tmon.ent[gi].tile==TILE_GUARD && g.tent_hp[gi]>0){
+                        town_attack_guard(&g,gi); break; } }
             else if (c=='V'||c=='v') do_view(&g);   /* VIEW 鳥瞰 */
             else if (c=='U'){ g.items=~0u; g.vehicle=VEH_ROCKET; launch_rocket(&g); }  /* 除錯:直接發射 */
             else if (c=='M') minax_encounter(&g);   /* Minax 對決(傳說時代)*/
