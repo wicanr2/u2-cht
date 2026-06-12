@@ -25,7 +25,14 @@ gen tileset/CGATILES /tmp/ts/cga.png cga
 [ -f tileset/EGATHEME.ALT/EGATILES ] && gen tileset/EGATHEME.ALT/EGATILES /tmp/ts/ega_alt.png ega || true
 [ -f tileset/EGATHEME.C64/EGATILES ] && gen tileset/EGATHEME.C64/EGATILES /tmp/ts/ega_c64.png ega || true
 gen tileset/EGATILES /tmp/ts/vivid.png egafmt
-python3 tools/build_fmtowns_strip.py /tmp/ts/ega.png tileset/fmtowns /tmp/ts/fmtowns.png || true
+# FM Towns:優先用預建完整 tileset(build_fmtowns_tileset.py 產;含 sprite/地形 + 城鎮變體),
+# 否則 fallback 舊 5-tile strip。使用者先用 crop+build 工具產生 build/fmtowns_full.png。
+if [ -f build/fmtowns_full.png ]; then
+  cp build/fmtowns_full.png /tmp/ts/fmtowns.png
+  [ -f build/fmtowns_full_town.png ] && cp build/fmtowns_full_town.png /tmp/ts/fmtowns_town.png || true
+else
+  python3 tools/build_fmtowns_strip.py /tmp/ts/ega.png tileset/fmtowns /tmp/ts/fmtowns.png || true
+fi
 
 # ---------- 1) 共用:組裝資料夾 ----------
 stage_data(){  # $1 = 目標 share 目錄
@@ -84,8 +91,10 @@ S="$HERE/usr/share/u2cht"
 TS="$S/tileset/ega.png,$S/tileset/fmtowns.png,$S/tileset/vivid.png,$S/tileset/cga.png,$S/tileset/ega_alt.png,$S/tileset/ega_c64.png"
 SPL=""; [ -f "$S/splash.png" ] && SPL="--splash $S/splash.png"
 TTL=""; [ -f "$S/title.png" ] && TTL="--title $S/title.png"
+# FM Towns 城鎮變體(slot1);其餘畫風 '-' fallback 主 tileset
+TWN=""; [ -f "$S/tileset/fmtowns_town.png" ] && TWN="--town-tiles -,$S/tileset/fmtowns_town.png,-,-,-,-"
 exec "$HERE/usr/bin/u2cht_bin" "$S/data/mapx20" "$S/font/wqy-zenhei.ttc" "$TS" \
-     "$S/translations/exe_translatable_strings.tsv" "$S/data/player" $TTL $SPL "$@"
+     "$S/translations/exe_translatable_strings.tsv" "$S/data/player" $TTL $SPL $TWN "$@"
 EOF
   chmod +x /tmp/AppDir/AppRun
   ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run /tmp/AppDir "$OUT/Ultima2-繁中試玩版-x86_64.AppImage"
