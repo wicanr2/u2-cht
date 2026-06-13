@@ -38,6 +38,8 @@ target_compile_options(u2_test PRIVATE -Wall -Wextra)
 foreach(tgt u2_poc u2_demo u2_game u2_sheet u2_dungeon_demo)
     target_include_directories(${tgt} PRIVATE
         ${SDL2_INCLUDE_DIRS} ${SDL2TTF_INCLUDE_DIRS} ${SDL2IMG_INCLUDE_DIRS} ${SDL2MIXER_INCLUDE_DIRS})
+    target_link_directories(${tgt} PRIVATE
+        ${SDL2_LIBRARY_DIRS} ${SDL2TTF_LIBRARY_DIRS} ${SDL2IMG_LIBRARY_DIRS} ${SDL2MIXER_LIBRARY_DIRS})
     target_link_libraries(${tgt} PRIVATE
         ${SDL2_LIBRARIES} ${SDL2TTF_LIBRARIES} ${SDL2IMG_LIBRARIES} ${SDL2MIXER_LIBRARIES} m)
     target_compile_options(${tgt} PRIVATE -Wall -Wextra)
