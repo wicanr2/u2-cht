@@ -45,6 +45,8 @@ stage_data(){  # $1 = 目標 share 目錄
   cp /tmp/ts/*.png "$S/tileset/"
   # FM Towns CDDA 音樂(預抽的 build/music/*.ogg;extract_fmtowns_cdda.py 產;版權,使用者自備)
   if ls build/music/*.ogg >/dev/null 2>&1; then mkdir -p "$S/music"; cp build/music/*.ogg "$S/music/"; fi
+  # FM Towns 原版音效(build/sfx/*.wav;decode_fmtowns_snd.py 產;版權,使用者自備)
+  if ls build/sfx/*.wav >/dev/null 2>&1; then mkdir -p "$S/sfx"; cp build/sfx/*.wav "$S/sfx/"; fi
   cp translations/exe_translatable_strings.tsv translations/talk_dialogue.tsv translations/ui_strings.tsv "$S/translations/"
 # (開場全家福已移除:不打包 splash)
   [ -f docs/screenshots/fmtowns_title_decoded.png ] && cp docs/screenshots/fmtowns_title_decoded.png "$S/title.png" || true  # 原版開場標題
@@ -96,8 +98,9 @@ TTL=""; [ -f "$S/title.png" ] && TTL="--title $S/title.png"
 # FM Towns 城鎮變體(slot1);其餘畫風 '-' fallback 主 tileset
 TWN=""; [ -f "$S/tileset/fmtowns_town.png" ] && TWN="--town-tiles -,$S/tileset/fmtowns_town.png,-,-,-,-"
 MUS=""; [ -d "$S/music" ] && MUS="--music $S/music"   # FM Towns CDDA BGM
+SFX=""; [ -d "$S/sfx" ] && SFX="--sfx $S/sfx"         # FM Towns 原版音效
 exec "$HERE/usr/bin/u2cht_bin" "$S/data/mapx20" "$S/font/wqy-zenhei.ttc" "$TS" \
-     "$S/translations/exe_translatable_strings.tsv" "$S/data/player" $TTL $SPL $TWN $MUS "$@"
+     "$S/translations/exe_translatable_strings.tsv" "$S/data/player" $TTL $SPL $TWN $MUS $SFX "$@"
 EOF
   chmod +x /tmp/AppDir/AppRun
   ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run /tmp/AppDir "$OUT/Ultima2-繁中試玩版-x86_64.AppImage"
@@ -131,7 +134,10 @@ build_windows(){
 @echo off
 cd /d "%~dp0"
 set TS=share\tileset\ega.png,share\tileset\fmtowns.png,share\tileset\vivid.png,share\tileset\cga.png,share\tileset\ega_alt.png,share\tileset\ega_c64.png
-Ultima2-cht.exe share\data\mapx20 share\font\wqy-zenhei.ttc %TS% share\translations\exe_translatable_strings.tsv share\data\player --title share\title.png
+set AUD=
+if exist share\music set AUD=%AUD% --music share\music
+if exist share\sfx set AUD=%AUD% --sfx share\sfx
+Ultima2-cht.exe share\data\mapx20 share\font\wqy-zenhei.ttc %TS% share\translations\exe_translatable_strings.tsv share\data\player --title share\title.png %AUD%
 EOF
   cat > "$M/pkg/README.txt" <<'EOF'
 Ultima II: 女巫的復仇 — 繁體中文化(C/SDL2 重寫引擎)【試玩版 / DEMO】
