@@ -111,6 +111,7 @@ typedef struct {
     int td_x, td_y;               /* 時間之門座標(overworld;-1=消散中) */
     int td_timer;                 /* 時間之門可見/隱沒週期計數(回合) */
     int moon_phase;               /* 月相計數(0..3;每次穿門推進,選正典目的地)*/
+    int mx_active, mx_x, mx_y, mx_hp; /* Minax 位移對決實體(傳說時代;NE↔SW 瞬移)*/
     char town_loaded[8];          /* 目前已載入的城鎮編號(偵測換城重載) */
     unsigned char tent_hp[U2_MON_SLOTS]; /* 城鎮實體戰鬥 HP(守衛;進城初始化)*/
     unsigned int tent_hostile;    /* 城鎮實體敵對 bitset(slot i)*/
@@ -377,6 +378,20 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, 
             SDL_Rect e1={gx+4,gy+4,TILE_PX-8,3},e2={gx+4,gy+TILE_PX-7,TILE_PX-8,3},
                      e3={gx+4,gy+4,3,TILE_PX-8},e4={gx+TILE_PX-7,gy+4,3,TILE_PX-8};
             SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
+        }
+    }
+
+    /* Minax(傳說時代位移對決):深洋紅身影 + 金邊,醒目於地圖 */
+    if (wrap && g->mx_active){
+        int sx,sy;
+        if (wrap_screen(g->mx_x,g->mx_y,g->player.x,g->player.y,&sx,&sy)){
+            int gx=MAP_OX+sx*TILE_PX, gy=MAP_OY+sy*TILE_PX;
+            SDL_Rect body={gx+5,gy+4,TILE_PX-10,TILE_PX-8};
+            SDL_FillRect(cv,&body,SDL_MapRGB(cv->format,170,20,90));
+            Uint32 gold=SDL_MapRGB(cv->format,240,205,80);
+            SDL_Rect g1={gx+3,gy+2,TILE_PX-6,2},g2={gx+3,gy+TILE_PX-4,TILE_PX-6,2},
+                     g3={gx+3,gy+2,2,TILE_PX-4},g4={gx+TILE_PX-5,gy+2,2,TILE_PX-4};
+            SDL_FillRect(cv,&g1,gold);SDL_FillRect(cv,&g2,gold);SDL_FillRect(cv,&g3,gold);SDL_FillRect(cv,&g4,gold);
         }
     }
 
@@ -1457,6 +1472,68 @@ static void tick_time_door(Game *g)
     }
 }
 
+/* ---- Minax 位移對決(傳說時代;[正典] NE↔SW 瞬移 + 力場火球)----
+ * 正典(rpgclassics/手冊):Minax 在傳說時代地圖一角現身,被攻擊即瞬移到另一角,
+ * 持續以力場火球轟炸 ── 戒指免疫火球、迅捷之劍 ENILNO 方能傷她。玩家須橫越地圖追擊貼身砍。 */
+#define MINAX_HP 150
+/* 把 (cx,cy) 角落 snap 到最近可通行陸地(復用 td_ok_tile)。 */
+static void minax_snap(Game *g, int cx, int cy)
+{
+    cx&=(U2_WORLD_DIM-1); cy&=(U2_WORLD_DIM-1);
+    if (td_ok_tile(g,cx,cy)){ g->mx_x=cx; g->mx_y=cy; return; }
+    for (int r=1;r<U2_WORLD_DIM/2;r++)
+        for (int dy=-r;dy<=r;dy++) for (int dx=-r;dx<=r;dx++){
+            if (abs(dx)<r && abs(dy)<r) continue;
+            int x=(cx+dx)&(U2_WORLD_DIM-1), y=(cy+dy)&(U2_WORLD_DIM-1);
+            if (td_ok_tile(g,x,y)){ g->mx_x=x; g->mx_y=y; return; }
+        }
+    g->mx_x=cx; g->mx_y=cy;
+}
+/* 進入傳說時代時喚出 Minax(NE 角)。 */
+static void spawn_minax(Game *g)
+{
+    g->mx_active=1; g->mx_hp=MINAX_HP;
+    minax_snap(g, U2_WORLD_DIM-6, 6);   /* NE 角(高 x / 低 y)*/
+}
+/* Minax 瞬移到另一角(NE↔SW):看目前偏哪半邊決定去 SW 或 NE。 */
+static void minax_teleport(Game *g)
+{
+    int ne = (g->mx_x >= U2_WORLD_DIM/2);   /* 目前在東半 → 去 SW;否則去 NE */
+    if (ne) minax_snap(g, 6, U2_WORLD_DIM-6);          /* SW 角 */
+    else    minax_snap(g, U2_WORLD_DIM-6, 6);          /* NE 角 */
+}
+/* Minax 每回合行動(玩家在傳說時代移動後):力場火球(戒指免疫,否則秒殺)。 */
+static void minax_turn(Game *g)
+{
+    if (!g->mx_active || g->world_num[0]!='0' || g->in_town) return;
+    if ((g->turn & 1)==0) return;          /* 隔回合放一次火球(降低洗版)*/
+    if (!(g->items & ITEM_RING)){
+        g->php=0;
+        snprintf(g->msg,sizeof g->msg,tr("米娜克斯的力場火球造成 1000 點傷害!你被消滅了。"));
+    } else {
+        snprintf(g->msg,sizeof g->msg,tr("力場之戒擋下了米娜克斯的火球!逼近她,用 ENILNO 斬殺!"));
+    }
+}
+/* 玩家攻擊 Minax(貼身 tx,ty 命中她):僅 ENILNO 能傷;未死則瞬移逃逸,死則破關。 */
+static int attack_minax(Game *g, int tx, int ty)
+{
+    if (!g->mx_active || g->mx_x!=tx || g->mx_y!=ty) return 0;
+    if (g->arms_t>0){ g->arms_t--;
+        snprintf(g->msg,sizeof g->msg,tr("手臂麻痺,無法揮劍!(剩 %d)"),g->arms_t); return 1; }
+    if (!(g->items & ITEM_QUICKSWORD)){
+        snprintf(g->msg,sizeof g->msg,tr("你的武器傷不了米娜克斯 ── 唯有迅捷之劍 ENILNO 能斬殺她!")); return 1; }
+    int dmg=player_dmg(g)+50;               /* ENILNO 重擊 */
+    g->mx_hp-=dmg;
+    if (g->mx_hp<=0){
+        g->mx_active=0; g->won=1;
+        snprintf(g->msg,sizeof g->msg,tr("你以迅捷之劍 ENILNO 擊穿了米娜克斯!"));
+    } else {
+        minax_teleport(g);
+        snprintf(g->msg,sizeof g->msg,tr("ENILNO 砍中米娜克斯(剩 %d)!她尖嘯著瞬移到地圖另一端!"),g->mx_hp);
+    }
+    return 1;
+}
+
 /* 穿越時間之門:切到下個時代 overworld,座標保留,重載地圖/實體/門/船 */
 static void time_travel(Game *g)
 {
@@ -1476,6 +1553,8 @@ static void time_travel(Game *g)
     g->nmob=0;
     place_ship(g);
     place_time_door(g);
+    /* 抵傳說時代 → 喚出 Minax(位移對決);離開 → 收起 */
+    if (g->world_num[0]=='0' && !g->won) spawn_minax(g); else g->mx_active=0;
     snprintf(g->msg,sizeof g->msg,tr("時間之門開啟……招牌寫著:ANOS %s"),era_name(g->world_num));
 }
 
@@ -1931,6 +2010,7 @@ static void handle_dir(Game *g, char dir)
         int di = (dir=='N')?0:(dir=='E')?1:(dir=='S')?2:3;
         int tx=g->player.x+FX[di], ty=g->player.y+FY[di];
         if (!g->in_town){ tx&=(U2_WORLD_DIM-1); ty&=(U2_WORLD_DIM-1); }  /* overworld 環形 */
+        if (!g->in_town && attack_minax(g,tx,ty)){ if(!g->won) minax_turn(g); return; }
         if (!g->in_town && attack_mob(g,tx,ty)){ step_mobs(g); return; }
         /* 城鎮:朝守衛移動 = 攻擊(城鎮戰鬥;反擊已內含於 town_attack_guard)*/
         if (g->in_town){ int gi=town_guard_at(g,tx,ty);
@@ -1966,6 +2046,7 @@ static void handle_dir(Game *g, char dir)
                     if (g->save.food>0) g->save.food--;
                     else { g->php-=2; if(g->php<0)g->php=0; snprintf(g->msg,sizeof g->msg,tr("你飢餓難耐,生命流逝……")); }
                 }
+                minax_turn(g);   /* 傳說時代:Minax 力場火球(戒指免疫)*/
             }
         } else snprintf(g->msg,sizeof g->msg,
                         (!g->in_town&&g->vehicle==VEH_SHIP&&tt!=0&&tt!=1)?tr("船無法駛上陸地(B 下船)。"):tr("%c 方向被擋住。"),dir);
@@ -2424,7 +2505,10 @@ int main(int argc, char **argv)
                         snprintf(g.msg,sizeof g.msg,"(dbg) face locked door"); } } }
             else if (c=='V'||c=='v') do_view(&g);   /* VIEW 鳥瞰 */
             else if (c=='U'){ g.items=~0u; g.vehicle=VEH_ROCKET; launch_rocket(&g); }  /* 除錯:直接發射 */
-            else if (c=='M') minax_encounter(&g);   /* Minax 對決(傳說時代)*/
+            else if (c=='M') minax_encounter(&g);   /* Minax 對決·自動結算(傳說時代/headless)*/
+            else if (c=='m'){ if (g.mx_active){     /* 測試鉤:瞬移到 Minax 西側(驗位移對決,接 E 攻擊)*/
+                g.player.x=(g.mx_x-1)&(U2_WORLD_DIM-1); g.player.y=g.mx_y;
+                snprintf(g.msg,sizeof g.msg,"(dbg) warp beside Minax @%d,%d",g.mx_x,g.mx_y); } }
             else if (c=='Z'||c=='z'){ if (g.in_town) g.show_shop=!g.show_shop; }
             else if (c>='1'&&c<='9'){ if (g.show_shop) shop_buy(&g,c-'1');
                                       else if (g.mode==MODE_DUNGEON) cast_spell(&g,c-'1'); }   /* 地牢:1-9 施放法術 */
