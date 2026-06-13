@@ -37,10 +37,11 @@ fi
 # ---------- 1) 共用:組裝資料夾 ----------
 stage_data(){  # $1 = 目標 share 目錄
   local S="$1"; mkdir -p "$S/data" "$S/font" "$S/tileset" "$S/translations"
-  for f in mapx20 monx20 mapx21 monx21 tlkx21 mapx15 monx15; do
-    [ -f "$DATA/$f" ] && cp "$DATA/$f" "$S/data/" || true
+  # 完整遊戲資料(全部 mapx/monx/tlkx;否則進不了多數城鎮/時代)。ENGINE_ONLY 或空 /data 時自然帶 0 檔。
+  for pat in mapx monx tlkx; do
+    for f in "$DATA/$pat"*; do [ -f "$f" ] && cp "$f" "$S/data/"; done
   done
-  cp tests/fixtures/player_sample_abcd "$S/data/player" || true
+  # 不打包測試角色 → 開局走建角流程(對齊原版;避免「範例角色」滿狀態/卡住)。
   cp "$FONT" "$S/font/wqy-zenhei.ttc"
   cp /tmp/ts/*.png "$S/tileset/"
   # FM Towns CDDA 音樂 / 原版音效(版權物;ENGINE_ONLY=1 時排除,供公開引擎包)
@@ -104,7 +105,7 @@ exec "$HERE/usr/bin/u2cht_bin" "$S/data/mapx20" "$S/font/wqy-zenhei.ttc" "$TS" \
      "$S/translations/exe_translatable_strings.tsv" "$S/data/player" $TTL $SPL $TWN $MUS $SFX "$@"
 EOF
   chmod +x /tmp/AppDir/AppRun
-  ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run /tmp/AppDir "$OUT/Ultima2-繁中試玩版-x86_64.AppImage"
+  ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run /tmp/AppDir "$OUT/Ultima2-繁中-x86_64.AppImage"
 }
 
 # ---------- 3) Windows zip(mingw cross + SDL2 mingw devel) ----------
@@ -141,10 +142,9 @@ if exist share\sfx set AUD=%AUD% --sfx share\sfx
 Ultima2-cht.exe share\data\mapx20 share\font\wqy-zenhei.ttc %TS% share\translations\exe_translatable_strings.tsv share\data\player --title share\title.png %AUD%
 EOF
   cat > "$M/pkg/README.txt" <<'EOF'
-Ultima II: 女巫的復仇 — 繁體中文化(C/SDL2 重寫引擎)【試玩版 / DEMO】
+Ultima II: 女巫的復仇 — 繁體中文化(C/SDL2 重寫引擎)
 
-※ 這是試玩版(demo),用於展示重寫引擎與中文化成果,非完整遊戲。
-   部分系統(完整劇情、結局、所有城鎮/地牢)仍在開發中。
+忠實對齊原版、可從建角一路玩到擊敗女巫米娜克斯的結局。
 
 雙擊「玩遊戲.bat」開始。
 
@@ -167,7 +167,7 @@ Ultima II: 女巫的復仇 — 繁體中文化(C/SDL2 重寫引擎)【試玩版 
   → 晉見不列顛王取得迅捷之劍 Enilno → 前往「傳說時代」巢穴擊敗女巫米娜克斯 → 結局。
   (角色表 C 會依進度顯示下一步任務提示;陣亡會被不列顛王復活,失去半數黃金。)
 EOF
-  cd "$M/pkg" && zip -qr "$OUT/Ultima2-繁中試玩版-windows.zip" . && cd "$WORK"
+  cd "$M/pkg" && zip -qr "$OUT/Ultima2-繁中-windows.zip" . && cd "$WORK"
 }
 
 # ---------- 4) macOS 原始碼包(在 Mac 上一鍵 build,因 Linux 無法可靠跨編 Mach-O)----------
@@ -238,7 +238,7 @@ Ultima II: 女巫的復仇 — 繁體中文化(C/SDL2 重寫引擎)· macOS 版
       · C 角色/任務 · G 換畫風 · F4 切語系 · F1 指令表 · ESC 取消 · F10 離開(自動存檔)。
 含 FM Towns 原版音效;intro/結局 CDDA 音樂;遊玩中目前靜音(EUP 算繪待處理)。
 EOF
-  cd "$M" && zip -qr "$OUT/Ultima2-繁中試玩版-mac.zip" "Ultima2-mac" && cd "$WORK"
+  cd "$M" && zip -qr "$OUT/Ultima2-繁中-mac.zip" "Ultima2-mac" && cd "$WORK"
 }
 
 case "${1:-all}" in
