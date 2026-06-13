@@ -1,0 +1,124 @@
+name: build-mac
+
+# 在 GitHub 的 macOS runner 上原生編譯 Ultima2.app(Linux 無法可靠跨編 Mach-O)。
+# 產物為「除版權遊戲資料外可直接執行」的 .app:含引擎二進位 + 字型 + tileset + 翻譯 + 標題。
+# 使用者下載後,自行把合法的 Ultima II 原版資料(mapxNN/monxNN/tlkxNN…)放進
+#   Ultima2.app/Contents/Resources/share/data/  即可遊玩。
+
+on:
+  workflow_dispatch:          # 手動觸發
+  push:
+    tags: [ 'v*' ]            # 打 v* tag 時自動建並附到 Release
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安裝相依(SDL2 系列 + 工具)
+        run: |
+          brew update
+          brew install sdl2 sdl2_ttf sdl2_image sdl2_mixer cmake pkg-config python@3.12 || true
+          python3 -m pip install --break-system-packages pillow || pip3 install pillow
+
+      - name: 編譯 u2_game
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --target u2_game -j3
+          test -x build/u2_game
+
+      - name: 產生 tileset strips
+        run: |
+          mkdir -p stage/tileset
+          gen(){ python3 tools/decode_u2upgrade_tiles.py "$1" "$2" "$3" strip || true; }
+          gen tileset/EGATILES stage/tileset/ega.png ega
+          gen tileset/CGATILES stage/tileset/cga.png cga
+          gen tileset/EGATILES stage/tileset/vivid.png egafmt
+          [ -f tileset/EGATHEME.ALT/EGATILES ] && gen tileset/EGATHEME.ALT/EGATILES stage/tileset/ega_alt.png ega || true
+          [ -f tileset/EGATHEME.C64/EGATILES ] && gen tileset/EGATHEME.C64/EGATILES stage/tileset/ega_c64.png ega || true
+
+      - name: 取得中文字型(wqy-zenhei)
+        run: |
+          mkdir -p stage/font
+          brew install --cask font-wqy-zenhei || true
+          F="$(find "$HOME/Library/Fonts" /opt/homebrew /usr/local -iname 'wqy-zenhei*.tt*' 2>/dev/null | head -1)"
+          if [ -z "$F" ]; then
+            curl -fsSL -o stage/font/wqy-zenhei.ttc \
+              https://raw.githubusercontent.com/layerssss/wqy/master/dist/WenQuanYiMicroHei.ttf || \
+            curl -fsSL -o stage/font/wqy-zenhei.ttc \
+              https://github.com/anthonyfok/fonts-wqy-zenhei/raw/master/wqy-zenhei.ttc
+          else
+            cp "$F" stage/font/wqy-zenhei.ttc
+          fi
+          test -s stage/font/wqy-zenhei.ttc
+
+      - name: 組裝 Ultima2.app
+        run: |
+          APP="Ultima2.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/share/data" \
+                   "$APP/Contents/Resources/share/translations" "$APP/Contents/Resources/share/tileset" \
+                   "$APP/Contents/Resources/share/font"
+          cp build/u2_game "$APP/Contents/MacOS/u2_game"
+          cp stage/tileset/*.png "$APP/Contents/Resources/share/tileset/"
+          cp stage/font/wqy-zenhei.ttc "$APP/Contents/Resources/share/font/"
+          cp translations/exe_translatable_strings.tsv translations/ui_strings.tsv "$APP/Contents/Resources/share/translations/"
+          cp tests/fixtures/player_sample_abcd "$APP/Contents/Resources/share/data/player" || true
+          [ -f docs/screenshots/fmtowns_title_decoded.png ] && cp docs/screenshots/fmtowns_title_decoded.png "$APP/Contents/Resources/share/title.png" || true
+          cat > "$APP/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>CFBundleName</key><string>Ultima2-cht</string>
+            <key>CFBundleExecutable</key><string>launch</string>
+            <key>CFBundleIdentifier</key><string>tw.lairware.ultima2cht</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict></plist>
+          PLIST
+          cat > "$APP/Contents/MacOS/launch" <<'LAUNCH'
+          #!/bin/bash
+          D="$(cd "$(dirname "$0")/../Resources/share" && pwd)"
+          if [ ! -f "$D/data/mapx20" ]; then
+            osascript -e 'display dialog "尚未放入原版資料。\n請把合法的 Ultima II 資料檔(mapxNN/monxNN/tlkxNN…)複製到:\nUltima2.app → 顯示套件內容 → Contents/Resources/share/data/" buttons {"OK"}'
+            exit 1
+          fi
+          TS="$D/tileset/ega.png,$D/tileset/cga.png,$D/tileset/vivid.png"
+          [ -f "$D/tileset/ega_alt.png" ] && TS="$TS,$D/tileset/ega_alt.png"
+          [ -f "$D/tileset/ega_c64.png" ] && TS="$TS,$D/tileset/ega_c64.png"
+          TTL=""; [ -f "$D/title.png" ] && TTL="--title $D/title.png"
+          MUS=""; [ -d "$D/music" ] && MUS="--music $D/music"
+          SFX=""; [ -d "$D/sfx" ] && SFX="--sfx $D/sfx"
+          exec "$(dirname "$0")/u2_game" "$D/data/mapx20" "$D/font/wqy-zenhei.ttc" "$TS" \
+               "$D/translations/exe_translatable_strings.tsv" "$D/data/player" $TTL $MUS $SFX
+          LAUNCH
+          chmod +x "$APP/Contents/MacOS/launch"
+          # ad-hoc 簽章(避免 Gatekeeper 直接拒;使用者仍可能需右鍵開啟)
+          codesign --force --deep --sign - "$APP" || true
+
+      - name: 打包 zip + 說明
+        run: |
+          cat > 安裝說明.txt <<'EOF'
+          Ultima II: 女巫的復仇 — 繁中重製(macOS)
+          1. 解壓得到 Ultima2.app。
+          2. 把你合法持有的 Ultima II 原版資料(mapxNN/monxNN/tlkxNN…)放進:
+             Ultima2.app → 右鍵「顯示套件內容」→ Contents/Resources/share/data/
+             (可另外放 music/ 與 sfx/ 取得 FM Towns 音樂/音效;版權自備。)
+          3. 雙擊 Ultima2.app(首次若被 Gatekeeper 擋:右鍵 →「打開」)。
+          操作:方向鍵/WASD 移動(朝怪=攻擊)· P 穿時間之門 · B 載具 · T 交談 · Z 商店
+                · C 角色/任務 · G 換畫風 · F4 切語系 · F1 指令表 · Q 離開(自動存檔)。
+          EOF
+          ditto -c -k --sequesterRsrc --keepParent Ultima2.app Ultima2-mac.zip
+          zip -j Ultima2-mac.zip 安裝說明.txt
+
+      - name: 上傳 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ultima2-mac
+          path: Ultima2-mac.zip
+
+      - name: 附到 Release(僅 tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Ultima2-mac.zip
