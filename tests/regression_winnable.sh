@@ -57,3 +57,11 @@ echo "$LOG" | grep -q "破關狀態:WON" || fail "結束狀態非 WON"
 LAST="$(ls "$OUT"/reg*.png 2>/dev/null | sort | tail -1)"
 [ -f "$LAST" ] || fail "無輸出幀"
 echo "PASS: 主線端到端可破關(最後幀:$LAST)"
+
+echo "== 5) Minax 位移對決(NE↔SW 瞬移路徑)=="
+# I 取道具(戒+劍)· PPPP 抵傳說時代(Minax 於 NE 角現身)· m 瞬移到她身旁 · E 揮 ENILNO
+#   首擊未死 → 她瞬移到地圖另一端;追擊數次斬殺 → 破關。驗「位移」+「擊穿」兩訊號。
+MX="$("$GAME" "$DATA/mapx20" "$FONT" "$TS" "$UI_TSV" --script "IPPPPmEmEmEmE" "$OUT/mx" 2>&1)"
+echo "$MX" | grep -q "瞬移到地圖另一端" || fail "Minax 未表現 NE↔SW 瞬移(被擊中應逃逸)"
+echo "$MX" | grep -q "擊穿了米娜克斯"   || fail "Minax 位移對決未能斬殺(追擊鏈失效?)"
+echo "PASS: Minax 位移對決·瞬移+斬殺鏈通過"

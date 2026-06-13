@@ -52,6 +52,11 @@ HYPERWARP……你來到了%s 的軌道。	HYPERWARP... you reach orbit of %s.	�
 米娜克斯的力場造成 1000 點傷害!你被消滅了。	Minax's force field deals 1000 damage! You are destroyed.	ミナックスのフォースフィールドが 1000 ダメージ!君は消滅した。
 戒指擋下了力場!但唯有迅捷之劍 ENILNO 能殺死她。	The Ring blocks the field! But only Quicksword ENILNO can slay her.	指輪がフォースフィールドを防いだ!だがクイックソード・エニルノだけが彼女を倒せる。
 你以迅捷之劍 ENILNO 擊穿了米娜克斯!	With Quicksword ENILNO you strike down Minax!	クイックソード・エニルノでミナックスを討ち倒した!
+米娜克斯的力場火球造成 1000 點傷害!你被消滅了。	Minax's force-field fireball deals 1000 damage! You are destroyed.	ミナックスのフォースフィールド火球が1000ダメージ!君は消滅した。
+力場之戒擋下了米娜克斯的火球!逼近她,用 ENILNO 斬殺!	The Force-Field Ring blocks Minax's fireball! Close in and slay her with ENILNO!	フォースフィールドの指輪が火球を防いだ!接近してエニルノで討て!
+你的武器傷不了米娜克斯 ── 唯有迅捷之劍 ENILNO 能斬殺她!	Your weapon cannot harm Minax — only Quicksword ENILNO can slay her!	君の武器ではミナックスを傷つけられない ── エニルノだけが討てる!
+ENILNO 砍中米娜克斯(剩 %d)!她尖嘯著瞬移到地圖另一端!	ENILNO strikes Minax (%d left)! She shrieks and teleports across the map!	エニルノがミナックスに命中(残り%d)!悲鳴を上げ地図の彼方へ瞬間移動した!
+手臂麻痺,無法揮劍!(剩 %d)	Your arms are paralyzed — you cannot swing! (%d left)	腕が麻痺して剣を振れない!(残り%d)
 安托斯神父祝福你,賜予了力場之戒。	Father Antos blesses you and grants the Force-Field Ring.	アントス神父が君を祝福し、フォースフィールドの指輪を授けた。
 安托斯神父說:「力場之戒需獻上 900 黃金以鑄其力 ── 你帶的不夠。」	Father Antos says: 'The Force-Field Ring requires a tribute of 900 gold to forge its power — you have not enough.'	アントス神父が言う:「フォースフィールドの指輪にはその力を鋳るため900ゴールドの貢ぎが要る ── 足りぬな。」
 安托斯神父收下 900 金,祝福你,賜予了力場之戒。	Father Antos accepts your 900 gold, blesses you, and grants the Force-Field Ring.	アントス神父は900ゴールドを受け、君を祝福し、フォースフィールドの指輪を授けた。
