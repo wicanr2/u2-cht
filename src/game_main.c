@@ -2282,28 +2282,44 @@ static void save_meta(const Game *g, const char *save_path){
 }
 
 #ifdef HAVE_SDL_MIXER
-/* [正典:FM Towns exe RE(enchant.exp,Ghidra)+ 影片觀察雙重確認 2026-06-13]
-   FM Towns《Ultima Trilogy》合集 CD 共 7 軌(track02-08),U1/U2/U3 共用:
-     track02 Lord British 合集開頭 · track03 U1 結局 · track04 U1 intro ·
-     track05 U2 intro · track06 U3 開頭 · track07 U2 結局 · track08 U3 結局
-   RE 證實 CDDA 只在 intro/結局等少數時刻播放(全 exe 僅 ~3 處呼叫 CDDA play,經 INT 93h
-   reflected through RUN386);**遊玩(地面/城鎮/地牢/太空)是 MIDI+音效,不放 CDDA**。
-   ⇒ U2 只用 2 軌:ctx 0=intro(track05,播一次)· ctx 1=結局(track07,循環)· ctx<0=遊玩(不動 CDDA)。 */
-static const char *MUS_TRACK[2] = {"track05","track07"};
+/* [正典:enchant.exp RE(Ghidra)+ 影片觀察 + CD /SOUND/ 資產 2026-06-13]
+   U2 FM Towns 音樂兩套來源:
+   (1) CDDA(合集 CD track05=U2 intro / track07=U2 結局)── 只在 intro/結局播。
+   (2) EUP(FM Towns EUPHONY 序列,CD /SOUND/*.EUP + ULTIMA.FMB)── 遊玩配樂,檔名即場景:
+       MAP=地面 · TOWN=城鎮 · DUNGEON(DANJON)=地牢 · OSIRO=城堡。
+   EUP 需離線算繪成 OGG(YM2612+RF5C68 + FMB)放進 --music 目錄,檔名見下表;未算繪則該場景靜音。
+   ctx: 0 intro(track05,播一次)/ 1 結局(track07,循環)/ 2 地面 / 3 城鎮 / 4 地牢 / 5 城堡(皆循環)。 */
+static const char *MUS_TRACK[6] = {
+    "track05",      /* 0 intro(CDDA)*/
+    "track07",      /* 1 ending(CDDA)*/
+    "eup_map",      /* 2 overworld(EUP MAP)*/
+    "eup_town",     /* 3 town(EUP TOWN)*/
+    "eup_dungeon",  /* 4 dungeon(EUP DANJON)*/
+    "eup_osiro",    /* 5 castle(EUP OSIRO)*/
+};
 static void mus_play(int audio_ok, const char *dir, int ctx, Mix_Music **bgm, int *cur)
 {
-    if (!audio_ok || ctx==*cur || ctx<0) return;   /* ctx<0 = 遊玩:不動 CDDA(原版為 MIDI)*/
+    if (!audio_ok || ctx==*cur || ctx<0 || ctx>5) return;
     *cur = ctx;
     if (*bgm){ Mix_HaltMusic(); Mix_FreeMusic(*bgm); *bgm=NULL; }
-    if (!dir || ctx>1) return;
+    if (!dir) return;
     char p[600]; snprintf(p,sizeof p,"%s/%s.ogg",dir,MUS_TRACK[ctx]);
-    *bgm = Mix_LoadMUS(p);
-    if (*bgm) Mix_PlayMusic(*bgm, ctx==0?0:-1);   /* intro 播一次,結局循環 */
+    *bgm = Mix_LoadMUS(p);                          /* 缺檔(EUP 未算繪)→ NULL → 靜音 */
+    if (*bgm) Mix_PlayMusic(*bgm, ctx==0?0:-1);     /* intro 播一次,其餘循環 */
 }
+/* 城堡偵測:Lord British 城堡 mapx80(LOC_REG 'c' 類→ mapx80/82/83…);此處以城鎮編號近似。 */
 static int mus_ctx(const Game *g)
 {
-    if (g->won) return 1;   /* 結局 → track07(U2 ending)*/
-    return -1;              /* 遊玩 → 不放 CDDA(原版 MIDI+音效;我們無 MIDI → 靜音)*/
+    if (g->won) return 1;                                  /* 結局 → track07 */
+    if (g->mode==MODE_DUNGEON) return 4;                   /* 地牢 → DUNGEON */
+    if (g->mode==MODE_SPACE)  return 2;                    /* 太空:暫用地面曲(無專屬 EUP)*/
+    if (g->in_town){
+        /* 城堡(Lord British / 國王)用 OSIRO,一般城鎮用 TOWN */
+        if (!strcmp(g->town_loaded,"80")||!strcmp(g->town_loaded,"82")||
+            !strcmp(g->town_loaded,"83")) return 5;        /* 城堡 → OSIRO */
+        return 3;                                          /* 城鎮 → TOWN */
+    }
+    return 2;                                              /* 地面 → MAP */
 }
 #endif
 
@@ -2333,11 +2349,11 @@ int main(int argc, char **argv)
         fprintf(stderr,"SDL init: %s\n",SDL_GetError()); return 1;
     }
 #ifdef HAVE_SDL_MIXER
-    /* FM Towns CDDA 音樂(互動模式;--music <dir> 指向 track*.ogg 目錄)。
-       僅 intro/結局用 CDDA(RE+影片確認);遊玩走 MIDI(原版)→ 我們無 MIDI,先靜音。*/
+    /* FM Towns 音樂(互動模式;--music <dir> 內含 track05/07.ogg(CDDA)+ eup_*.ogg(EUP 算繪))。
+       遊玩曲由 game loop 的 mus_ctx 依場景驅動;intro(track05)留給未來 intro 畫面。*/
     Mix_Music *bgm=NULL; int bgm_ctx=-1;
     int audio_ok = (!headless && music_dir && Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048)==0);
-    if (audio_ok){ Mix_VolumeMusic(MIX_MAX_VOLUME*3/5); mus_play(audio_ok,music_dir,0,&bgm,&bgm_ctx); }  /* U2 intro(track05,播一次)*/
+    if (audio_ok) Mix_VolumeMusic(MIX_MAX_VOLUME*3/5);   /* 首曲由迴圈 mus_play(mus_ctx) 起 */
 #else
     (void)music_dir;
 #endif
