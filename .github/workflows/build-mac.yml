@@ -38,19 +38,12 @@ jobs:
           [ -f tileset/EGATHEME.ALT/EGATILES ] && gen tileset/EGATHEME.ALT/EGATILES stage/tileset/ega_alt.png ega || true
           [ -f tileset/EGATHEME.C64/EGATILES ] && gen tileset/EGATHEME.C64/EGATILES stage/tileset/ega_c64.png ega || true
 
-      - name: 取得中文字型(wqy-zenhei)
+      - name: 取得中文字型(Noto Sans CJK,涵蓋中日韓)
         run: |
           mkdir -p stage/font
-          brew install --cask font-wqy-zenhei || true
-          F="$(find "$HOME/Library/Fonts" /opt/homebrew /usr/local -iname 'wqy-zenhei*.tt*' 2>/dev/null | head -1)"
-          if [ -z "$F" ]; then
-            curl -fsSL -o stage/font/wqy-zenhei.ttc \
-              https://raw.githubusercontent.com/layerssss/wqy/master/dist/WenQuanYiMicroHei.ttf || \
-            curl -fsSL -o stage/font/wqy-zenhei.ttc \
-              https://github.com/anthonyfok/fonts-wqy-zenhei/raw/master/wqy-zenhei.ttc
-          else
-            cp "$F" stage/font/wqy-zenhei.ttc
-          fi
+          # Noto Sans CJK SC(GitHub 穩定來源;OTF,SDL_ttf 可載;含中文+日文假名/漢字)
+          curl -fsSL -A "Mozilla/5.0" -o stage/font/wqy-zenhei.ttc \
+            "https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf"
           test -s stage/font/wqy-zenhei.ttc
 
       - name: 組裝 Ultima2.app
