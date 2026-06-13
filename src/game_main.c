@@ -1721,7 +1721,7 @@ static void render_ending(SDL_Surface *cv, U2Text *title, U2Text *body)
         SDL_Rect p={(int)(h%CANVAS_W),(int)((h/CANVAS_W)%CANVAS_H),2,2};
         SDL_FillRect(cv,&p,SDL_MapRGB(cv->format,180,170,90)); }
     const char *L_ZH[]={"米娜克斯死了!","她的一切邪惡都將消亡。","你拯救了宇宙,",
-        "並完成了《創世紀 II》。","接著去征服邪惡的 EXODUS ──","就在《創世紀 III》之中。","","── 感謝遊玩(試玩版)──"};
+        "並完成了《創世紀 II》。","接著去征服邪惡的 EXODUS ──","就在《創世紀 III》之中。","","── 感謝遊玩 ──"};
     const char *L_EN[]={"MINAX IS DEAD!","ALL HER WORKS SHALL DIE.","YOU HAVE SAVED THE UNIVERSE,",
         "AND COMPLETED ULTIMA II.","SEEK NOW TO CONQUER WICKED EXODUS,","FOUND IN ULTIMA III.","","-- Thanks for playing (demo) --"};
     const char **Lz = en?L_EN:L_ZH;
@@ -1741,15 +1741,15 @@ static void render_title(SDL_Surface *cv, SDL_Surface *img, U2Text *title, U2Tex
         SDL_BlitScaled(img,NULL,cv,&dst);
     }
     u2_text_draw(cv,title,"Ultima II:女巫的復仇",16,8,210,205,150);
-    u2_text_draw(cv,body,"繁體中文化(試玩版) ── 按任意鍵繼續",CANVAS_W/2-180,CANVAS_H-34,200,210,235);
+    u2_text_draw(cv,body,"繁體中文化 ── 按任意鍵繼續",CANVAS_W/2-180,CANVAS_H-34,200,210,235);
 }
 
-/* 開場 splash:全家福 + 試玩版標註 */
+/* 開場 splash(若提供 --splash 圖)*/
 static void render_splash(SDL_Surface *cv, SDL_Surface *photo, U2Text *title, U2Text *body)
 {
     SDL_FillRect(cv, NULL, SDL_MapRGB(cv->format,12,14,28));
     SDL_Rect hdr={0,0,CANVAS_W,HDR_H}; SDL_FillRect(cv,&hdr,SDL_MapRGB(cv->format,36,44,110));
-    u2_text_draw(cv,title,"Ultima II:女巫的復仇 — 繁體中文化(試玩版)",10,4,250,240,140);
+    u2_text_draw(cv,title,"Ultima II:女巫的復仇 — 繁體中文化",10,4,250,240,140);
     if (photo){
         int maxh=CANVAS_H-150, maxw=CANVAS_W-80;
         double s=(double)maxh/photo->h; if (photo->w*s>maxw) s=(double)maxw/photo->w;
@@ -1761,7 +1761,7 @@ static void render_splash(SDL_Surface *cv, SDL_Surface *photo, U2Text *title, U2
                  e3={dst.x-3,dst.y-3,3,h+6},e4={dst.x+w,dst.y-3,3,h+6};
         SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
     }
-    u2_text_draw(cv,body,"※ 試玩版(demo):核心引擎與在地化展示,非完整遊戲。",60,CANVAS_H-84,210,210,220);
+    u2_text_draw(cv,body,"Ultima II: The Revenge of the Enchantress(1982)",60,CANVAS_H-84,210,210,220);
     u2_text_draw(cv,body,"感謝遊玩 ── 獻給我的家人。  按任意鍵開始。",60,CANVAS_H-52,180,205,235);
 }
 
@@ -2493,8 +2493,8 @@ int main(int argc, char **argv)
     /* --screens:渲染選單 + 建角各步驟到 PNG(版面驗證),不進遊戲 */
     if (screens_prefix){
         char out[600];
-        const char *opts[]={tr("繼續冒險"),tr("新遊戲(建立角色)"),tr("試玩範例角色"),tr("離開")};
-        render_menu(cv,opts,4,1,titleimg,&title,&body);
+        const char *opts[]={tr("繼續冒險"),tr("新遊戲(建立角色)"),tr("離開")};
+        render_menu(cv,opts,3,1,titleimg,&title,&body);
         snprintf(out,sizeof out,"%smenu.png",screens_prefix); IMG_SavePNG(cv,out);
         Create c; create_init(&c);
         const char *seq="NAME|sex|race|class|stats";  /* 標記用 */
@@ -2635,7 +2635,7 @@ int main(int argc, char **argv)
                 SDL_Delay(16);
             }
         }
-        /* ---- 開場選單:繼續 / 新遊戲 / 試玩範例 / 離開 ---- */
+        /* ---- 開場選單:繼續 / 新遊戲 / 離開 ---- */
         {
             const char *opts[4]; int code[4], n=0;
             if (have_continue){ opts[n]=tr("繼續冒險"); code[n++]=0; }
@@ -2758,8 +2758,9 @@ int main(int argc, char **argv)
         SDL_DestroyRenderer(ren); SDL_DestroyWindow(win);
     }
 
-    /* 離開時把執行時狀態(HP/EXP/GOLD…)寫回可寫存檔 + 裝備/道具 meta */
-    if (g.save.ok && g.save.has_character){
+    /* 離開時把執行時狀態(HP/EXP/GOLD…)寫回可寫存檔 + 裝備/道具 meta。
+     * headless 且未顯式 --save 時不寫回(否則會覆寫餵入的 player_save / 測試 fixture)。*/
+    if (g.save.ok && g.save.has_character && (!headless || save_override)){
         g.save.hp = g.php;
         if (u2_save_store(&g.save, save_path))
             printf("已存檔:%s\n", save_path);

@@ -1,6 +1,6 @@
 # 邁向完整 U2 重製 — 路線圖(Roadmap to a Complete Remake)
 
-> 建立:2026-06-11 · 接續現有試玩版(demo)。
+> 建立:2026-06-11 · 正式版(可破關)。
 > 舊 [`PLAN.md`](../PLAN.md) 是「逆向 + 中文化引擎重寫」的策略計畫(歷史);本檔是
 > 從**現況 demo → 可從建角破關到結局的完整重製**的前瞻路線。
 > 所有里程碑以 oracle(`docs/ORACLE_MECHANICS.md`、`oracle_string_map.txt`、
