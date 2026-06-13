@@ -281,10 +281,10 @@
   - **目的地時代** `dest_era = (cur_era <= phase) ? phase+1 : phase`（cur_era = mapname byte0 - '0'）。
   - 寫回 `mapname[0] = dest_era + '0'`，並從 `DAT_0043e260[]`（x）/ `DAT_0043e261[]`（y）依 `(phase + dest_era*4)*2` 索引取得**落地座標**。
 - ⚠ **座標表 `DAT_0043e260/e261` 不在 Ghidra C dump（`.data` 未含）**：門生成 / 落地座標無法從 oracle 還原，需 emulator dump 或原版 exe `.data` 抽取。
-- **與現行引擎差異（2026-06-13 更新：拓樸已對齊正典）**：
-  - **拓樸**：現行 `next_era_world`/`time_travel` 已從線性循環改為**正典每時代多目的地網** `ERA_GATE_DEST[5][4]`（來源：strategywiki C64 port「Time Gates」表）。各時代有 4 道門，分別通往不同時代——例如 1423BC 的 4 門通往 1990 / 2112 / 盤古 / 傳說。月相 `moon_phase`（0..3，每次穿門推進）選擇本次落點時代,取代過去固定 0→1→2→3→4→0。
-  - **仍缺座標**：各門在地圖上的精確 (X,Y)（`DAT_0043e260/e261`）依舊不在 Ghidra dump,strategywiki 只給地名（Europe / Asia…）。⇒ 門的**升起座標仍為近似**（玩家附近升門），唯**目的地時代拓樸**已對齊正典。
-  - headless 破關鏈相應改為 `PPPP M`（1423BC→1990→2112→1423BC→傳說,第 4 門抵 Legends），決定性保留、WON 不變。
+- **與現行引擎差異（2026-06-13 更新：拓樸 + 近似座標皆已落地）**：
+  - **拓樸**：`next_era_world`/`time_travel` 已從線性循環改為**正典每時代多目的地網** `ERA_GATES[5][4]`（來源：rpgclassics PC 版 overworld「Time Gates」各門方位+目的地，目的地集合與 strategywiki C64 版一致）。各時代有 4 道門分別通往不同時代——例如 1423BC：北美→傳說 / 南美→2112 / 西歐→1990 / 東歐→盤古。月相 `moon_phase`（0..3，每次穿門推進）選當前那道門。
+  - **座標（近似已落地）**：精確表 `DAT_0043e260/e261` 仍不在 Ghidra dump（疑在 resource file，非主程式 code 段）；改依各門地名方位映到 64×64 象限做**近似**（N=低y/S=高y/E=高x/W=低x/C=中心），`place_time_door` snap 到最近可通行陸地。門不再「玩家附近隨機升起」，而是各時代**固定地理位置**可被探索發現。
+  - headless 破關鏈相應改為 `PPPP M`（mapx20 起，月相0→傳說→1423BC→1990→傳說，第 4 門抵 Legends），決定性保留、WON 不變。
 
 ---
 
