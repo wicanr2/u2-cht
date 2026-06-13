@@ -226,44 +226,57 @@ static int dg_front_entity(const Game *g, int maxd, char *kind, unsigned char *t
 static const char *class_nm(int k);
 static const char *stat_nm(int i);
 
+/* 全圖陸地連通分量標記(供 find_start / place_ship;-1=非可通行陸地)。回傳最大分量 id。*/
+static int g_land_comp[U2_MAP_H][U2_MAP_W];
+static int label_land_components(const U2Map *m)
+{
+    static int stk[U2_MAP_H*U2_MAP_W];
+    for (int y=0;y<U2_MAP_H;y++) for (int x=0;x<U2_MAP_W;x++) g_land_comp[y][x]=-1;
+    int NX[4]={0,0,1,-1}, NY[4]={1,-1,0,0};
+    int ncomp=0, bestcomp=-1, bestsize=0;
+    for (int y0=0;y0<U2_MAP_H;y0++) for (int x0=0;x0<U2_MAP_W;x0++){
+        if (g_land_comp[y0][x0]!=-1 || !u2_passable(u2_map_tile(m,x0,y0))) continue;
+        int id=ncomp++, sp=0, size=0;
+        g_land_comp[y0][x0]=id; stk[sp++]=y0*U2_MAP_W+x0;
+        while (sp){
+            int c=stk[--sp], cy=c/U2_MAP_W, cx=c%U2_MAP_W; size++;
+            for (int k=0;k<4;k++){
+                int ax=cx+NX[k], ay=cy+NY[k];
+                if (ax<0||ay<0||ax>=U2_MAP_W||ay>=U2_MAP_H) continue;
+                if (g_land_comp[ay][ax]!=-1 || !u2_passable(u2_map_tile(m,ax,ay))) continue;
+                g_land_comp[ay][ax]=id; stk[sp++]=ay*U2_MAP_W+ax;
+            }
+        }
+        if (size>bestsize){ bestsize=size; bestcomp=id; }
+    }
+    return bestcomp;
+}
+/* 落點:必在「最大陸地分量(主大陸)」上 ── 避免落小島 soft-lock(只進得了城堡、出不了島)。
+ * 同分量內優先「鄰 landmark」(可立即進村鎮/城堡)其次最開闊。 */
 static void find_start(const U2Map *m, U2Player *p, const char *world)
 {
-    /* 優先:落在城鎮 landmark 旁、且周圍最開闊(陸路鄰格最多)的可通行格;
-     * 避免落在水域孤島被困(一開場陸路走不動,只能登船)。*/
-    {
-        int bx=-1, by=-1, bestopen=-1;
-        for (int y=0; y<U2_MAP_H; y++)
-            for (int x=0; x<U2_MAP_W; x++){
-                if (!loc_dest(world, u2_map_tile(m,x,y))) continue;
-                int NX[4]={0,0,1,-1}, NY[4]={1,-1,0,0};
-                for (int k=0;k<4;k++){
-                    int ax=x+NX[k], ay=y+NY[k];
-                    if (ax<0||ay<0||ax>=U2_MAP_W||ay>=U2_MAP_H) continue;
-                    unsigned char at=u2_map_tile(m,ax,ay);
-                    if (!u2_passable(at) || loc_dest(world, at)) continue;
-                    int open=0;                               /* 8 鄰陸路可通行數 = 開闊度 */
-                    for (int oy=-1;oy<=1;oy++) for (int ox=-1;ox<=1;ox++){
-                        if(!ox&&!oy) continue;
-                        int nx=ax+ox, ny=ay+oy;
-                        if(nx<0||ny<0||nx>=U2_MAP_W||ny>=U2_MAP_H) continue;
-                        if(u2_passable(u2_map_tile(m,nx,ny))) open++;
-                    }
-                    if (open>bestopen){ bestopen=open; bx=ax; by=ay; }
-                }
+    int main_c = label_land_components(m);
+    int bx=-1, by=-1, bestscore=-1;
+    if (main_c>=0){
+        for (int y=0;y<U2_MAP_H;y++) for (int x=0;x<U2_MAP_W;x++){
+            if (g_land_comp[y][x]!=main_c) continue;            /* 必在主大陸 */
+            if (loc_dest(world, u2_map_tile(m,x,y))) continue;  /* 自己別站在 landmark 上(會觸發進入)*/
+            int open=0, nearLM=0;
+            for (int oy=-1;oy<=1;oy++) for (int ox=-1;ox<=1;ox++){
+                if(!ox&&!oy) continue;
+                int nx=x+ox, ny=y+oy;
+                if(nx<0||ny<0||nx>=U2_MAP_W||ny>=U2_MAP_H) continue;
+                unsigned char nt=u2_map_tile(m,nx,ny);
+                if (u2_passable(nt)) open++;
+                if (loc_dest(world,nt)) nearLM=1;               /* 鄰一個 landmark */
             }
-        if (bx>=0){ p->x=bx; p->y=by; p->tile=PLAYER_TILE; return; }
+            int score = open + (nearLM?1000:0);                /* 強烈優先鄰 landmark */
+            if (score>bestscore){ bestscore=score; bx=x; by=y; }
+        }
     }
-    /* 後備:地圖中心向外找第一個可通行格 */
-    int cx = U2_MAP_W/2, cy = U2_MAP_H/2;
-    for (int r=0; r<U2_MAP_W; r++)
-        for (int dy=-r; dy<=r; dy++)
-            for (int dx=-r; dx<=r; dx++) {
-                if (dx>-r&&dx<r&&dy>-r&&dy<r) continue;
-                int x=cx+dx, y=cy+dy;
-                if (x<0||y<0||x>=U2_MAP_W||y>=U2_MAP_H) continue;
-                if (u2_passable(u2_map_tile(m,x,y))) { p->x=x;p->y=y;p->tile=PLAYER_TILE; return; }
-            }
-    p->x=cx; p->y=cy; p->tile=PLAYER_TILE;
+    if (bx>=0){ p->x=bx; p->y=by; }
+    else { p->x=U2_MAP_W/2; p->y=U2_MAP_H/2; }   /* 後備:中心 */
+    p->tile=PLAYER_TILE;
 }
 
 /* 地牢某層挑前方可見深度最大的開放格當入口 */
@@ -1292,11 +1305,29 @@ static int attack_mob(Game *g, int nx, int ny)
     return 0;
 }
 
-/* 在玩家附近的水域放一艘船供登船示範;不移動玩家(保留城旁起點)。
- * 優先放在玩家相鄰水格(可直接 B 登船),否則放最近的水格(玩家走過去)。 */
+/* 放一艘船:必須「鄰接玩家所在陸地分量」的水格,且離玩家最近 ── 玩家走到岸邊即可 B 登船。
+ * (舊版只找最近水格,可能落在登不上的離岸孤立水域,造成無法登船。) */
 static void place_ship(Game *g)
 {
-    /* 向外找最近水格放船(距玩家 ≥2 格,不佔玩家四鄰,避免一開場被載具圍困)*/
+    label_land_components(&g->map);   /* 確保 g_land_comp 對應當前地圖 */
+    int pc = (g->player.x>=0 && g->player.y>=0) ? g_land_comp[g->player.y][g->player.x] : -1;
+    int NX[4]={0,0,1,-1}, NY[4]={1,-1,0,0};
+    int best=-1, bx=-1, by=-1;
+    for (int y=1;y<U2_MAP_H-1;y++) for (int x=1;x<U2_MAP_W-1;x++){
+        if (u2_map_tile(&g->map,x,y)!=0) continue;          /* 要水格 */
+        if (x==g->player.x && y==g->player.y) continue;
+        int adj=0;
+        for (int k=0;k<4 && pc>=0;k++){
+            int ax=x+NX[k], ay=y+NY[k];
+            if (ax<0||ay<0||ax>=U2_MAP_W||ay>=U2_MAP_H) continue;
+            if (g_land_comp[ay][ax]==pc) adj=1;             /* 鄰接玩家陸地分量 */
+        }
+        if (!adj) continue;
+        int d=abs(x-g->player.x)+abs(y-g->player.y);
+        if (best<0 || d<best){ best=d; bx=x; by=y; }
+    }
+    if (bx>=0){ g->map.tile[by][bx]=SHIP_TILE; return; }
+    /* 後備:舊邏輯(最近任意水格)*/
     for (int r=2;r<24;r++)
         for (int dy=-r;dy<=r;dy++) for (int dx=-r;dx<=r;dx++){
             if (abs(dx)<r && abs(dy)<r) continue;
