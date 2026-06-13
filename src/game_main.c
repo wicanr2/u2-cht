@@ -1565,8 +1565,8 @@ static void time_travel(Game *g)
  *   並設 mapname[0]=index+'0'、mapname[1]='0' ⇒ **行星表面 = mapx<index>0**:
  *     0 地球(特例,DAT_0043f5c4 = Sosaria overworld) · 1 水星 mapx10 · 2 金星 mapx20 ·
  *     3 火星 mapx30 · 4 木星 mapx40 · 5 土星 mapx50 · 6 天王星 mapx60 · 7 海王星 mapx70 ·
- *     8 冥王星 mapx80 · 9 (9,9,9)mapx90 · 10 (4,4,4)= 太陽 YOU HIT THE SUN(不可降)。
- *   座標 xe/ya/za 即 FUN_0040e210 的比對值;index 順序與本表一致(0..8)。
+ *     8 冥王星 mapx80 · 9 X 行星(9,9,9)mapx90 · 10 (4,4,4)= 太陽 YOU HIT THE SUN(不可降)。
+ *   座標 xe/ya/za 即 FUN_0040e210 的比對值;index 順序與本表一致(0..9;太陽不入表=不可降)。
  *   ⚠ 注意:行星表面 mapx10..40 與地球時代 overworld 同檔名,原版以「在行星」旗標
  *   (0x74dc!=0)區分行為,非以檔名;本引擎重用同檔,語意對齊待 emulator 截圖最終確認。 */
 static const struct { const char *zh, *en, *mapnum; int xe, ya, za; } PLANETS[] = {
@@ -1579,6 +1579,7 @@ static const struct { const char *zh, *en, *mapnum; int xe, ya, za; } PLANETS[] 
     {"天王星 Uranus","Uranus", "60", 9,4,6},  /* index 6 → mapx60 */
     {"海王星 Neptune","Neptune","70", 4,0,5}, /* index 7 → mapx70 */
     {"冥王星 Pluto","Pluto",   "80", 0,1,4},  /* index 8 → mapx80 */
+    {"X 行星 Planet X","Planet X","90", 9,9,9}, /* index 9 → mapx90(Castle Barataria 治療 / Towne Basko 商店);座標 9,9,9 */
 };
 #define NPLANET ((int)(sizeof PLANETS/sizeof PLANETS[0]))
 static const char *planet_name(int i){ return (u2_lang==U2_EN)?PLANETS[i].en:PLANETS[i].zh; }
