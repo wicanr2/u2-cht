@@ -2609,8 +2609,7 @@ int main(int argc, char **argv)
             const char *opts[4]; int code[4], n=0;
             if (have_continue){ opts[n]=tr("繼續冒險"); code[n++]=0; }
             opts[n]=tr("新遊戲(建立角色)"); code[n++]=1;
-            if (tmpl.ok && tmpl.has_character){ opts[n]=tr("試玩範例角色"); code[n++]=2; }
-            opts[n]=tr("離開"); code[n++]=3;
+            opts[n]=tr("離開"); code[n++]=3;   /* 正式版:移除「試玩範例角色」選項 */
             int sel=0, chosen=-1;
             while (running && chosen<0){
                 render_menu(cv,opts,n,sel,titleimg,&title,&body);
@@ -2631,7 +2630,6 @@ int main(int argc, char **argv)
             }
             if (chosen==3) running=0;
             else if (chosen==0) g.save=wsave;
-            else if (chosen==2) g.save=tmpl;
             else if (chosen==1){
                 /* 原版建角流程 */
                 Create c; create_init(&c);
