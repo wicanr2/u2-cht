@@ -43,10 +43,11 @@ stage_data(){  # $1 = 目標 share 目錄
   cp tests/fixtures/player_sample_abcd "$S/data/player" || true
   cp "$FONT" "$S/font/wqy-zenhei.ttc"
   cp /tmp/ts/*.png "$S/tileset/"
-  # FM Towns CDDA 音樂(預抽的 build/music/*.ogg;extract_fmtowns_cdda.py 產;版權,使用者自備)
-  if ls build/music/*.ogg >/dev/null 2>&1; then mkdir -p "$S/music"; cp build/music/*.ogg "$S/music/"; fi
-  # FM Towns 原版音效(build/sfx/*.wav;decode_fmtowns_snd.py 產;版權,使用者自備)
-  if ls build/sfx/*.wav >/dev/null 2>&1; then mkdir -p "$S/sfx"; cp build/sfx/*.wav "$S/sfx/"; fi
+  # FM Towns CDDA 音樂 / 原版音效(版權物;ENGINE_ONLY=1 時排除,供公開引擎包)
+  if [ "${ENGINE_ONLY:-0}" != "1" ]; then
+    if ls build/music/*.ogg >/dev/null 2>&1; then mkdir -p "$S/music"; cp build/music/*.ogg "$S/music/"; fi
+    if ls build/sfx/*.wav >/dev/null 2>&1; then mkdir -p "$S/sfx"; cp build/sfx/*.wav "$S/sfx/"; fi
+  fi
   cp translations/exe_translatable_strings.tsv translations/talk_dialogue.tsv translations/ui_strings.tsv "$S/translations/"
 # (開場全家福已移除:不打包 splash)
   [ -f docs/screenshots/fmtowns_title_decoded.png ] && cp docs/screenshots/fmtowns_title_decoded.png "$S/title.png" || true  # 原版開場標題
@@ -159,7 +160,7 @@ Ultima II: 女巫的復仇 — 繁體中文化(C/SDL2 重寫引擎)【試玩版 
   進入地點   走上城堡圖塊進城 · 走上地牢圖塊入地牢 · X 離開
   城鎮       T 與 NPC 交談 · Z 商店(補給/升級裝備/買關鍵道具)
   介面       C 角色表(含任務提示) · G 切換畫風 · F4 切換語系(繁中/EN/日)
-  系統       F1 指令表 · Q 離開(自動存檔)
+  系統       F1 指令表 · ESC 取消 · F10 離開(自動存檔)
 
 遊戲目標(試玩版可走通的主線):
   建角 → 商店補給/取得載具 → 時空旅行各時代 → 行星拜訪 Father Antos 取得力場之戒
@@ -234,7 +235,7 @@ Ultima II: 女巫的復仇 — 繁體中文化(C/SDL2 重寫引擎)· macOS 版
   3. 編譯完成後自動產生並開啟 Ultima2.app。之後雙擊 Ultima2.app 即可遊玩。
 
 操作:方向鍵/WASD 移動(朝怪移動=攻擊)· P 穿時間之門 · B 載具 · T 交談 · Z 商店
-      · C 角色/任務 · G 換畫風 · F4 切語系 · F1 指令表 · Q 離開(自動存檔)。
+      · C 角色/任務 · G 換畫風 · F4 切語系 · F1 指令表 · ESC 取消 · F10 離開(自動存檔)。
 含 FM Towns 原版音效;intro/結局 CDDA 音樂;遊玩中目前靜音(EUP 算繪待處理)。
 EOF
   cd "$M" && zip -qr "$OUT/Ultima2-繁中試玩版-mac.zip" "Ultima2-mac" && cd "$WORK"
