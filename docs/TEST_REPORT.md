@@ -1,6 +1,6 @@
 # Ultima II 繁中重製 — 測試報告
 
-> 對象:u2-cht SDL2 重寫引擎(試玩版)
+> 對象:u2-cht SDL2 重寫引擎(正式版)
 > 日期:2026-06-11
 > 環境:全程 Docker 容器(`u2cht-build` / `u2cht-test`),不污染主機。
 > 方法:headless 截圖回歸(`--script` / `--screens`)+ 容器內互動測試(Xvfb + xdotool + ffmpeg)。
@@ -47,7 +47,7 @@
 ## 4. 已知限制(誠實揭露)
 
 - FM Towns sprite 目前僅地形 + 主角為乾淨來源;**船 / 怪物未換**(需航行/戰鬥場景的乾淨模擬器截圖,既有怪物 sheet 為雜訊較重的 raw atlas 解碼,不採用)。
-- 本報告為**試玩版**驗證範圍:完整劇情、結局、全部城鎮/地牢尚未納入。
+- 本報告為早期驗證範圍快照;主線/結局/城鎮玩法後續已補齊,可端到端破關(見 `tests/regression_winnable.sh`、`docs/GUIDE.md`)。
 - 互動測試的「進城」走位依賴固定起點;不同世界圖需重新確認 landmark 佈局。
 
 ## 5. 重現方式
