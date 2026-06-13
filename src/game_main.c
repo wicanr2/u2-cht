@@ -1392,46 +1392,54 @@ static int era_index(const char *world)
     switch (world[0]){ case '0':return 0; case '1':return 1; case '2':return 2;
                        case '3':return 3; case '4':return 4; } return 2;
 }
-/* [正典] 時間之門目的地拓樸(strategywiki C64 port「Time Gates」表)。
- * 每時代有 4 道門,各通往不同時代 ── 非線性循環。索引以月相(0..3)選門。
- * 來源整理(2026-06-13 抓 strategywiki):
- *   傳說(0): →盤古/1423BC/1990/2112        (Legends 4 門各通一時代)
- *   盤古(1): Eurasia→1423BC · Greenland→傳說 · Africa→2112 · Antarctica→1990
- *   1423BC(2): Europe→1990 · S.America→2112 · Asia→盤古 · N.America→傳說
- *   1990(3): GreatBritain→1423BC · S.America→2112 · Greenland→盤古 · Australia→傳說
- *   2112(4): NWAmerica→1990 · NEAmerica→傳說 · Asia→1423BC · India→盤古
- * 座標(各門 X,Y)仍缺(Ghidra .data dump 無 DAT_0043e260;strategywiki 僅給地名)。
- * ⇒ 拓樸已對齊正典,落點座標保留近似(玩家附近升門);機制詳見 docs/ORACLE_MECHANICS.md。 */
-static const char *ERA_GATE_DEST[5][4] = {
-    /* 0 傳說   */ {"10","20","30","40"},
-    /* 1 盤古   */ {"20","00","40","30"},
-    /* 2 1423BC */ {"30","40","10","00"},
-    /* 3 1990   */ {"20","40","10","00"},
-    /* 4 2112   */ {"30","00","20","10"},
+/* [正典] 時間之門:各時代 4 道門,各有固定地理方位 + 各通往不同時代(非線性循環)。
+ * 來源:rpgclassics PC 版 overworld「Time Gates」各門方位+目的地(2026-06-13 抓),
+ *       目的地集合與 strategywiki C64 版一致。月相(0..3)選當前可見/可踏的那道門。
+ * 座標 (x,y):正典精確表 DAT_0043e260/e261 不在 Ghidra dump(疑在 resource file),
+ *       此處依各門地名方位映到 64×64 象限做**近似**(N=低y/S=高y/E=高x/W=低x/C=中心),
+ *       place_time_door 會 snap 到最近可通行陸地。詳見 docs/ORACLE_MECHANICS.md。 */
+typedef struct { int x, y; const char *dest; } EraGate;
+static const EraGate ERA_GATES[5][4] = {
+    /* 0 傳說(4 門相鄰,from left)*/
+    { {28,30,"10"}, {31,30,"20"}, {34,30,"30"}, {37,30,"40"} },
+    /* 1 盤古:北→傳說 東→1423BC 中→2112 南→1990 */
+    { {32,12,"00"}, {52,32,"20"}, {32,32,"40"}, {32,52,"30"} },
+    /* 2 1423BC:北美→傳說 南美→2112 西歐→1990 東歐→盤古 */
+    { {16,14,"00"}, {24,52,"40"}, {40,26,"30"}, {54,28,"10"} },
+    /* 3 1990:格陵蘭→盤古 南美→2112 英格蘭→1423BC 澳洲→傳說 */
+    { {28,10,"10"}, {22,52,"40"}, {38,24,"20"}, {52,54,"00"} },
+    /* 4 2112:西北美→1990 東南美→傳說 中亞→1423BC 南亞→盤古 */
+    { {16,16,"30"}, {20,50,"00"}, {44,28,"20"}, {48,44,"10"} },
 };
 /* 依當前時代 + 月相選正典目的地 mapxNN。 */
 static const char *next_era_world(const char *world, int phase)
 {
-    return ERA_GATE_DEST[era_index(world)][phase & 3];
+    return ERA_GATES[era_index(world)][phase & 3].dest;
 }
 
 /* 時間之門可見週期(回合;手冊:定時升起、很快消散)。 */
 #define TD_VIS 14   /* 升起後可見回合數 */
 #define TD_HID 6    /* 消散後隱沒回合數 */
 
-/* 在玩家附近的可通行陸地放一個時間之門(非 landmark、非玩家腳下;wrap-aware) */
+/* 某格是否適合放時間之門(可通行陸地、非水、非 landmark、非地牢)。 */
+static int td_ok_tile(Game *g, int x, int y)
+{
+    unsigned char t=u2_map_tile(&g->map,x,y);
+    return t!=0 && u2_passable(t) && !loc_dest(g->world_num,t) && t!=WORLD_DUNGEON_TILE;
+}
+/* 在「當前時代 + 月相」的正典固定象限座標放時間之門;若該格不可通行,螺旋搜尋最近可通行陸地。
+ * 取代舊版「玩家附近隨機升門」── 現在門在各時代固定的地理位置(近似),可被探索發現。 */
 static void place_time_door(Game *g)
 {
     g->td_x=g->td_y=-1;
-    for (int r=2;r<22 && g->td_x<0;r++)
+    const EraGate *gate=&ERA_GATES[era_index(g->world_num)][g->moon_phase & 3];
+    int cx=gate->x & (U2_WORLD_DIM-1), cy=gate->y & (U2_WORLD_DIM-1);
+    if (td_ok_tile(g,cx,cy)){ g->td_x=cx; g->td_y=cy; g->td_timer=0; return; }
+    for (int r=1;r<U2_WORLD_DIM/2 && g->td_x<0;r++)
         for (int dy=-r;dy<=r && g->td_x<0;dy++) for (int dx=-r;dx<=r;dx++){
-            if (abs(dx)<r && abs(dy)<r) continue;
-            int x=(g->player.x+dx)&(U2_WORLD_DIM-1), y=(g->player.y+dy)&(U2_WORLD_DIM-1);
-            if (x==g->player.x && y==g->player.y) continue;       /* 勿在玩家腳下重現 */
-            unsigned char t=u2_map_tile(&g->map,x,y);
-            if (t!=0 && u2_passable(t) && !loc_dest(g->world_num,t) && t!=WORLD_DUNGEON_TILE){
-                g->td_x=x; g->td_y=y; break;
-            }
+            if (abs(dx)<r && abs(dy)<r) continue;                 /* 只掃當前環 */
+            int x=(cx+dx)&(U2_WORLD_DIM-1), y=(cy+dy)&(U2_WORLD_DIM-1);
+            if (td_ok_tile(g,x,y)){ g->td_x=x; g->td_y=y; break; }
         }
     g->td_timer=0;
 }
