@@ -34,6 +34,23 @@
 #include "u2_talk.h"
 #include "u2_i18n.h"
 
+/* ---- FM Towns 原版音效(CD /SOUND/*.SND → WAV;--sfx <dir> 指向 tools/decode_fmtowns_snd.py 產出)----
+   互動模式才載入;headless/缺檔則 sfx_play 為 no-op。檔名見 SFX_FILE。 */
+enum { SFX_KATANA, SFX_MAGIC, SFX_DOOR, SFX_BUMP, SFX_UZUMAKI, SFX_MONSTER, SFX_BOMB, SFX_FIRE, SFX_N };
+#ifdef HAVE_SDL_MIXER
+static const char *SFX_FILE[SFX_N] = {"katana1","magic2","door3","bump","uzumaki1","monster1","bomb2","fire"};
+static Mix_Chunk *g_sfx[SFX_N];
+static void sfx_load(int audio_ok, const char *dir){
+    if (!audio_ok || !dir) return;
+    Mix_AllocateChannels(8);
+    for (int i=0;i<SFX_N;i++){ char p[600]; snprintf(p,sizeof p,"%s/%s.wav",dir,SFX_FILE[i]); g_sfx[i]=Mix_LoadWAV(p); }
+}
+static void sfx_play(int id){ if (id>=0 && id<SFX_N && g_sfx[id]) Mix_PlayChannel(-1,g_sfx[id],0); }
+#else
+#define sfx_load(a,d) ((void)0)
+#define sfx_play(id)  ((void)0)
+#endif
+
 /* 引擎硬編訊息:外部多語字典(translations/ui_strings.tsv;欄 zh=key, en, ja…)。
  * tr(zh) 依 u2_lang 回對應語言;空或查無 fallback zh。加語言只需 TSV 加欄,無需改碼。 */
 #define DICT_MAX 512
@@ -1178,7 +1195,7 @@ static void spawn_mob(Game *g)
         const char *nm; int hp,atk; mob_type(tile,&nm,&hp,&atk);
         g->mob[m].x=x; g->mob[m].y=y; g->mob[m].tile=tile;
         g->mob[m].hp=g->mob[m].maxhp=hp; g->mob[m].atk=atk; g->mob[m].name=nm;
-        snprintf(g->msg,sizeof g->msg,tr("%s出現了!"),tr(nm));
+        snprintf(g->msg,sizeof g->msg,tr("%s出現了!"),tr(nm)); sfx_play(SFX_MONSTER);
         return;
     }
 }
@@ -1256,7 +1273,7 @@ static int attack_mob(Game *g, int nx, int ny)
                 snprintf(g->msg,sizeof g->msg,tr("你攻擊%s,但沒打中。"),tr(g->mob[i].name));
                 return 1;
             }
-            int dmg=player_dmg(g); g->mob[i].hp-=dmg;
+            int dmg=player_dmg(g); g->mob[i].hp-=dmg; sfx_play(SFX_KATANA);
             if (g->mob[i].hp<=0){
                 /* [正典] oracle KILLED__GOLD__EXP:gold=rng%0x11+1(1..17)、EXP=rng&7+1(1..8)*/
                 int gold=(rng_next(g)%0x11)+1, xp=(rng_next(g)&7)+1;
@@ -1523,7 +1540,7 @@ static int attack_minax(Game *g, int tx, int ty)
     if (!(g->items & ITEM_QUICKSWORD)){
         snprintf(g->msg,sizeof g->msg,tr("你的武器傷不了米娜克斯 ── 唯有迅捷之劍 ENILNO 能斬殺她!")); return 1; }
     int dmg=player_dmg(g)+50;               /* ENILNO 重擊 */
-    g->mx_hp-=dmg;
+    g->mx_hp-=dmg; sfx_play(SFX_KATANA);
     if (g->mx_hp<=0){
         g->mx_active=0; g->won=1;
         snprintf(g->msg,sizeof g->msg,tr("你以迅捷之劍 ENILNO 擊穿了米娜克斯!"));
@@ -1555,6 +1572,7 @@ static void time_travel(Game *g)
     place_time_door(g);
     /* 抵傳說時代 → 喚出 Minax(位移對決);離開 → 收起 */
     if (g->world_num[0]=='0' && !g->won) spawn_minax(g); else g->mx_active=0;
+    sfx_play(SFX_UZUMAKI);   /* 穿越時間之門:渦巻き音效 */
     snprintf(g->msg,sizeof g->msg,tr("時間之門開啟……招牌寫著:ANOS %s"),era_name(g->world_num));
 }
 
@@ -1839,6 +1857,7 @@ static void cast_spell(Game *g, int idx)
         snprintf(g->msg,sizeof g->msg,tr("你沒有「%s」法術(可在城鎮商店習得)。"),spell_name(idx)); return;
     }
     g->spells[idx]--;                                    /* 消耗(成敗皆扣)*/
+    sfx_play(SFX_MAGIC);                                  /* 施法音效 */
     int FX[4]={0,1,0,-1}, FY[4]={-1,0,1,0};              /* N E S W */
     int fx=g->dx+FX[g->ddir], fy=g->dy+FY[g->ddir];      /* 前方格 */
     switch (idx){
@@ -2049,8 +2068,9 @@ static void handle_dir(Game *g, char dir)
                 }
                 minax_turn(g);   /* 傳說時代:Minax 力場火球(戒指免疫)*/
             }
-        } else snprintf(g->msg,sizeof g->msg,
+        } else { snprintf(g->msg,sizeof g->msg,
                         (!g->in_town&&g->vehicle==VEH_SHIP&&tt!=0&&tt!=1)?tr("船無法駛上陸地(B 下船)。"):tr("%c 方向被擋住。"),dir);
+                 sfx_play(SFX_BUMP); }
     } else { /* DUNGEON: N前進 S後退 W左轉 E右轉 */
         if (dir=='W'){ g->ddir=(g->ddir+3)&3; snprintf(g->msg,sizeof g->msg,tr("左轉。")); }
         else if (dir=='E'){ g->ddir=(g->ddir+1)&3; snprintf(g->msg,sizeof g->msg,tr("右轉。")); }
@@ -2064,10 +2084,10 @@ static void handle_dir(Game *g, char dir)
                 /* 上鎖門([正典] UNLOCK):有守衛鑰匙自動開,否則 AGI 撬鎖;開門耗一回合 */
                 int agi = g->save.has_character ? g->save.stats[1] : 15;
                 if (g->guard_key){
-                    g->dg.cell[g->dlevel][ny][nx]=0x00;
+                    g->dg.cell[g->dlevel][ny][nx]=0x00; sfx_play(SFX_DOOR);
                     snprintf(g->msg,sizeof g->msg,tr("你用守衛的鑰匙打開了上鎖的門。"));
                 } else if ((int)(rng_next(g)%100) < 20+agi){
-                    g->dg.cell[g->dlevel][ny][nx]=0x00;
+                    g->dg.cell[g->dlevel][ny][nx]=0x00; sfx_play(SFX_DOOR);
                     snprintf(g->msg,sizeof g->msg,tr("你撬開了上鎖的門。"));
                 } else {
                     snprintf(g->msg,sizeof g->msg,tr("門上鎖了 ── 需要鑰匙,或再試著撬鎖。"));
@@ -2332,9 +2352,10 @@ int main(int argc, char **argv)
     }
     const char *map_path=argv[1], *font_path=argv[2], *tiles_path=argv[3], *ui_tsv=argv[4];
     const char *player_save=NULL, *script=NULL, *out_prefix=NULL, *splash_path=NULL, *title_path=NULL;
-    const char *save_override=NULL, *screens_prefix=NULL, *town_tiles_path=NULL, *music_dir=NULL;
+    const char *save_override=NULL, *screens_prefix=NULL, *town_tiles_path=NULL, *music_dir=NULL, *sfx_dir=NULL;
     for (int i=5;i<argc;i++){
         if (!strcmp(argv[i],"--music") && i+1<argc){ music_dir=argv[i+1]; i+=1; continue; }
+        if (!strcmp(argv[i],"--sfx") && i+1<argc){ sfx_dir=argv[i+1]; i+=1; continue; }
         if (!strcmp(argv[i],"--script") && i+2<argc){ script=argv[i+1]; out_prefix=argv[i+2]; i+=2; }
         else if (!strcmp(argv[i],"--splash") && i+1<argc){ splash_path=argv[i+1]; i+=1; }
         else if (!strcmp(argv[i],"--title") && i+1<argc){ title_path=argv[i+1]; i+=1; }
@@ -2352,10 +2373,11 @@ int main(int argc, char **argv)
     /* FM Towns 音樂(互動模式;--music <dir> 內含 track05/07.ogg(CDDA)+ eup_*.ogg(EUP 算繪))。
        遊玩曲由 game loop 的 mus_ctx 依場景驅動;intro(track05)留給未來 intro 畫面。*/
     Mix_Music *bgm=NULL; int bgm_ctx=-1;
-    int audio_ok = (!headless && music_dir && Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048)==0);
+    int audio_ok = (!headless && (music_dir||sfx_dir) && Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048)==0);
     if (audio_ok) Mix_VolumeMusic(MIX_MAX_VOLUME*3/5);   /* 首曲由迴圈 mus_play(mus_ctx) 起 */
+    sfx_load(audio_ok, sfx_dir);                         /* FM Towns 原版音效(--sfx <dir>)*/
 #else
-    (void)music_dir;
+    (void)music_dir; (void)sfx_dir;
 #endif
     Game g; memset(&g,0,sizeof g);
     g.map=u2_map_load(map_path);
