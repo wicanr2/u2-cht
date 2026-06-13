@@ -169,9 +169,81 @@ EOF
   cd "$M/pkg" && zip -qr "$OUT/Ultima2-繁中試玩版-windows.zip" . && cd "$WORK"
 }
 
+# ---------- 4) macOS 原始碼包(在 Mac 上一鍵 build,因 Linux 無法可靠跨編 Mach-O)----------
+build_mac() {
+  local M=/tmp/mac; rm -rf "$M"; local P="$M/Ultima2-mac"; mkdir -p "$P/src"
+  # 原始碼 + CMake(Mac 上用 brew 的 SDL2 + pkg-config 編譯)
+  cp CMakeLists.txt "$P/"
+  cp src/*.c src/*.h "$P/src/"
+  stage_data "$P/share"
+  # 一鍵 build 腳本(.command 在 macOS 可雙擊於 Terminal 執行)
+  cat > "$P/build_mac.command" <<'EOF'
+#!/bin/bash
+# Ultima II 繁中重製 — macOS 一鍵編譯 + 執行
+set -e
+cd "$(dirname "$0")"
+echo "== 1) 檢查相依(需 Homebrew)=="
+if ! command -v brew >/dev/null 2>&1; then
+  echo "找不到 Homebrew。請先安裝:https://brew.sh 然後重跑本檔。"; read -r _; exit 1
+fi
+for p in cmake pkg-config sdl2 sdl2_ttf sdl2_image sdl2_mixer; do
+  brew list "$p" >/dev/null 2>&1 || brew install "$p"
+done
+echo "== 2) 編譯 =="
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target u2_game -j
+echo "== 3) 組 Ultima2.app =="
+APP="Ultima2.app"; rm -rf "$APP"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+cp build/u2_game "$APP/Contents/MacOS/u2_game"
+cp -R share "$APP/Contents/Resources/share"
+cat > "$APP/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Ultima2-cht</string>
+  <key>CFBundleExecutable</key><string>launch</string>
+  <key>CFBundleIdentifier</key><string>tw.lairware.ultima2cht</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+</dict></plist>
+PLIST
+cat > "$APP/Contents/MacOS/launch" <<'LAUNCH'
+#!/bin/bash
+D="$(cd "$(dirname "$0")/../Resources/share" && pwd)"
+TS="$D/tileset/ega.png,$D/tileset/fmtowns.png,$D/tileset/vivid.png,$D/tileset/cga.png,$D/tileset/ega_alt.png,$D/tileset/ega_c64.png"
+TWN=""; [ -f "$D/tileset/fmtowns_town.png" ] && TWN="--town-tiles -,$D/tileset/fmtowns_town.png,-,-,-,-"
+TTL=""; [ -f "$D/title.png" ] && TTL="--title $D/title.png"
+MUS=""; [ -d "$D/music" ] && MUS="--music $D/music"
+SFX=""; [ -d "$D/sfx" ] && SFX="--sfx $D/sfx"
+exec "$(dirname "$0")/u2_game" "$D/data/mapx20" "$D/font/wqy-zenhei.ttc" "$TS" \
+     "$D/translations/exe_translatable_strings.tsv" "$D/data/player" $TTL $TWN $MUS $SFX
+LAUNCH
+chmod +x "$APP/Contents/MacOS/launch"
+echo "== 完成!雙擊 Ultima2.app 開始遊玩(或本視窗下方直接啟動)=="
+open "$APP"
+EOF
+  chmod +x "$P/build_mac.command"
+  cat > "$P/README.txt" <<'EOF'
+Ultima II: 女巫的復仇 — 繁體中文化(C/SDL2 重寫引擎)· macOS 版
+
+因 Linux 無法可靠跨編 macOS 二進位,本包為「原始碼 + 一鍵編譯」:
+
+  1. 雙擊「build_mac.command」(若被 Gatekeeper 擋:右鍵 → 打開,或
+     系統設定 → 隱私權與安全性 → 仍要打開)。
+  2. 首次會用 Homebrew 自動安裝 SDL2 等相依(需先裝 Homebrew:https://brew.sh)。
+  3. 編譯完成後自動產生並開啟 Ultima2.app。之後雙擊 Ultima2.app 即可遊玩。
+
+操作:方向鍵/WASD 移動(朝怪移動=攻擊)· P 穿時間之門 · B 載具 · T 交談 · Z 商店
+      · C 角色/任務 · G 換畫風 · F4 切語系 · F1 指令表 · Q 離開(自動存檔)。
+含 FM Towns 原版音效;intro/結局 CDDA 音樂;遊玩中目前靜音(EUP 算繪待處理)。
+EOF
+  cd "$M" && zip -qr "$OUT/Ultima2-繁中試玩版-mac.zip" "Ultima2-mac" && cd "$WORK"
+}
+
 case "${1:-all}" in
   appimage) build_appimage ;;
   windows)  build_windows ;;
-  *)        build_appimage; build_windows ;;
+  mac)      build_mac ;;
+  *)        build_appimage; build_windows; build_mac ;;
 esac
 ls -la "$OUT"
