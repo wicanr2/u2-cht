@@ -171,7 +171,7 @@ typedef struct {
     char msg[200];
     char msglog[4][200];          /* 命令/結果滾動記錄(原版風;[3]=最新)*/
     char msglog_last[200];        /* 偵測 msg 變化才推入記錄 */
-    int quit_confirm;             /* ESC 退出確認視窗顯示中 */
+    int quit_confirm;             /* F10 離開確認視窗(yes/no)顯示中 */
 } Game;
 /* 載具(oracle this+0x7390) */
 enum { VEH_WALK=0, VEH_HORSE=1, VEH_SHIP=2, VEH_PLANE=3, VEH_ROCKET=4 };
@@ -425,7 +425,7 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, 
     msglog_push(g);   /* 命令/結果滾動記錄(原版風)*/
     /* 提示列(small)*/
     u2_text_draw(cv,small, g->in_town ? tr("方向鍵/WASD 移動 · T 交談 · Z 商店 · F 偷竊 · Y 大喊 · C 角色表 · X 離開")
-                                      : tr("方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · Q"),
+                                      : tr("方向鍵/WASD 移動 · B 登船 · P 時間門 · G 畫風 · F1 指令表 · F10 離開"),
                  MAP_OX,by,150,175,205);
     /* 命令記錄:4 行滾動,左下,新的在下(原版 CMD: 風格)*/
     for (int i=0;i<4;i++)
@@ -513,7 +513,8 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
         "G               切換畫風(EGA / FM Towns…)",
         "F4              切換語系(繁中 / English / 日本語)",
         "F1              顯示 / 關閉本指令表",
-        "Q / Esc         離開遊戲(自動存檔)",
+        "ESC             取消 / 關閉視窗",
+        "F10             離開遊戲(跳出 yes/no 確認,自動存檔)",
     };
     static const char *ROWS_EN[] = {
         "Arrows / WASD   Move / attack (move into a monster)",
@@ -531,7 +532,8 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
         "G               Switch theme (EGA / FM Towns...)",
         "F4              Switch language (中 / EN / 日)",
         "F1              Show / hide this list",
-        "Q / Esc         Quit game (autosave)",
+        "ESC             Cancel / close window",
+        "F10             Quit game (yes/no confirm; autosave)",
     };
     const char **ROWS = (u2_lang==U2_EN)?ROWS_EN:ROWS_ZH;
     int nrow = (int)(sizeof ROWS_ZH / sizeof ROWS_ZH[0]);
@@ -766,7 +768,7 @@ static void render_view_overlay(SDL_Surface *cv, Game *g, U2Text *body)
     u2_text_draw(cv,body,tr("鳥瞰 VIEW(V 關閉)"),ox,oy-40,235,230,200);
 }
 
-/* ESC 退出確認視窗(置中)*/
+/* F10 離開確認視窗(yes/no,置中;Y 離開並自動存檔)*/
 static void render_quit_confirm(SDL_Surface *cv, U2Text *body)
 {
     int pw=440, ph=120, x=(CANVAS_W-pw)/2, y=(CANVAS_H-ph)/2;
@@ -2671,7 +2673,7 @@ int main(int argc, char **argv)
                 if (e.type==SDL_QUIT) running=0;
                 else if (e.type==SDL_KEYDOWN){
                     SDL_Keycode k=e.key.keysym.sym; char d=0;
-                    if (g.quit_confirm){                    /* 退出確認視窗:Y 退出,其他取消 */
+                    if (g.quit_confirm){                    /* 離開確認(yes/no):Y 離開(自動存檔),其他取消 */
                         if (k==SDLK_y) running=0; else g.quit_confirm=0;
                         continue;
                     }
@@ -2708,7 +2710,12 @@ int main(int argc, char **argv)
                             if (g.mode==MODE_DUNGEON) exit_dungeon(&g);
                             else if (g.in_town) exit_town(&g);
                             break;
-                        case SDLK_q:case SDLK_ESCAPE: g.quit_confirm=1; break;   /* 叫出退出確認視窗 */
+                        case SDLK_F10: g.quit_confirm=1; break;   /* F10:跳出 yes/no 離開詢問(Y 離開並自動存檔)*/
+                        case SDLK_ESCAPE:                         /* ESC:取消 ── 關閉開啟中的視窗 */
+                            if (g.show_shop) g.show_shop=0;
+                            else if (g.show_help) g.show_help=0;
+                            else if (g.show_sheet) g.show_sheet=0;
+                            break;
                     }
                     if (d) handle_dir(&g,d);
                 }
