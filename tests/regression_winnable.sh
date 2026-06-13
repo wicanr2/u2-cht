@@ -65,3 +65,9 @@ MX="$("$GAME" "$DATA/mapx20" "$FONT" "$TS" "$UI_TSV" --script "IPPPPmEmEmEmE" "$
 echo "$MX" | grep -q "瞬移到地圖另一端" || fail "Minax 未表現 NE↔SW 瞬移(被擊中應逃逸)"
 echo "$MX" | grep -q "擊穿了米娜克斯"   || fail "Minax 位移對決未能斬殺(追擊鏈失效?)"
 echo "PASS: Minax 位移對決·瞬移+斬殺鏈通過"
+
+echo "== 6) Planet X 太空可達性(行星表 0..9 完整)=="
+# U 除錯發射 → E×7 HYPERWARP 到 X 行星(9,9,9)軌道 → Y 降落 mapx90(固定 seed 確定性)
+PX="$("$GAME" "$DATA/mapx20" "$FONT" "$TS" "$UI_TSV" --script "UEEEEEEEY" "$OUT/px" 2>&1)"
+echo "$PX" | grep -q "降落在X 行星" || fail "Planet X 不可降落(行星表缺 index 9?)"
+echo "PASS: Planet X(9,9,9 / mapx90)可躍遷+降落"
