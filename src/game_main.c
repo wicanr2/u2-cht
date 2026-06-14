@@ -216,7 +216,6 @@ static void clampi(int *v, int lo, int hi) { if (*v<lo)*v=lo; if (*v>hi)*v=hi; }
 
 /* 地點登記表查詢(forward 宣告) */
 static const char *loc_dest(const char *world, unsigned char tile);
-static int town_wall_tile(unsigned char t);   /* 城鎮磚牆(render_world 程序化紅磚用)*/
 static const char *kind_name(char k);
 static const char *race_nm(int r);
 /* 法術(forward 宣告;render_dungeon HUD 用) */
@@ -252,10 +251,27 @@ static int label_land_components(const U2Map *m)
     }
     return bestcomp;
 }
-/* 落點:必在「最大陸地分量(主大陸)」上 ── 避免落小島 soft-lock(只進得了城堡、出不了島)。
- * 同分量內優先「鄰 landmark」(可立即進村鎮/城堡)其次最開闊。 */
+/* 原版精確新遊戲起點(逆向自 Alderson《Windows Native Ultima II》v1.01)。
+ * 新角色固定 map "20"(= mapx20)、座標 (0x14,0x14) = (20,20);
+ *   來源:FUN_0040de90(新角色建立)在 0x9c/0xa0 寫入 0x14,並把地圖名設為 DAT_0043e230="20"。
+ * (20,20) 為森林(tile 3,可步行、非 landmark),與我們的 mapx20 地形一致。
+ * 回傳 1 = 該世界有已知原版起點且該格可站(覆寫啟發式落點)。 */
+static int canon_start(const U2Map *m, const char *world, int *cx, int *cy)
+{
+    if (world && !strcmp(world, "20")) {
+        int x=0x14, y=0x14;
+        if (u2_passable(u2_map_tile(m,x,y))) { *cx=x; *cy=y; return 1; }
+    }
+    return 0;
+}
+
+/* 落點:原版有精確起點者用之(canon_start);否則退回啟發式 ──
+ * 必在「最大陸地分量(主大陸)」上,避免落小島 soft-lock;同分量內優先鄰 landmark、其次最開闊。
+ * 啟發式僅供時光旅行/行星等無原版起點紀錄的世界使用。 */
 static void find_start(const U2Map *m, U2Player *p, const char *world)
 {
+    int cx, cy;
+    if (canon_start(m, world, &cx, &cy)) { p->x=cx; p->y=cy; p->tile=PLAYER_TILE; return; }
     int main_c = label_land_components(m);
     int bx=-1, by=-1, bestscore=-1;
     if (main_c>=0){
@@ -387,20 +403,7 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, 
     } else {
         clampi(&cam_x,0,U2_MAP_W-VIEW_COLS); clampi(&cam_y,0,U2_MAP_H-VIEW_ROWS);
         u2_render_viewport(cv,m,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
-        /* 城鎮磚牆(tile 30/31):程序化畫紅磚覆蓋(tileset 可能無此 sprite → 白塊),不可穿越 */
-        for (int vy=0;vy<VIEW_ROWS;vy++) for (int vx=0;vx<VIEW_COLS;vx++){
-            unsigned char id=u2_map_tile(m,cam_x+vx,cam_y+vy);
-            if (!town_wall_tile(id)) continue;
-            int dx=MAP_OX+vx*TILE_PX, dy=MAP_OY+vy*TILE_PX;
-            SDL_Rect base={dx,dy,TILE_PX,TILE_PX}; SDL_FillRect(cv,&base,SDL_MapRGB(cv->format,158,58,42));  /* 紅磚 */
-            Uint32 mort=SDL_MapRGB(cv->format,92,30,22);   /* 磚縫 */
-            int bh=TILE_PX/4; if(bh<3)bh=3;
-            for (int row=0,by=0;by<TILE_PX;by+=bh,row++){
-                SDL_Rect h={dx,dy+by,TILE_PX,2}; SDL_FillRect(cv,&h,mort);       /* 橫縫 */
-                int off=(row&1)?TILE_PX/2:0;                                     /* 交錯直縫 */
-                for (int bx=off;bx<=TILE_PX;bx+=TILE_PX){ if(bx>=TILE_PX)continue; SDL_Rect v={dx+bx,dy+by,2,bh}; SDL_FillRect(cv,&v,mort); }
-            }
-        }
+        /* 城鎮牆(tile 30/31)維持 tileset 原本外觀(白色即原版牆色);擋路邏輯見 town_cell_blocked。 */
         u2_render_entities(cv,mon,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
     }
 
@@ -2554,6 +2557,8 @@ int main(int argc, char **argv)
 
     if (headless){
         int step=0; char out[600]; int won_announced=0;
+        printf("[start] world=%s pos=(%d,%d) tile=%d\n",
+               g.world_num, g.player.x, g.player.y, u2_map_tile(&g.map,g.player.x,g.player.y));
         if (titleimg){ render_title(cv,titleimg,&title,&body);
             snprintf(out,sizeof out,"%stitle.png",out_prefix); IMG_SavePNG(cv,out); }
         if (splash){ render_splash(cv,splash,&title,&body);
