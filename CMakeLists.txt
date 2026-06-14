@@ -20,7 +20,8 @@ set(U2_CORE
     src/u2_talk.c
     src/u2_tileset.c
     src/u2_dungeon.c
-    src/u2_text.c)
+    src/u2_text.c
+    src/touch_ui.c)
 
 add_executable(u2_poc src/poc_main.c ${U2_CORE})
 add_executable(u2_demo src/demo_main.c ${U2_CORE})
