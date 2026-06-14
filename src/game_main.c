@@ -216,6 +216,7 @@ static void clampi(int *v, int lo, int hi) { if (*v<lo)*v=lo; if (*v>hi)*v=hi; }
 
 /* 地點登記表查詢(forward 宣告) */
 static const char *loc_dest(const char *world, unsigned char tile);
+static int town_wall_tile(unsigned char t);   /* 城鎮磚牆(render_world 程序化紅磚用)*/
 static const char *kind_name(char k);
 static const char *race_nm(int r);
 /* 法術(forward 宣告;render_dungeon HUD 用) */
@@ -386,6 +387,20 @@ static void render_world(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, 
     } else {
         clampi(&cam_x,0,U2_MAP_W-VIEW_COLS); clampi(&cam_y,0,U2_MAP_H-VIEW_ROWS);
         u2_render_viewport(cv,m,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
+        /* 城鎮磚牆(tile 30/31):程序化畫紅磚覆蓋(tileset 可能無此 sprite → 白塊),不可穿越 */
+        for (int vy=0;vy<VIEW_ROWS;vy++) for (int vx=0;vx<VIEW_COLS;vx++){
+            unsigned char id=u2_map_tile(m,cam_x+vx,cam_y+vy);
+            if (!town_wall_tile(id)) continue;
+            int dx=MAP_OX+vx*TILE_PX, dy=MAP_OY+vy*TILE_PX;
+            SDL_Rect base={dx,dy,TILE_PX,TILE_PX}; SDL_FillRect(cv,&base,SDL_MapRGB(cv->format,158,58,42));  /* 紅磚 */
+            Uint32 mort=SDL_MapRGB(cv->format,92,30,22);   /* 磚縫 */
+            int bh=TILE_PX/4; if(bh<3)bh=3;
+            for (int row=0,by=0;by<TILE_PX;by+=bh,row++){
+                SDL_Rect h={dx,dy+by,TILE_PX,2}; SDL_FillRect(cv,&h,mort);       /* 橫縫 */
+                int off=(row&1)?TILE_PX/2:0;                                     /* 交錯直縫 */
+                for (int bx=off;bx<=TILE_PX;bx+=TILE_PX){ if(bx>=TILE_PX)continue; SDL_Rect v={dx+bx,dy+by,2,bh}; SDL_FillRect(cv,&v,mort); }
+            }
+        }
         u2_render_entities(cv,mon,tiles,cam_x,cam_y,VIEW_COLS,VIEW_ROWS,TILE_PX,MAP_OX,MAP_OY);
     }
 
@@ -1999,12 +2014,15 @@ static void town_attack_guard(Game *g, int slot)
     snprintf(g->msg,sizeof g->msg,tr("你砍向守衛(剩 %d)── 他反手回擊,你失去 %d 點生命。"),hp,back);
 }
 /* 城鎮格是否不可踏入(出界/牆/玩家/其他實體占用)。 */
+/* 城鎮牆 tile:磚牆/建築結構(tile 30/31)── 不可穿越(原版城鎮為實心牆)。*/
+static int town_wall_tile(unsigned char t){ return t==30 || t==31; }
 static int town_cell_blocked(Game *g, int x, int y)
 {
     if (x<0||y<0||x>=U2_MAP_W||y>=U2_MAP_H) return 1;
-    if (!u2_passable(u2_map_tile(&g->town,x,y))) return 1;
+    unsigned char t=u2_map_tile(&g->town,x,y);
+    if (!u2_passable(t) || town_wall_tile(t)) return 1;          /* 水 + 磚牆 擋路 */
     if (x==g->player.x && y==g->player.y) return 1;
-    for (int j=0;j<g->tmon.count && j<U2_MON_SLOTS;j++)
+    for (int j=0;j<g->tmon.count && j<U2_MON_SLOTS;j++)          /* 居民/NPC/守衛 占格不可穿 */
         if (g->tmon.ent[j].tile && g->tmon.ent[j].x==x && g->tmon.ent[j].y==y) return 1;
     return 0;
 }
@@ -2077,7 +2095,7 @@ static void handle_dir(Game *g, char dir)
             snprintf(g->msg,sizeof g->msg,tr("這架飛機少了黃銅鈕扣,飛不起來。")); return;
         }
         int pass;
-        if (g->in_town) pass = inb && u2_passable(tt);                    /* 城鎮:步行 */
+        if (g->in_town) pass = inb && !town_cell_blocked(g,tx,ty);        /* 城鎮:步行,擋磚牆/水/居民 */
         else switch (g->vehicle){
             case VEH_SHIP:  pass = inb && (tt==0||tt==1); break;          /* 船:水域 */
             case VEH_PLANE: pass = inb; break;                           /* 飛機:飛越任意地形 */
@@ -2529,9 +2547,9 @@ int main(int argc, char **argv)
     find_start(&g.map,&g.player,g.world_num);
     g.rng = 1;                                          /* 固定 seed → headless 可重現 */
     g.php = (g.save.ok && g.save.has_character) ? g.save.hp : 400;
-    place_ship(&g);                                     /* 起點附近放一艘可登的船 */
+    /* 開局徒步、無載具(對齊原版;主線取戒/劍/時間之門/Minax 皆在陸地,不需載具)。
+     * 載具改為探索取得:時間之門到其他時代時各放一艘船(time_travel);馬/火箭為未來改進。*/
     g.td_x=g.td_y=-1; place_time_door(&g);              /* 起點附近放一個時間之門 */
-    place_land_vehicles(&g);                            /* 馬 / 飛機 / 火箭(demo)*/
     snprintf(g.msg,sizeof g.msg,tr("歡迎來到 Sosaria,冒險者。"));
 
     if (headless){
