@@ -33,6 +33,17 @@
 #include "u2_save.h"
 #include "u2_talk.h"
 #include "u2_i18n.h"
+#include "touch_ui.h"
+#ifdef __ANDROID__
+#include "android_glue.h"
+#endif
+
+/* i18n:訊息經 tr()(回傳執行期字串)餵入 snprintf 作格式字串 ── 屬刻意設計。
+ * Android NDK(clang)預設 -Werror=format-security 會擋,於本檔抑制(不影響桌面 gcc)。 */
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wformat-security"
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+#endif
 
 /* ---- FM Towns 原版音效(CD /SOUND/*.SND → WAV;--sfx <dir> 指向 tools/decode_fmtowns_snd.py 產出)----
    互動模式才載入;headless/缺檔則 sfx_play 為 no-op。檔名見 SFX_FILE。 */
@@ -2397,8 +2408,24 @@ static int mus_ctx(const Game *g)
 }
 #endif
 
+/* 互動畫面呈現:畫觸控疊層(依 ctx)→ 上傳 texture → present。 */
+static void present_canvas(SDL_Renderer *ren, SDL_Surface *cv, int ctx)
+{
+    touch_ui_layout(ctx);
+    touch_ui_draw(cv);
+    SDL_Texture *t = SDL_CreateTextureFromSurface(ren, cv);
+    SDL_RenderClear(ren); SDL_RenderCopy(ren, t, NULL, NULL); SDL_RenderPresent(ren);
+    SDL_DestroyTexture(t);
+}
+
 int main(int argc, char **argv)
 {
+#ifdef __ANDROID__
+    /* Android:無有效 argv → 解壓 APK assets 到內部儲存,合成指向該處的 argv。 */
+    char *android_argv[32]; int android_argc=0;
+    android_bootstrap(android_argv, &android_argc);
+    argc = android_argc; argv = android_argv;
+#endif
     if (argc < 5){
         fprintf(stderr,"用法: %s <worldmap> <font.ttf> <tileset.png> <ui_tsv> "
             "[player_save] [--script CMDS prefix]\n",argv[0]);
@@ -2633,28 +2660,30 @@ int main(int argc, char **argv)
             SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,CANVAS_W,CANVAS_H,0);
         SDL_Renderer *ren=SDL_CreateRenderer(win,-1,SDL_RENDERER_ACCELERATED);
         int running=1;
+        /* 觸控疊層:Android 啟用(桌面停用)。座標用 canvas;標籤用 body 字型。 */
+        touch_ui_set_canvas(CANVAS_W,CANVAS_H);
+        touch_ui_set_font(&body);
+#ifdef __ANDROID__
+        touch_ui_enabled=1;
+#endif
         /* 開場序列:原版標題 → 全家福 splash(各按任意鍵或逾時) */
         if (titleimg){
             render_title(cv,titleimg,&title,&body);
-            SDL_Texture *st=SDL_CreateTextureFromSurface(ren,cv);
-            SDL_RenderClear(ren); SDL_RenderCopy(ren,st,NULL,NULL); SDL_RenderPresent(ren);
-            SDL_DestroyTexture(st);
+            present_canvas(ren,cv,0);
             Uint32 t0=SDL_GetTicks(); int go=0;
             while (!go && SDL_GetTicks()-t0<5000){
                 SDL_Event e;
-                while (SDL_PollEvent(&e)) if (e.type==SDL_KEYDOWN||e.type==SDL_QUIT||e.type==SDL_MOUSEBUTTONDOWN) go=1;
+                while (SDL_PollEvent(&e)) if (e.type==SDL_KEYDOWN||e.type==SDL_QUIT||e.type==SDL_MOUSEBUTTONDOWN||e.type==SDL_FINGERDOWN) go=1;
                 SDL_Delay(16);
             }
         }
         if (splash){
             render_splash(cv,splash,&title,&body);
-            SDL_Texture *st=SDL_CreateTextureFromSurface(ren,cv);
-            SDL_RenderClear(ren); SDL_RenderCopy(ren,st,NULL,NULL); SDL_RenderPresent(ren);
-            SDL_DestroyTexture(st);
+            present_canvas(ren,cv,0);
             Uint32 t0=SDL_GetTicks(); int go=0;
             while (!go && SDL_GetTicks()-t0<4000){
                 SDL_Event e;
-                while (SDL_PollEvent(&e)) if (e.type==SDL_KEYDOWN||e.type==SDL_QUIT||e.type==SDL_MOUSEBUTTONDOWN) go=1;
+                while (SDL_PollEvent(&e)) if (e.type==SDL_KEYDOWN||e.type==SDL_QUIT||e.type==SDL_MOUSEBUTTONDOWN||e.type==SDL_FINGERDOWN) go=1;
                 SDL_Delay(16);
             }
         }
@@ -2667,12 +2696,11 @@ int main(int argc, char **argv)
             int sel=0, chosen=-1;
             while (running && chosen<0){
                 render_menu(cv,opts,n,sel,titleimg,&title,&body);
-                SDL_Texture *t=SDL_CreateTextureFromSurface(ren,cv);
-                SDL_RenderClear(ren); SDL_RenderCopy(ren,t,NULL,NULL); SDL_RenderPresent(ren);
-                SDL_DestroyTexture(t);
+                present_canvas(ren,cv,TUI_MENU);
                 SDL_Event e;
                 while (SDL_WaitEvent(&e)){
                     if (e.type==SDL_QUIT){ running=0; break; }
+                    if (e.type==SDL_FINGERDOWN){ touch_ui_finger(e.tfinger.x,e.tfinger.y); break; }
                     if (e.type==SDL_KEYDOWN){
                         SDL_Keycode k=e.key.keysym.sym;
                         if (k==SDLK_UP||k==SDLK_w) { sel=(sel+n-1)%n; break; }
@@ -2690,12 +2718,11 @@ int main(int argc, char **argv)
                 int done=0;
                 while (running && !done){
                     render_create(cv,&c,&title,&body,&small);
-                    SDL_Texture *t=SDL_CreateTextureFromSurface(ren,cv);
-                    SDL_RenderClear(ren); SDL_RenderCopy(ren,t,NULL,NULL); SDL_RenderPresent(ren);
-                    SDL_DestroyTexture(t);
+                    present_canvas(ren,cv,TUI_CREATE);
                     SDL_Event e;
                     while (SDL_WaitEvent(&e)){
                         if (e.type==SDL_QUIT){ running=0; break; }
+                        if (e.type==SDL_FINGERDOWN){ touch_ui_finger(e.tfinger.x,e.tfinger.y); break; }
                         if (e.type==SDL_KEYDOWN){
                             SDL_Keycode k=e.key.keysym.sym;
                             char ch=0;
@@ -2723,6 +2750,7 @@ int main(int argc, char **argv)
             SDL_Event e;
             while (SDL_PollEvent(&e)){
                 if (e.type==SDL_QUIT) running=0;
+                else if (e.type==SDL_FINGERDOWN){ touch_ui_finger(e.tfinger.x,e.tfinger.y); }
                 else if (e.type==SDL_KEYDOWN){
                     SDL_Keycode k=e.key.keysym.sym; char d=0;
                     if (g.quit_confirm){                    /* 離開確認(yes/no):Y 離開(自動存檔),其他取消 */
@@ -2773,9 +2801,12 @@ int main(int argc, char **argv)
                 }
             }
             render_all(cv,&g,&title,&body,&small);
-            SDL_Texture *tex=SDL_CreateTextureFromSurface(ren,cv);
-            SDL_RenderClear(ren); SDL_RenderCopy(ren,tex,NULL,NULL); SDL_RenderPresent(ren);
-            SDL_DestroyTexture(tex);
+            int tctx = g.quit_confirm ? TUI_QUIT : TUI_GAME;
+            if (!g.quit_confirm){
+                if (g.show_shop) tctx|=TUI_SHOP;
+                if (g.mode==MODE_DUNGEON) tctx|=TUI_DUNGEON;
+            }
+            present_canvas(ren,cv,tctx);
             SDL_Delay(16);
         }
         SDL_DestroyRenderer(ren); SDL_DestroyWindow(win);
