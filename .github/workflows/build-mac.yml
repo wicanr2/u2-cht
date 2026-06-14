@@ -12,7 +12,15 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14   # Apple Silicon (arm64)
+            arch: arm64
+          - os: macos-13   # Intel (x86_64)
+            arch: x86_64
     steps:
       - uses: actions/checkout@v4
 
@@ -107,7 +115,7 @@ jobs:
       - name: 上傳 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Ultima2-mac
+          name: Ultima2-mac-${{ matrix.arch }}
           path: Ultima2-mac.zip
 
       - name: 附到 Release(僅 tag)
