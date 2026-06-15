@@ -125,7 +125,7 @@ build_windows(){
   x86_64-w64-mingw32-gcc -O2 -o "$M/pkg/Ultima2-cht.exe" \
     -Dmain=SDL_main \
     src/game_main.c src/u2_map.c src/u2_mon.c src/u2_play.c src/u2_render.c src/u2_save.c \
-    src/u2_strings.c src/u2_talk.c src/u2_tileset.c src/u2_dungeon.c src/u2_text.c \
+    src/u2_strings.c src/u2_talk.c src/u2_tileset.c src/u2_dungeon.c src/u2_text.c src/touch_ui.c \
     -I src $INC $LIB -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image -lm -mwindows
   # 收 runtime DLL
   cp "$M/sdl/SDL2-$SDLV/$P/bin/SDL2.dll" "$M/pkg/"
