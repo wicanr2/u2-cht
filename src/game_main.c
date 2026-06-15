@@ -666,7 +666,8 @@ static void shop_buy(Game *g, int idx)
     int en=(u2_lang==U2_EN);
     if (g->save.gold < SHOP[idx].price){ snprintf(g->msg,sizeof g->msg,tr("黃金不足。")); return; }
     switch (SHOP[idx].kind){
-        case 0: if(g->weapon>=8){snprintf(g->msg,sizeof g->msg,tr("武器已是最強。"));return;} g->weapon++; break;
+        /* 商店最高賣到相位槍(7);迅捷之劍(8)為國王任務專屬,商店買不到 */
+        case 0: if(g->weapon>=7){snprintf(g->msg,sizeof g->msg,tr("這是商店最強的武器了(迅捷之劍需向國王求取)。"));return;} g->weapon++; break;
         case 1: if(g->armour>=5){snprintf(g->msg,sizeof g->msg,tr("防具已是最強。"));return;} g->armour++; break;
         case 2: g->save.food += SHOP[idx].arg; if(g->save.food>9999)g->save.food=9999; break;
         case 3: g->items |= (unsigned)SHOP[idx].arg; break;
@@ -682,6 +683,7 @@ static void shop_buy(Game *g, int idx)
                       }
                       g->save.gold -= 500;
                       g->items|=ITEM_QUICKSWORD;
+                      g->weapon=8;            /* 迅捷之劍 = 武器階級 8(唯一能殺 Minax;商店/偷竊到不了)*/
                       g->php=g->maxhp;
                       snprintf(g->msg,sizeof g->msg,tr("國王收下 500 金貢禮,賜予迅捷之劍 ENILNO!")); return;
                   }
@@ -1031,12 +1033,18 @@ static void do_steal(Game *g)
     int target = rng_next(g)%3;   /* 0 武器 1 防具 2 食物 */
     int agi = g->save.has_character ? g->save.stats[1] : 15;
     int chance = 30 + agi; if (chance>85) chance=85;   /* AGI 15→45% · 30→60%,上限 85% */
+    /* 行竊驚動守衛:每次下手都有機率讓城內守衛轉敵對(壓制無限行竊)。*/
+    if ((int)(rng_next(g)%100) < 45)
+        for (int gi=0; gi<g->tmon.count && gi<U2_MON_SLOTS; gi++)
+            if (g->tmon.ent[gi].tile==TILE_GUARD) g->tent_hostile |= (1u<<gi);
     if ((int)(rng_next(g)%100) < chance){
+        /* 偷竊只摸得到中階貨:武器至多相位槍前一階(6)、防具至多反射甲(4)。
+         * 迅捷之劍(8)為國王任務專屬;動力甲(5)/相位槍(7)需到商店正當購買。*/
         switch (target){
-            case 0: if(g->weapon<8){ g->weapon++; snprintf(g->msg,sizeof g->msg,tr("你順手牽羊,偷得一件更好的武器!")); }
-                    else snprintf(g->msg,sizeof g->msg,tr("你下手了,但架上已無更好的武器。")); break;
-            case 1: if(g->armour<5){ g->armour++; snprintf(g->msg,sizeof g->msg,tr("你順手牽羊,偷得一件更好的防具!")); }
-                    else snprintf(g->msg,sizeof g->msg,tr("你下手了,但架上已無更好的防具。")); break;
+            case 0: if(g->weapon<6){ g->weapon++; snprintf(g->msg,sizeof g->msg,tr("你順手牽羊,偷得一件更好的武器!")); }
+                    else snprintf(g->msg,sizeof g->msg,tr("你下手了,但這種小店沒有更好的武器了。")); break;
+            case 1: if(g->armour<4){ g->armour++; snprintf(g->msg,sizeof g->msg,tr("你順手牽羊,偷得一件更好的防具!")); }
+                    else snprintf(g->msg,sizeof g->msg,tr("你下手了,但這種小店沒有更好的防具了。")); break;
             default: g->save.food+=150; if(g->save.food>9999)g->save.food=9999;
                     snprintf(g->msg,sizeof g->msg,tr("你摸走了一些食物(+150)。")); break;
         }
@@ -1096,15 +1104,8 @@ static void do_talk(Game *g)
                     snprintf(g->msg,sizeof g->msg,tr("老者說:「力場之戒由安托斯神父守護,他隱居於盤古大陸的城堡。去那裡尋他。」"));
                 return;
             }
-            /* [正典] FUN_00408e50 else 分支 ALAKAZAM:偶遇慷慨市民,提升隨機屬性
-               (本分支只在 clue 鏈已過後到達,不干擾蒐線索;回歸腳本不含 T,RNG 流不受影響)*/
-            if ((rng_next(g)%6)==0){
-                int s=rng_next(g)%U2_NUM_STATS;
-                if (g->save.stats[s]<99) g->save.stats[s]++;
-                snprintf(g->msg,sizeof g->msg,tr("「阿拉卡贊!」對方為你祝福,%s 提升了。"),
-                         u2_lang==U2_EN?u2_save_stat_name(s):u2_save_stat_zh(s));
-                return;
-            }
+            /* 註:原版 ALAKAZAM 屬性提升([正典] FUN_00408e50)是「捐金祝福」── 給 N×100 金 → 屬性 +N×4,
+             * 需花錢、非免費 TALK。免費 TALK 提升屬性會被無限刷,已移除;付費提升走商店「獻金給國王」。 */
             const char *zh=u2_strings_lookup(&g->tr, g->talk.line[k]);
             const char *disp=zh?zh:g->talk.line[k];
             char one[180]; size_t j=0;
@@ -2431,6 +2432,9 @@ int main(int argc, char **argv)
             "[player_save] [--script CMDS prefix]\n",argv[0]);
         return 2;
     }
+    /* Windows:.bat 傳反斜線路徑 → 統一成 '/',讓內部 strrchr('/') 路徑解析與 fopen 一致
+     * (Windows 也接受 '/')。修「進城鎮找不到資料」(data_dir 解析失敗落到 CWD)。 */
+    for (int i=1;i<argc;i++) for (char *p=argv[i]; p && *p; p++) if (*p=='\\') *p='/';
     const char *map_path=argv[1], *font_path=argv[2], *tiles_path=argv[3], *ui_tsv=argv[4];
     const char *player_save=NULL, *script=NULL, *out_prefix=NULL, *splash_path=NULL, *title_path=NULL;
     const char *save_override=NULL, *screens_prefix=NULL, *town_tiles_path=NULL, *music_dir=NULL, *sfx_dir=NULL;
