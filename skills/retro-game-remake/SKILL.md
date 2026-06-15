@@ -1,6 +1,6 @@
 ---
 name: retro-game-remake
-description: 把 1980s–90s 老遊戲(尤其 CRPG)逆向工程 + 乾淨重寫成跨平台 C/SDL2 引擎 + 繁中化的完整方法論。核心策略「反編當 oracle,不照抄」:Ghidra/capstone 反編原版當行為真值,破解原版資料格式,手寫可維護的乾淨引擎,挖出各版本(含 FM Towns 日版)美術/CD音樂/音效,headless 驗證可破關,Docker 跨平台打包(AppImage/Windows/Mac GitHub Actions),引擎與版權資料分離。觸發條件:使用者要「重製/移植/中文化某老遊戲」、「反組譯遊戲執行檔」、「破解老遊戲資料格式」、「抽取 FM Towns/DOS 遊戲美術或音樂」、「把老遊戲做成跨平台可玩」、或接續 u2-cht/u3-cht/u6-cht/opendw 這類重製專案。本 skill 階層式:先讀本檔總覽 + 踩雷,需要某階段細節再讀 references/ 下對應檔。基於 Ultima II 繁中重製(u2-cht, 2026-06)完整經驗。
+description: 把 1980s–90s 老遊戲(尤其 CRPG)逆向工程 + 乾淨重寫成跨平台 C/SDL2 + 繁中化的階層式方法論(反編當 oracle 不照抄)。觸發:「重製/移植/中文化老遊戲」「反組譯遊戲執行檔」「破解老遊戲資料格式」「抽 FM Towns/DOS 美術或音樂」「把老遊戲做成跨平台可玩」「u2-cht/u3-cht/u6-cht/opendw」。完整策略與七階段見內文 + references/。
 ---
 
 # 老遊戲逆向 + 乾淨重製 Skill(階層式)
@@ -27,7 +27,7 @@ Ghidra 反編原版 binary ──(只當「行為真值 oracle」,抽演算法,�
 | 3. 美術/音訊考古 | 各版本 tileset/sprite、FM Towns TIF、CD 音樂、音效抽取 | `references/03-asset-archaeology.md` |
 | 4. 乾淨引擎 + 中文化 | deep modules 垂直切片;CJK 雙層渲染;UTF-8 覆蓋層翻譯 | `references/04-engine-localization.md` |
 | 5. 驗證 | headless 確定性回歸;可破關鏈;**正常玩法可達性** | `references/05-verification.md` |
-| 6. 打包 | Docker first;引擎/資料分離;AppImage/Windows/Mac CI | `references/06-packaging.md` |
+| 6. 打包 | Docker first;引擎/資料分離;AppImage/Windows/Mac CI/Android APK(觸控) | `references/06-packaging.md` |
 | 7. 攻略/文件 | 玩家向 README + 工程文件分離;繁中攻略 | (見各 repo;README 玩家向、ENGINEERING.md 技術) |
 
 ## ⚠️ 最痛的踩雷(這些用時間換來的,務必記住)
