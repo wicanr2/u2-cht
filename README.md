@@ -177,7 +177,9 @@ FM Towns（1990 日版）的音訊已從原版光碟挖出並接進遊戲:
   docker run --rm -v "$PWD":/work -v <你的資料夾>:/data:ro -v /tmp/out:/out \
     u2cht-pkg bash -c 'cd /work && bash build_release.sh'
   ```
-- **macOS 原生 .app**:由 GitHub Actions 在 macOS runner 上編譯,見 [`.github/workflows/build-mac.yml`](.github/workflows/build-mac.yml)。
+- **macOS 原生 .app / Android APK**:由 GitHub Actions 編譯(`build-mac.yml` / `build-android.yml`)。
+- **完整編譯與打包流程**(各平台、CI、引擎/資料分離、所有踩過的雷):
+  ➡️ **[docs/BUILDING.md](docs/BUILDING.md)**
 - **完整工程技術文件**(反組譯策略、資料格式破解、FM Towns 考古、中文化管線、引擎架構、完整進度):
   ➡️ **[docs/ENGINEERING.md](docs/ENGINEERING.md)**
 
