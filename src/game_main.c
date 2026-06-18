@@ -183,6 +183,12 @@ typedef struct {
     char msglog[4][200];          /* 命令/結果滾動記錄(原版風;[3]=最新)*/
     char msglog_last[200];        /* 偵測 msg 變化才推入記錄 */
     int quit_confirm;             /* F10 離開確認視窗(yes/no)顯示中 */
+    /* F6 設定:遊戲速度 / 怪物產生(可調 + 持久化於 meta)*/
+    int speed_pct;                /* 時間流速 %(100=每步一 tick;預設 40 = 較慢)*/
+    int spawn_pct;                /* 怪物生成率 %(相對原 87.5%/步;預設 55)*/
+    int time_accum;              /* 時間累加器:每步 +=speed_pct,滿 100 走一 tick */
+    int show_settings;            /* F6 設定視窗顯示中 */
+    int set_sel;                  /* 設定視窗選取列(0=速度 1=生成)*/
 } Game;
 /* 載具(oracle this+0x7390) */
 enum { VEH_WALK=0, VEH_HORSE=1, VEH_SHIP=2, VEH_PLANE=3, VEH_ROCKET=4 };
@@ -554,6 +560,7 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
         "C               角色資料表",
         "G               切換畫風(EGA / FM Towns…)",
         "F4              切換語系(繁中 / English / 日本語)",
+        "F6              設定(遊戲速度 / 怪物產生率)",
         "F1              顯示 / 關閉本指令表",
         "ESC             取消 / 關閉視窗",
         "F10             離開遊戲(跳出 yes/no 確認,自動存檔)",
@@ -573,6 +580,7 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
         "C               Character sheet",
         "G               Switch theme (EGA / FM Towns...)",
         "F4              Switch language (中 / EN / 日)",
+        "F6              Settings (game speed / monster spawn)",
         "F1              Show / hide this list",
         "ESC             Cancel / close window",
         "F10             Quit game (yes/no confirm; autosave)",
@@ -588,6 +596,38 @@ static void render_help_overlay(SDL_Surface *cv, U2Text *body, U2Text *small)
     u2_text_draw(cv,body,tr("指令表(F1 關閉)"),x+16,y+8,235,235,245);
     int iy=y+52;
     for (int i=0;i<nrow;i++){ u2_text_draw(cv,small,ROWS[i],x+24,iy,215,220,230); iy+=30; }
+}
+
+/* F6 設定視窗:調整遊戲速度 / 怪物產生率(↑↓ 選列 · ←→ 調整 · F6/ESC 關閉)*/
+static void render_settings_overlay(SDL_Surface *cv, Game *g, U2Text *body, U2Text *small)
+{
+    int pw=520, ph=300, x=(CANVAS_W-pw)/2, y=(CANVAS_H-ph)/2;
+    SDL_Rect bg={x,y,pw,ph}; SDL_FillRect(cv,&bg,SDL_MapRGB(cv->format,18,22,40));
+    SDL_Rect bar={x,y,pw,40}; SDL_FillRect(cv,&bar,SDL_MapRGB(cv->format,40,50,120));
+    Uint32 fr=SDL_MapRGB(cv->format,120,140,200);
+    SDL_Rect e1={x,y,pw,2},e2={x,y+ph-2,pw,2},e3={x,y,2,ph},e4={x+pw-2,y,2,ph};
+    SDL_FillRect(cv,&e1,fr);SDL_FillRect(cv,&e2,fr);SDL_FillRect(cv,&e3,fr);SDL_FillRect(cv,&e4,fr);
+    u2_text_draw(cv,body,tr("設定(F6 關閉)"),x+16,y+8,235,235,245);
+
+    const char *labels[2] = { tr("遊戲速度(時間流速)"), tr("怪物產生率") };
+    int vals[2] = { g->speed_pct, g->spawn_pct };
+    int ry=y+64;
+    for (int i=0;i<2;i++){
+        int sel = (g->set_sel==i);
+        if (sel){ SDL_Rect hl={x+12,ry-6,pw-24,72}; SDL_FillRect(cv,&hl,SDL_MapRGB(cv->format,40,50,90)); }
+        char head[96]; snprintf(head,sizeof head,"%s%s",sel?"\xe2\x96\xb6 ":"   ",labels[i]);  /* ▶ */
+        u2_text_draw(cv,body,head,x+20,ry,sel?250:215,sel?235:220,sel?150:230);
+        /* 進度條(10%..200%) */
+        int bx=x+24, by=ry+34, bw=pw-160, bh=18;
+        SDL_Rect track={bx,by,bw,bh}; SDL_FillRect(cv,&track,SDL_MapRGB(cv->format,30,34,55));
+        int fillw = bw*vals[i]/200; if(fillw<2)fillw=2; if(fillw>bw)fillw=bw;
+        SDL_Rect fill={bx,by,fillw,bh}; SDL_FillRect(cv,&fill,SDL_MapRGB(cv->format,sel?230:120,sel?180:140,sel?70:170));
+        char pc[32]; snprintf(pc,sizeof pc,"%d%%",vals[i]);
+        u2_text_draw(cv,body,pc,bx+bw+16,by-4,235,230,180);
+        ry+=86;
+    }
+    u2_text_draw(cv,small,tr("↑/↓ 選擇 · ←/→ 調整(±5%) · F6/ESC 關閉"),x+24,y+ph-34,180,195,225);
+    u2_text_draw(cv,small,tr("速度越低=時間/食物消耗越慢、怪越不易圍上;生成率=遇怪頻率"),x+24,y+ph-58,150,170,205);
 }
 
 /* ---- 城鎮商店(M3)---- */
@@ -835,6 +875,7 @@ static void render_all(SDL_Surface *cv, Game *g, U2Text *title, U2Text *body, U2
     if (g->show_view)        render_view_overlay(cv,g,body);
     if (g->show_sheet)       render_sheet_overlay(cv,g,body,small);
     if (g->show_help)        render_help_overlay(cv,body,small);
+    if (g->show_settings)    render_settings_overlay(cv,g,body,small);
     if (g->show_shop)        render_shop_overlay(cv,g,body,small);
     if (g->quit_confirm)     render_quit_confirm(cv,body);
 }
@@ -1225,6 +1266,8 @@ static int player_dmg(Game *g)
 static void spawn_mob(Game *g)
 {
     if (g->nmob >= MOB_MAX || g->in_town || g->mode != MODE_WORLD) return;
+    /* F6 生成率調節:spawn_pct<100 時依比例放行(短路 → 100 不消耗 RNG,headless 決定性不變)*/
+    if (g->spawn_pct < 100 && (int)(rng_next(g) % 100) >= g->spawn_pct) return;
     if (rng_next(g) % 8 >= 7) return;   /* oracle FUN_0040c350:每次移動 7/8≈87.5% 嘗試 spawn */
     static const unsigned char mt[8] = {12,13,14,15,60,61,62,63};
     for (int t = 0; t < 8; t++) {
@@ -2126,13 +2169,20 @@ static void handle_dir(Game *g, char dir)
             else if (L && (L->kind=='d'||L->kind=='T')) { g->nmob=0; enter_dungeon_at(g, L->dest, L->kind=='T'); }
             else if (L) { g->nmob=0; enter_town_tile(g,t); }
             else if (g->in_town){ step_town_guards(g); }   /* 城鎮回合:敵對守衛攻擊 */
-            else if (!g->in_town){ g->turn++; step_mobs(g); spawn_mob(g); tick_time_door(g);
-                /* 食物每回合消耗(manual);耗盡則飢餓扣血 */
-                if (g->save.has_character){
-                    if (g->save.food>0) g->save.food--;
-                    else { g->php-=2; if(g->php<0)g->php=0; snprintf(g->msg,sizeof g->msg,tr("你飢餓難耐,生命流逝……")); }
+            else if (!g->in_town){ g->turn++;
+                spawn_mob(g);   /* 生成率由 spawn_pct 獨立調節(每步嘗試)*/
+                /* 時間流速(F6 speed_pct):累加滿 100 才走一個「時間 tick」──
+                 * 食物消耗 / 怪物移動 / 時間之門 / Minax 都隨此放慢。speed_pct=100 等同每步一 tick(原行為)。*/
+                g->time_accum += (g->speed_pct>0?g->speed_pct:100);
+                while (g->time_accum >= 100){
+                    g->time_accum -= 100;
+                    step_mobs(g); tick_time_door(g);
+                    if (g->save.has_character){
+                        if (g->save.food>0) g->save.food--;
+                        else { g->php-=2; if(g->php<0)g->php=0; snprintf(g->msg,sizeof g->msg,tr("你飢餓難耐,生命流逝……")); }
+                    }
+                    minax_turn(g);   /* 傳說時代:Minax 力場火球(戒指免疫)*/
                 }
-                minax_turn(g);   /* 傳說時代:Minax 力場火球(戒指免疫)*/
             }
         } else { snprintf(g->msg,sizeof g->msg,
                         (!g->in_town&&g->vehicle==VEH_SHIP&&tt!=0&&tt!=1)?tr("船無法駛上陸地(B 下船)。"):tr("%c 方向被擋住。"),dir);
@@ -2358,13 +2408,17 @@ static void meta_path(char *out, size_t n, const char *save_path){ snprintf(out,
 static void load_meta(Game *g, const char *save_path){
     char mp[1100]; meta_path(mp,sizeof mp,save_path);
     FILE *f=fopen(mp,"rb"); if(!f) return;
-    unsigned int v[3]={0,0,0}; if(fread(v,sizeof(unsigned int),3,f)==3){ g->items=v[0]; g->weapon=(int)v[1]; g->armour=(int)v[2]; }
+    unsigned int v[5]={0,0,0,0,0}; size_t n=fread(v,sizeof(unsigned int),5,f);
+    if (n>=3){ g->items=v[0]; g->weapon=(int)v[1]; g->armour=(int)v[2]; }
+    if (n>=5){ if(v[3]>=10&&v[3]<=200) g->speed_pct=(int)v[3]; if(v[4]>=10&&v[4]<=200) g->spawn_pct=(int)v[4]; }
     fclose(f);
 }
 static void save_meta(const Game *g, const char *save_path){
     char mp[1100]; meta_path(mp,sizeof mp,save_path);
     FILE *f=fopen(mp,"wb"); if(!f) return;
-    unsigned int v[3]={g->items,(unsigned)g->weapon,(unsigned)g->armour}; fwrite(v,sizeof(unsigned int),3,f); fclose(f);
+    unsigned int v[5]={g->items,(unsigned)g->weapon,(unsigned)g->armour,
+                       (unsigned)g->speed_pct,(unsigned)g->spawn_pct};
+    fwrite(v,sizeof(unsigned int),5,f); fclose(f);
 }
 
 #ifdef HAVE_SDL_MIXER
@@ -2438,9 +2492,12 @@ int main(int argc, char **argv)
     const char *map_path=argv[1], *font_path=argv[2], *tiles_path=argv[3], *ui_tsv=argv[4];
     const char *player_save=NULL, *script=NULL, *out_prefix=NULL, *splash_path=NULL, *title_path=NULL;
     const char *save_override=NULL, *screens_prefix=NULL, *town_tiles_path=NULL, *music_dir=NULL, *sfx_dir=NULL;
+    int speed_override=-1, spawn_override=-1;   /* --speed/--spawn:覆寫 F6 預設(10..200)*/
     for (int i=5;i<argc;i++){
         if (!strcmp(argv[i],"--music") && i+1<argc){ music_dir=argv[i+1]; i+=1; continue; }
         if (!strcmp(argv[i],"--sfx") && i+1<argc){ sfx_dir=argv[i+1]; i+=1; continue; }
+        if (!strcmp(argv[i],"--speed") && i+1<argc){ speed_override=atoi(argv[i+1]); i+=1; continue; }
+        if (!strcmp(argv[i],"--spawn") && i+1<argc){ spawn_override=atoi(argv[i+1]); i+=1; continue; }
         if (!strcmp(argv[i],"--script") && i+2<argc){ script=argv[i+1]; out_prefix=argv[i+2]; i+=2; }
         else if (!strcmp(argv[i],"--splash") && i+1<argc){ splash_path=argv[i+1]; i+=1; }
         else if (!strcmp(argv[i],"--title") && i+1<argc){ title_path=argv[i+1]; i+=1; }
@@ -2465,6 +2522,9 @@ int main(int argc, char **argv)
     (void)music_dir; (void)sfx_dir;
 #endif
     Game g; memset(&g,0,sizeof g);
+    /* F6 可調預設:遊戲速度 40%(時間/食物/怪物移動放慢)、怪物生成 55%。
+     * load_meta 之後若有存檔值會覆寫;headless 強制 100/100 以保回歸測試決定性。*/
+    g.speed_pct=40; g.spawn_pct=55;
     g.map=u2_map_load(map_path);
     if (!g.map.ok){ fprintf(stderr,"無法載入地圖: %s\n",map_path); return 1; }
 
@@ -2534,7 +2594,10 @@ int main(int argc, char **argv)
     int have_continue = wsave.ok && wsave.has_character;
     /* headless / 預設:有可寫存檔用它,否則用範本 */
     g.save = have_continue ? wsave : tmpl;
-    load_meta(&g, save_path);   /* 還原裝備/道具(continue)*/
+    load_meta(&g, save_path);   /* 還原裝備/道具 + F6 速度/生成設定(continue)*/
+    if (headless){ g.speed_pct=100; g.spawn_pct=100; }   /* 回歸測試:原始每步一 tick,決定性不變 */
+    if (speed_override>=10&&speed_override<=200) g.speed_pct=speed_override;   /* --speed 覆寫(含測試)*/
+    if (spawn_override>=10&&spawn_override<=200) g.spawn_pct=spawn_override;   /* --spawn 覆寫 */
 
     SDL_Surface *cv=SDL_CreateRGBSurfaceWithFormat(0,CANVAS_W,CANVAS_H,32,SDL_PIXELFORMAT_RGBA32);
     U2Text title=u2_text_open(font_path,20), body=u2_text_open(font_path,22), small=u2_text_open(font_path,17);
@@ -2601,6 +2664,7 @@ int main(int argc, char **argv)
             if (d) handle_dir(&g,d);
             else if (c=='C'||c=='c') g.show_sheet=!g.show_sheet;
             else if (c=='H'||c=='h') g.show_help=!g.show_help;   /* F1 指令表(headless) */
+            else if (c=='6') g.show_settings=!g.show_settings;   /* F6 設定視窗(headless 截圖驗證) */
             else if (c=='T'||c=='t') do_talk(&g);
             else if (c=='J'||c=='j') dungeon_descend(&g);
             else if (c=='K'||c=='k') dungeon_ascend(&g);
@@ -2651,7 +2715,7 @@ int main(int argc, char **argv)
             else continue;
             render_all(cv,&g,&title,&body,&small);
             snprintf(out,sizeof out,"%s%02d.png",out_prefix,step++); IMG_SavePNG(cv,out);
-            if (g.msg[0]) printf("[step %02d] %s\n",step-1,g.msg);  /* 訊息 stdout 儀器(headless 可 grep)*/
+            if (g.msg[0]) printf("[step %02d] food=%d %s\n",step-1,g.save.food,g.msg);  /* 訊息+食物 stdout 儀器(headless 可 grep)*/
             if (g.won && !won_announced){      /* 破關確定性訊號(回歸測試 grep 用) */
                 won_announced=1;
                 printf("*** GAME WON (Minax defeated) step=%d ***\n",step-1);
@@ -2761,6 +2825,16 @@ int main(int argc, char **argv)
                         if (k==SDLK_y) running=0; else g.quit_confirm=0;
                         continue;
                     }
+                    if (g.show_settings){                   /* F6 設定視窗:攔截方向鍵調整數值 */
+                        int *v = (g.set_sel==0)?&g.speed_pct:&g.spawn_pct;
+                        if (k==SDLK_UP||k==SDLK_w)        g.set_sel=(g.set_sel+1)&1;
+                        else if (k==SDLK_DOWN||k==SDLK_s) g.set_sel=(g.set_sel+1)&1;
+                        else if (k==SDLK_LEFT||k==SDLK_a){ *v-=5; if(*v<10)*v=10; }
+                        else if (k==SDLK_RIGHT||k==SDLK_d){ *v+=5; if(*v>200)*v=200; }
+                        else if (k==SDLK_F6||k==SDLK_ESCAPE){ g.show_settings=0; save_meta(&g,save_path); }
+                        continue;
+                    }
+                    if (k==SDLK_F6){ g.show_settings=1; g.set_sel=0; continue; }   /* 開設定視窗 */
                     switch (k){
                         case SDLK_UP:case SDLK_w: d='N'; break;
                         case SDLK_DOWN:case SDLK_s: d='S'; break;
