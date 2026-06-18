@@ -1,0 +1,69 @@
+name: build-android
+
+# 在 GitHub ubuntu runner 上編譯 Android 引擎 APK(SDL2 後端;不含版權遊戲資料)。
+# 產物為「除版權資料外可安裝」的 APK:含引擎 + 字型 + 公開 tileset + 翻譯,無 mapx/monx/tlkx。
+# 玩家自備合法 Ultima II 資料注入後即可遊玩(或用 repo 的本地注入+重簽流程)。
+
+on:
+  workflow_dispatch:
+  push:
+    tags: [ 'v*' ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK + NDK
+        uses: android-actions/setup-android@v3
+
+      - name: 安裝 NDK r25 + build-tools + python pillow
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "ndk;25.1.8937393" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+          python3 -m pip install --quiet pillow
+
+      - name: 快取 SDL 原始碼 + 字型
+        uses: actions/cache@v4
+        with:
+          path: ~/.sdlcache
+          key: sdl-android-2.30.9-ttf2.22.0-img2.8.2-noto
+
+      - name: 快取 Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-android-${{ hashFiles('android/build_apk.sh') }}
+          restore-keys: gradle-android-
+
+      - name: 建置引擎 APK(DATA 留空 → 不含版權資料)
+        run: |
+          mkdir -p /tmp/nodata "$GITHUB_WORKSPACE/out"
+          WORK="$GITHUB_WORKSPACE" \
+          DATA=/tmp/nodata \
+          OUT="$GITHUB_WORKSPACE/out" \
+          CACHE="$HOME/.sdlcache" \
+          bash android/build_apk.sh
+          mv "$GITHUB_WORKSPACE/out/Ultima2-繁中-android.apk" \
+             "$GITHUB_WORKSPACE/out/Ultima2-cht-engine-android.apk"
+
+      - name: 上傳 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ultima2-engine-android
+          path: out/Ultima2-cht-engine-android.apk
+
+      - name: 附到 Release(僅 tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/Ultima2-cht-engine-android.apk
