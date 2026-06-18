@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
-# 在 u2cht-android 容器內:組裝 SDL2 Android 專案 + 引擎源 + assets → 出 APK。
-# 掛載:/work(repo) /data(Ultima II 資料,唯讀) /out(輸出)
+# 組裝 SDL2 Android 專案 + 引擎源 + assets → 出 APK。
+# 路徑可由環境變數覆寫,兩種用法:
+#   (a) docker(u2cht-android):掛載 /work /data /out /cache,直接跑(預設值)。
+#   (b) GitHub Actions(ubuntu runner):export WORK/DATA/OUT/CACHE 後跑,SDK 由 ANDROID_HOME 提供。
+# DATA 空(或不存在)→ 不含版權地圖資料 = 引擎 APK(供 CI / Release)。
 set -euxo pipefail
 
-WORK=/work
-DATA=/data
-OUT=/out
+WORK="${WORK:-/work}"
+DATA="${DATA:-/data}"
+OUT="${OUT:-/out}"
+CACHE="${CACHE:-/cache}"
 SDLV=2.30.9
 TTFV=2.22.0
 IMGV=2.8.2
 PKG=tw.lairware.ultima2cht
-BUILD=/tmp/andbuild
-SRC=/tmp/andsrc
+BUILD="${ANDBUILD:-/tmp/andbuild}"
+SRC="${ANDSRC:-/tmp/andsrc}"
 
-rm -rf "$BUILD" "$SRC"; mkdir -p "$BUILD" "$SRC"
+rm -rf "$BUILD" "$SRC"; mkdir -p "$BUILD" "$SRC" "$OUT"
 
-# ---------- 1) 下載 SDL 系列原始碼(/cache 重用,加速反覆建置)----------
-CACHE=/cache; mkdir -p "$CACHE"
+# ---------- 1) 下載 SDL 系列原始碼(CACHE 重用,加速反覆建置)----------
+mkdir -p "$CACHE"
 cd "$CACHE"
 [ -f "SDL2-$SDLV.tar.gz" ]     || wget -q "https://github.com/libsdl-org/SDL/releases/download/release-$SDLV/SDL2-$SDLV.tar.gz"
 [ -f "SDL2_ttf-$TTFV.tar.gz" ] || wget -q "https://github.com/libsdl-org/SDL_ttf/releases/download/release-$TTFV/SDL2_ttf-$TTFV.tar.gz"
