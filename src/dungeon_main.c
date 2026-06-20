@@ -72,8 +72,8 @@ int main(int argc, char **argv)
     if (!title.font) { fprintf(stderr, "字型失敗: %s\n", TTF_GetError()); return 1; }
     u2_text_draw(cv, &title, "地牢 — 第一人稱線框(Ultima II)", 12, 5, 235, 235, 245);
 
-    /* 左:3D 線框視區 */
-    int depth = u2_dungeon_render(cv, &dg, level, px, py, dir, 16, 50, VIEW, VIEW);
+    /* 左:3D 線框視區(style 0 線框;無實體 ent_depth=-1;maxd 5 全視野)*/
+    int depth = u2_dungeon_render(cv, &dg, level, px, py, dir, 16, 50, VIEW, VIEW, 0, -1, 0, 0, 5);
 
     /* 右:繁中 HUD */
     int rx = 16 + VIEW + 24, ry = 60;
