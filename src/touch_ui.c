@@ -98,8 +98,9 @@ void touch_ui_layout(int ctx)
         /* 右上系統鈕 */
         add(CW - 70,  10, 58, 48, SDLK_F10, "離", 0);
         add(CW - 134, 10, 58, 48, SDLK_F1,  "?",  0);
-        add(CW - 198, 10, 58, 48, SDLK_F4,  "語", 0);
-        add(CW - 262, 10, 58, 48, SDLK_g,   "畫", 0);
+        add(CW - 198, 10, 58, 48, SDLK_F6,  "設", 0);   /* F6 設定(速度/生成)*/
+        add(CW - 262, 10, 58, 48, SDLK_F4,  "語", 0);
+        add(CW - 326, 10, 58, 48, SDLK_g,   "畫", 0);
     }
 
     if (ctx & TUI_DUNGEON) {
@@ -113,7 +114,7 @@ void touch_ui_layout(int ctx)
     if (g_more && (ctx & TUI_GAME)) {
         struct { SDL_Keycode k; const char *l; } more[] = {
             {SDLK_f,"竊 F"}, {SDLK_v,"瞰 V"}, {SDLK_n,"凝 N"},
-            {SDLK_i,"道具"}, {SDLK_ESCAPE,"消 ESC"},
+            {SDLK_ESCAPE,"消 ESC"},
         };
         int bw = 150, bh = 56, gap = 10;
         int n = (int)(sizeof more / sizeof more[0]);
