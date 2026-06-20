@@ -15,6 +15,7 @@ rm -rf "$W"; mkdir -p "$W/x"
 cd "$W/x"
 unzip -q "$ENGINE_APK"
 A=assets
+mkdir -p "$A/data" "$A/tileset"   # 空目錄常不入 zip,解開後需重建
 
 # ---- 注入版權資料 ----
 for pat in mapx monx tlkx; do
@@ -31,9 +32,19 @@ if ls "$WORK"/build/sfx/*.wav  >/dev/null 2>&1; then mkdir -p "$A/sfx";   cp "$W
 # ---- 移除舊簽章 ----
 rm -rf META-INF
 
-# ---- 重新打包 + 對齊 + 簽章 ----
+# ---- 重新打包 + 對齊 + 簽章(image 無 zip,用 python3 zipfile)----
 rm -f "$W/unsigned.apk" "$W/aligned.apk"
-( cd "$W/x" && zip -qr "$W/unsigned.apk" . )
+( cd "$W/x" && python3 - "$W/unsigned.apk" <<'PY'
+import zipfile, os, sys
+out = sys.argv[1]
+z = zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED)
+for root, _, files in os.walk('.'):
+    for f in files:
+        p = os.path.join(root, f)
+        z.write(p, os.path.relpath(p, '.'))
+z.close()
+PY
+)
 "$BT/zipalign" -f 4 "$W/unsigned.apk" "$W/aligned.apk"
 # debug keystore(無則生成;sideload 用)
 KS="$HOME/.android/debug.keystore"
