@@ -2498,6 +2498,7 @@ int main(int argc, char **argv)
         if (!strcmp(argv[i],"--sfx") && i+1<argc){ sfx_dir=argv[i+1]; i+=1; continue; }
         if (!strcmp(argv[i],"--speed") && i+1<argc){ speed_override=atoi(argv[i+1]); i+=1; continue; }
         if (!strcmp(argv[i],"--spawn") && i+1<argc){ spawn_override=atoi(argv[i+1]); i+=1; continue; }
+        if (!strcmp(argv[i],"--touch")){ touch_ui_enabled=1; continue; }   /* 強制開觸控疊層(觸控筆電/驗證)*/
         if (!strcmp(argv[i],"--script") && i+2<argc){ script=argv[i+1]; out_prefix=argv[i+2]; i+=2; }
         else if (!strcmp(argv[i],"--splash") && i+1<argc){ splash_path=argv[i+1]; i+=1; }
         else if (!strcmp(argv[i],"--title") && i+1<argc){ title_path=argv[i+1]; i+=1; }
@@ -2657,7 +2658,9 @@ int main(int argc, char **argv)
             snprintf(out,sizeof out,"%stitle.png",out_prefix); IMG_SavePNG(cv,out); }
         if (splash){ render_splash(cv,splash,&title,&body);
             snprintf(out,sizeof out,"%ssplash.png",out_prefix); IMG_SavePNG(cv,out); }
+        if (touch_ui_enabled){ touch_ui_set_canvas(CANVAS_W,CANVAS_H); touch_ui_set_font(&body); }   /* --touch:headless 也畫疊層(驗證)*/
         render_all(cv,&g,&title,&body,&small);
+        if (touch_ui_enabled){ touch_ui_layout(TUI_GAME); touch_ui_draw(cv); }
         snprintf(out,sizeof out,"%s%02d.png",out_prefix,step++); IMG_SavePNG(cv,out);
         for (const char *s=script;*s;s++){
             char c=*s, d=norm_dir(c);
