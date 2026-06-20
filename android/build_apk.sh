@@ -13,6 +13,7 @@ CACHE="${CACHE:-/cache}"
 SDLV=2.30.9
 TTFV=2.22.0
 IMGV=2.8.2
+MIXV=2.8.0
 PKG=tw.lairware.ultima2cht
 BUILD="${ANDBUILD:-/tmp/andbuild}"
 SRC="${ANDSRC:-/tmp/andsrc}"
@@ -25,10 +26,12 @@ cd "$CACHE"
 [ -f "SDL2-$SDLV.tar.gz" ]     || wget -q "https://github.com/libsdl-org/SDL/releases/download/release-$SDLV/SDL2-$SDLV.tar.gz"
 [ -f "SDL2_ttf-$TTFV.tar.gz" ] || wget -q "https://github.com/libsdl-org/SDL_ttf/releases/download/release-$TTFV/SDL2_ttf-$TTFV.tar.gz"
 [ -f "SDL2_image-$IMGV.tar.gz" ] || wget -q "https://github.com/libsdl-org/SDL_image/releases/download/release-$IMGV/SDL2_image-$IMGV.tar.gz"
+[ -f "SDL2_mixer-$MIXV.tar.gz" ] || wget -q "https://github.com/libsdl-org/SDL_mixer/releases/download/release-$MIXV/SDL2_mixer-$MIXV.tar.gz"
 cd "$SRC"
 tar xzf "$CACHE/SDL2-$SDLV.tar.gz"
 tar xzf "$CACHE/SDL2_ttf-$TTFV.tar.gz"
 tar xzf "$CACHE/SDL2_image-$IMGV.tar.gz"
+tar xzf "$CACHE/SDL2_mixer-$MIXV.tar.gz"
 
 # ---------- 2) 以 SDL 的 android-project 為範本 ----------
 cp -r "SDL2-$SDLV/android-project/." "$BUILD/"
@@ -36,6 +39,7 @@ mkdir -p "$BUILD/app/jni"
 cp -r "SDL2-$SDLV"            "$BUILD/app/jni/SDL"
 cp -r "SDL2_ttf-$TTFV"        "$BUILD/app/jni/SDL2_ttf"
 cp -r "SDL2_image-$IMGV"      "$BUILD/app/jni/SDL2_image"
+cp -r "SDL2_mixer-$MIXV"      "$BUILD/app/jni/SDL2_mixer"
 # SDL 的 Java 類別(org.libsdl.app.*)隨範本帶入;確認存在
 test -d "$BUILD/app/src/main/java/org/libsdl/app"
 
@@ -53,16 +57,18 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := main
 SDL_PATH := ../SDL
 # tr()/i18n 回傳執行期字串作 snprintf 格式 → 關閉 NDK 預設的 format-security Werror
-LOCAL_CFLAGS := -Wno-error=format-security -Wno-format-security -Wno-format-nonliteral
+# HAVE_SDL_MIXER=1 → 啟用音效(SFX wav)+ 音樂(ogg);需連結 SDL2_mixer
+LOCAL_CFLAGS := -Wno-error=format-security -Wno-format-security -Wno-format-nonliteral -DHAVE_SDL_MIXER=1
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/$(SDL_PATH)/include \
     $(LOCAL_PATH)/../SDL2_ttf \
     $(LOCAL_PATH)/../SDL2_image \
+    $(LOCAL_PATH)/../SDL2_mixer \
     $(LOCAL_PATH)
 LOCAL_SRC_FILES := \
     game_main.c u2_map.c u2_mon.c u2_play.c u2_render.c u2_save.c \
     u2_strings.c u2_talk.c u2_tileset.c u2_dungeon.c u2_text.c touch_ui.c android_glue.c
-LOCAL_SHARED_LIBRARIES := SDL2 SDL2_ttf SDL2_image
+LOCAL_SHARED_LIBRARIES := SDL2 SDL2_ttf SDL2_image SDL2_mixer
 LOCAL_LDLIBS := -lGLESv1_CM -lGLESv2 -lOpenSLES -llog -landroid
 include $(BUILD_SHARED_LIBRARY)
 MK

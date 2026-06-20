@@ -34,7 +34,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.sdlcache
-          key: sdl-android-2.30.9-ttf2.22.0-img2.8.2-noto
+          key: sdl-android-2.30.9-ttf2.22.0-img2.8.2-mix2.8.0-noto
 
       - name: 快取 Gradle
         uses: actions/cache@v4
