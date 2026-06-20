@@ -94,6 +94,10 @@ gh release upload vX.Y.Z <檔> --clobber      # 補/換資產
 | **Android** | NDK r26 fortify 擋 `&readlinkat` | 用 **NDK r25.1.8937393**(SDL 範本預設) |
 | **Android** | 開機 `ClassNotFoundException` 崩潰 | `namespace` 維持 `org.libsdl.app`(對齊 SDL Java 類別),只設 `applicationId`;勿全域改套件名 |
 | **Android** | `fopen` 讀不到 APK assets | 啟動引導 `android_glue.c` 依 `filelist.txt` 解壓到內部儲存,再合成 argv |
+| **Android** | 手機建角無法輸入姓名 | 姓名步驟 `SDL_StartTextInput()` 叫出軟鍵盤 + 吃 `SDL_TEXTINPUT`(換行當 RETURN);其餘步驟 `SDL_StopTextInput()` 收起。字元只走 TEXTINPUT、KEYDOWN 只傳控制鍵 → 桌面不重複 |
+| **Android** | 無聲音 | 預設沒連 SDL2_mixer。`build_apk.sh` 加 SDL2_mixer + `-DHAVE_SDL_MIXER=1`;**關 `SUPPORT_WAVPACK`**(預設 true 但需外部 wavpack 模組 → `undefined modules: wavpack`)。WAV(音效)+ OGG-stb(音樂)為 header-only 預設可用 |
+| **Android** | 觸控疊層漏鍵 / 暴露作弊鍵 | 虛擬鈕要對齊**實際功能鍵**(含 F6 設定);**勿把除錯鍵(I 給全道具)放成按鈕** |
+| **Android inject** | `inject_data.sh` 注入失敗 | ① 引擎 APK 解開後空 `assets/data` 目錄不存在(空目錄不入 zip)→ 複製前 `mkdir -p`。② `u2cht-android` image **沒有 `zip`** → 用 image 內建 `python3` zipfile 打包,再 `zipalign`+`apksigner` 重簽 |
 | **macOS CI** | `ld: library 'SDL2' not found` | Homebrew SDL2 在 `/opt/homebrew/lib`(非預設搜尋路徑)→ CMakeLists 加 `target_link_directories(${SDL2*_LIBRARY_DIRS})`(Linux /usr/lib 無害) |
 | **macOS CI** | 字型 cask 不存在 / raw URL 404 | 改 curl **Noto Sans CJK**(`github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf`) |
 | **macOS** | Intel 版 | GitHub Intel(macos-13)runner 長期配置不到;arm64 可用,Intel 暫缺 |
