@@ -40,6 +40,9 @@ cp -r "SDL2-$SDLV"            "$BUILD/app/jni/SDL"
 cp -r "SDL2_ttf-$TTFV"        "$BUILD/app/jni/SDL2_ttf"
 cp -r "SDL2_image-$IMGV"      "$BUILD/app/jni/SDL2_image"
 cp -r "SDL2_mixer-$MIXV"      "$BUILD/app/jni/SDL2_mixer"
+# SDL2_mixer 預設開 WAVPACK,但它需外部 wavpack 模組(未附)→ undefined module 錯誤。
+# 只需 WAV(音效)+ OGG-stb(音樂),關掉會拉外部模組的 codec(其餘 drflac/minimp3 為 header-only 無害)。
+sed -i 's/^SUPPORT_WAVPACK ?= true/SUPPORT_WAVPACK := false/' "$BUILD/app/jni/SDL2_mixer/Android.mk"
 # SDL 的 Java 類別(org.libsdl.app.*)隨範本帶入;確認存在
 test -d "$BUILD/app/src/main/java/org/libsdl/app"
 
