@@ -2785,23 +2785,26 @@ int main(int argc, char **argv)
                 Create c; create_init(&c);
                 int done=0;
                 while (running && !done){
+                    /* 姓名步驟啟用文字輸入(Android 會叫出軟鍵盤),其餘步驟關閉(用觸控方向鍵)*/
+                    if (c.step==CS_NAME) SDL_StartTextInput(); else SDL_StopTextInput();
                     render_create(cv,&c,&title,&body,&small);
                     present_canvas(ren,cv,TUI_CREATE);
                     SDL_Event e;
                     while (SDL_WaitEvent(&e)){
                         if (e.type==SDL_QUIT){ running=0; break; }
                         if (e.type==SDL_FINGERDOWN){ touch_ui_finger(e.tfinger.x,e.tfinger.y); break; }
-                        if (e.type==SDL_KEYDOWN){
-                            SDL_Keycode k=e.key.keysym.sym;
-                            char ch=0;
-                            if (k>=SDLK_a&&k<=SDLK_z) ch='A'+(k-SDLK_a);
-                            else if (k>=SDLK_0&&k<=SDLK_9) ch='0'+(k-SDLK_0);
-                            else if (k==SDLK_SPACE) ch=' ';
-                            done=create_feed(&c,k,ch);
+                        if (e.type==SDL_TEXTINPUT){   /* 文字輸入(含軟鍵盤):餵姓名字元(字元只走此路,避免桌面重複)*/
+                            for (const char *p=e.text.text; *p; p++)
+                                done = (*p=='\n'||*p=='\r') ? create_feed(&c,SDLK_RETURN,0) : create_feed(&c,0,*p);
+                            break;
+                        }
+                        if (e.type==SDL_KEYDOWN){     /* KEYDOWN 只傳控制鍵(方向/Enter/Backspace),ch=0 */
+                            done=create_feed(&c,e.key.keysym.sym,0);
                             break;
                         }
                     }
                 }
+                SDL_StopTextInput();   /* 離開建角關閉文字輸入(收起軟鍵盤)*/
                 if (done){
                     g.save=make_character(&c);
                     g.items=0; g.weapon=0; g.armour=0;  /* 新角色:無裝備/道具 */
