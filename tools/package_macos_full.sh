@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 組裝本機自用的 macOS arm64 完整版；不建置 Mach-O，只接受已驗證的 binary。
+# 組裝本機自用的 macOS 完整版；不建置 Mach-O，只接受已驗證的 binary。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -8,7 +8,8 @@ VERSION="${2:?缺少版本}"
 OUT_ROOT="${3:-$ROOT/dist-all}"
 FONT="${FONT:-/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc}"
 SOURCE_COMMIT="${SOURCE_COMMIT:-unknown}"
-OUT="$OUT_ROOT/$VERSION/full/macos-arm64"
+MACOS_ARCH="${MACOS_ARCH:-arm64}"
+OUT="$OUT_ROOT/$VERSION/full/macos-$MACOS_ARCH"
 APP="$OUT/Ultima2.app"
 SHARE="$APP/Contents/Resources/share"
 
@@ -73,7 +74,7 @@ LAUNCH
 chmod 0755 "$APP/Contents/MacOS/launch"
 
 cat > "$OUT/README-完整版.txt" <<EOF
-創世紀 II：女巫的復仇——繁體中文 macOS arm64 完整版
+創世紀 II：女巫的復仇——繁體中文 macOS ${MACOS_ARCH} 完整版
 版本：${VERSION}
 
 1. 解壓後以右鍵選擇「打開」Ultima2.app。
@@ -86,7 +87,7 @@ EOF
 
 cat > "$OUT/BUILD-METADATA.txt" <<EOF
 version=${VERSION}
-architecture=arm64
+architecture=${MACOS_ARCH}
 minimum_macos=11.0
 sdk=macOS 15.5
 sdl=2.30.9
@@ -97,9 +98,9 @@ packaging=full-private
 source_commit=${SOURCE_COMMIT}
 EOF
 
-(cd "$OUT" && zip -qry -y "Ultima2-繁中-macos-arm64-full.zip" "Ultima2.app" \
+(cd "$OUT" && zip -qry -y "Ultima2-繁中-macos-${MACOS_ARCH}-full.zip" "Ultima2.app" \
     "README-完整版.txt" "BUILD-METADATA.txt")
-sha256sum "$OUT/Ultima2-繁中-macos-arm64-full.zip" > \
-    "$OUT/Ultima2-繁中-macos-arm64-full.zip.sha256"
+sha256sum "$OUT/Ultima2-繁中-macos-${MACOS_ARCH}-full.zip" > \
+    "$OUT/Ultima2-繁中-macos-${MACOS_ARCH}-full.zip.sha256"
 
-echo "$OUT/Ultima2-繁中-macos-arm64-full.zip"
+echo "$OUT/Ultima2-繁中-macos-${MACOS_ARCH}-full.zip"
