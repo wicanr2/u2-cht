@@ -27,7 +27,7 @@ jobs:
       - name: 安裝相依(SDL2 系列 + 工具)
         run: |
           brew update
-          brew install sdl2 sdl2_ttf sdl2_image sdl2_mixer cmake pkg-config python@3.12 || true
+          brew install sdl2 sdl2_ttf sdl2_image sdl2_mixer cmake pkg-config python@3.12 dylibbundler
           python3 -m pip install --break-system-packages pillow || pip3 install pillow
 
       - name: 編譯 u2_game
@@ -63,8 +63,8 @@ jobs:
           cp build/u2_game "$APP/Contents/MacOS/u2_game"
           cp stage/tileset/*.png "$APP/Contents/Resources/share/tileset/"
           cp stage/font/wqy-zenhei.ttc "$APP/Contents/Resources/share/font/"
-          cp translations/exe_translatable_strings.tsv translations/ui_strings.tsv "$APP/Contents/Resources/share/translations/"
-          cp tests/fixtures/player_sample_abcd "$APP/Contents/Resources/share/data/player" || true
+          cp translations/exe_translatable_strings.tsv translations/talk_dialogue.tsv \
+             translations/ui_strings.tsv "$APP/Contents/Resources/share/translations/"
           [ -f docs/screenshots/fmtowns_title_decoded.png ] && cp docs/screenshots/fmtowns_title_decoded.png "$APP/Contents/Resources/share/title.png" || true
           cat > "$APP/Contents/Info.plist" <<'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
@@ -94,8 +94,23 @@ jobs:
                "$D/translations/exe_translatable_strings.tsv" "$D/data/player" $TTL $MUS $SFX
           LAUNCH
           chmod +x "$APP/Contents/MacOS/launch"
+          # Homebrew 的 SDL2 會把 /opt/homebrew 或 /usr/local 絕對路徑寫入 Mach-O。
+          # 將 SDL2 及遞迴相依一併放進 app，並改成 app 內的相對載入路徑，
+          # 讓沒有安裝 Homebrew 的使用者也能啟動。
+          mkdir -p "$APP/Contents/Frameworks"
+          dylibbundler -od -b -x "$APP/Contents/MacOS/u2_game" \
+            -d "$APP/Contents/Frameworks" \
+            -p '@executable_path/../Frameworks/'
+
+          # 封包閘門：主程式與攜帶的 dylib 都不得再依賴建置機的 Homebrew 路徑。
+          if otool -L "$APP/Contents/MacOS/u2_game" "$APP"/Contents/Frameworks/*.dylib \
+              | grep -E '/opt/homebrew|/usr/local/(opt|Cellar)'; then
+            echo '錯誤：macOS app 仍含 Homebrew 絕對動態函式庫路徑' >&2
+            exit 1
+          fi
+          test -n "$(find "$APP/Contents/Frameworks" -name '*.dylib' -print -quit)"
           # ad-hoc 簽章(避免 Gatekeeper 直接拒;使用者仍可能需右鍵開啟)
-          codesign --force --deep --sign - "$APP" || true
+          codesign --force --deep --sign - "$APP"
 
       - name: 打包 zip + 說明
         run: |
