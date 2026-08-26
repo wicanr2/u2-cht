@@ -1,0 +1,11 @@
+# Ultima II C/SDL2 macOS cross-build revision.
+#
+# Reuses the existing private Apple SDK toolchain from u5cht/osxcross and adds
+# only the C project build tools that image intentionally omits (it is Go-only).
+# The resulting image is local/private because the Apple SDK must not be
+# redistributed.
+FROM u5cht/osxcross:latest
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends make pkg-config \
+    && rm -rf /var/lib/apt/lists/*
