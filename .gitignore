@@ -51,6 +51,7 @@ build/u2up/
 # === 建置產物 ===
 build/
 dist/
+dist-all/
 *.o
 *.out
 *_out.png
