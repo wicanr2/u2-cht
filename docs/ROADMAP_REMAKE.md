@@ -115,7 +115,7 @@ STRANGE COIN · GREEN IDOL · TRI-LITHIUM · **RING** · **ENILNO(Quicksword)** 
 - ✅ **依手冊校正翻譯**(光劍/巨劍/Enilno/時代名)+ 擴充 `CONTEXT.md` 術語表。
 - ✅ **地牢登記表驅動(per-location)**:`enter_dungeon_at(dest,tower)` 依 LOC_REG 載入對應地牢圖(快取重載)。
 - ✅ **跨時代 enter/exit/dungeon 流程驗證**:headless DXOXPOX 正確回到對應時代 overworld 返回座標。
-- ✅ **F4 語系切換**:UI/對話/訊息/面板繁中↔English(見 commit 3c99aa6 / 901b754)。
+- ✅ **F4 語系切換**:UI/對話/訊息/面板繁中↔English(見 commit b207d33 / 50bac97)。
 
 **M1 引擎骨架 ≈ 完成。** 殘留(需外部資料,非引擎):
 - 🟡 **landmark→地點精確校正**:`LOC_REG` 哪個門通哪座城/地牢仍 provisional → 需 emulator/oracle 深挖。

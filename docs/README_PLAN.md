@@ -223,7 +223,7 @@ Ghidra 反編 C  ──(只當行為/演算法 oracle,不照抄 MFC 殼)──�
 | 隊伍移動(置中 / 鏡頭跟隨 / 海洋碰撞,headless) | `docs/MOVEMENT.md`、commit `4aad753` |
 | 端到端在地化(原始 tlkx → 覆蓋層 → CJK) | commit `abdafc7` |
 | data 層自動化測試(15 斷言,headless) | `./run_tests.sh`、commit `d171baa` |
-| player 存檔結構(BCD 屬性,DOSBox 實機差分驗證) | `docs/DATA_FORMATS.md`、commit `b8d46b0` |
+| player 存檔結構(BCD 屬性,DOSBox 實機差分驗證) | `docs/DATA_FORMATS.md`、commit `3db5b5b` |
 
 ### ⏳ 進行中 / 尚未實作
 
